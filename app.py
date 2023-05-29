@@ -138,4 +138,4 @@ with gr.Blocks() as demo:
             outputs=[component.component for component in components]
         )
 
-demo.launch(share=True)
+demo.launch()
