@@ -1,0 +1,12 @@
+langchain
+openai
+google-search-results
+tiktoken
+chromadb
+torch
+torchvision
+torchaudio
+tiktoken
+jsonlines
+gradio
+StrEnum
