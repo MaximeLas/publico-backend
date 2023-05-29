@@ -1,15 +1,18 @@
 import gradio as gr
-from enum import Enum
+from enum import Enum, auto
 from typing import Optional
 
 class UserInteractionType(Enum):
-    YES_NO = 1
-    FILES = 2
-    TEXT = 3
-    START = 4
-    NONE = 5
+    YES_NO = auto()
+    FILES = auto()
+    TEXT = auto()
+    START = auto()
+    NONE = auto()
 
-
+class OutputKeys(Enum):
+    APPLICATION_QUESTION = auto()
+    WORD_COUNT = auto()
+    
 class ComponentWrapper:
     
     def __init__(
@@ -37,9 +40,15 @@ class ComponentWrapper:
 
 
 class ChatbotStep:
-    def __init__(self, message: str, user_interaction_type: UserInteractionType):
+    def __init__(
+        self,
+        message: str,
+        user_interaction_type: UserInteractionType,
+        output_key: Optional[OutputKeys] = None
+    ):
         self.message = message
         self.user_interaction_type = user_interaction_type
+        self.output_key = output_key
 
 
 chatbot_steps = [
@@ -54,15 +63,24 @@ chatbot_steps = [
         user_interaction_type=UserInteractionType.NONE),
     ChatbotStep( # 3
         message="Now, on to the first question! Please let me know what the first application question is, or copy and paste it from the application portal.",
-        user_interaction_type=UserInteractionType.TEXT),
+        user_interaction_type=UserInteractionType.TEXT,
+        output_key=OutputKeys.APPLICATION_QUESTION),
     ChatbotStep( # 4
         message="What is the word count?",
-        user_interaction_type=UserInteractionType.TEXT)]
+        user_interaction_type=UserInteractionType.TEXT,
+        output_key=OutputKeys.WORD_COUNT)]
 
+OUTPUT_VARIABLES: dict = {}
+def handle_user_interaction(user_message, chat_history):
+    if current_chatbot_step and current_chatbot_step.output_key:
+        OUTPUT_VARIABLES[current_chatbot_step.output_key] = user_message
+        print(OUTPUT_VARIABLES)
+    
+    return '', chat_history[:-1] + [[chat_history[-1][0], user_message]]
 
 current_chatbot_step: Optional[ChatbotStep] = None
 step = -1 # -1 because we increment it before using it
-
+    
 
 def update_current_chatbot_step():
     global step, current_chatbot_step
@@ -99,7 +117,7 @@ with gr.Blocks() as demo:
             trigger_function_name='submit',
             user_interaction_type=UserInteractionType.TEXT)
         user_text_box.set_first_actions_after_trigger([{
-            'fn': (lambda user_message, chat_history: ('', chat_history[:-1] + [[chat_history[-1][0], user_message]])),
+            'fn': handle_user_interaction,
             'inputs': [user_text_box.component, chatbot],
             'outputs': [user_text_box.component, chatbot]
         }])
@@ -128,7 +146,7 @@ with gr.Blocks() as demo:
             update_current_chatbot_step, None, None
         ).then(
             # stream chatbot message to chatbot component
-            fn=lambda chat_history: chat_history + [[current_chatbot_step.message, None]],
+            fn=lambda chat_history: chat_history + [[current_chatbot_step.message, None]] if current_chatbot_step else chat_history,
             inputs=chatbot,
             outputs= chatbot
         ).then(
