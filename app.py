@@ -1,6 +1,6 @@
 from enum import Enum, auto
 from strenum import StrEnum
-from typing import Optional, Callable
+from typing import Callable
 
 import gradio as gr
 
@@ -42,6 +42,10 @@ class UserInteractionType(Enum):
     START = auto()
     NONE = auto()
     
+import gradio as gr
+from typing import Callable, get_args, get_type_hints
+
+    
 class ComponentWrapper:
     trigger_index = 0
     
@@ -78,13 +82,16 @@ class ChatbotStep:
         self,
         message: str,
         user_interaction_type: UserInteractionType,
-        output_key: Optional[OutputKeys] = None,
-        generate_output_fn: Optional[Callable[[dict], str]] = None
+        output_key: OutputKeys | None = None,
+        generate_output_fn: Callable[[dict], str] | None = None,
+        format_values: dict = {}
     ):
         self.message = message
         self.user_interaction_type = user_interaction_type
         self.output_key = output_key
         self.generate_output_fn = generate_output_fn
+        self.format_values = format_values
+
 
 
 chatbot_steps = [
@@ -92,17 +99,15 @@ chatbot_steps = [
         message="Have you applied for this grant before?",
         user_interaction_type=UserInteractionType.YES_NO),
     ChatbotStep( # 1
-        message="That's very useful! Please upload your prior grant application(s).",
+        message="That's very useful! Please upload your {document_type}.",
         user_interaction_type=UserInteractionType.FILES,
-        output_key=OutputKeys.PRIOR_GRANT_APPLICATIONS),
+        output_key=OutputKeys.PRIOR_GRANT_APPLICATIONS,
+        format_values={"document_type": "prior grant application(s)"}),
     ChatbotStep( # 2
-        message="You successfully uploaded {file_count} prior grant application(s)! 🎉",
-        user_interaction_type=UserInteractionType.NONE),
-    ChatbotStep( # 3
         message="Now, on to the first question! Please let me know what the first application question is, or copy and paste it from the application portal.",
         user_interaction_type=UserInteractionType.TEXT,
         output_key=OutputKeys.APPLICATION_QUESTION),
-    ChatbotStep( # 4
+    ChatbotStep( # 3
         message="What is the word count?",
         user_interaction_type=UserInteractionType.TEXT,
         output_key=OutputKeys.WORD_COUNT,
@@ -116,24 +121,27 @@ def handle_user_interaction(user_message, chat_history, step: int):
     
     new_chat_history = chat_history[:-1] + [[chat_history[-1][0], user_message]]
 
-    if chatbot_steps[step].generate_output_fn:
-        generated_output = chatbot_steps[step].generate_output_fn(OUTPUT_VARIABLES)
+    gen_output_fn = chatbot_steps[step].generate_output_fn
+    if gen_output_fn is not None:
+        generated_output = gen_output_fn(OUTPUT_VARIABLES)
         new_chat_history += [[generated_output, None]]
     
     return '', new_chat_history
 
 
-def handle_files_uploaded(files, step: int, chat_history):
+def handle_files_uploaded(files: list, step: int, chat_history: list[list]):
     # iterate over files and print their names
     for file in files: print(f'File uploaded: {file.name.split("/")[-1]}')
 
-    output_var_for_files = chatbot_steps[step].output_key
+    files_step = chatbot_steps[step]
+
+    output_var_for_files = files_step.output_key
     OUTPUT_VARIABLES[output_var_for_files] = [file.name for file in files]
     print(f'{output_var_for_files}: {OUTPUT_VARIABLES[output_var_for_files]}')
 
-    next_chatbot_message = chatbot_steps[step + 1].message.format(file_count=len(files))
+    validation_message = f'You successfully uploaded {len(files)} {files_step.format_values["document_type"]}! 🎉'
 
-    return step + 1, chat_history + [[next_chatbot_message, None]]
+    return chat_history + [[validation_message, None]]
     
 
 def is_visible_in_current_user_interaction(component_wrapper: ComponentWrapper, step: int):
@@ -180,7 +188,7 @@ with gr.Blocks() as demo:
         files.set_first_actions_after_trigger([{
             'fn': handle_files_uploaded,
             'inputs': [files.component, step_var, chatbot],
-            'outputs': [step_var, chatbot]
+            'outputs': chatbot
         }])
 
     components = [start_btn, yes_btn, no_btn, files, user_text_box]
@@ -193,7 +201,7 @@ with gr.Blocks() as demo:
             outputs=step_var
         ).then(
             # stream chatbot message to chatbot component
-            fn=lambda chat_history, step: chat_history + [[chatbot_steps[step].message, None]] if step > -1 and step < len(chatbot_steps) else chat_history,
+            fn=lambda chat_history, step: chat_history + [[chatbot_steps[step].message.format(**chatbot_steps[step].format_values), None]] if step > -1 and step < len(chatbot_steps) else chat_history,
             inputs=[chatbot, step_var],
             outputs= chatbot
         ).then(
@@ -202,5 +210,7 @@ with gr.Blocks() as demo:
             inputs=step_var,
             outputs=[component.component for component in components]
         )
+
+demo.launch(share=True)
 
 demo.launch()
