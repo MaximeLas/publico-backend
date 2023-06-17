@@ -1,3 +1,4 @@
+from abc import ABC
 from enum import Enum, auto
 from strenum import StrEnum
 from typing import Callable
