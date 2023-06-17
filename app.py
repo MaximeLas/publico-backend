@@ -30,20 +30,90 @@ def generate_answer_to_question(vars: dict) -> str:
     return final_answer
 
 
-class OutputKeys(StrEnum):
-    APPLICATION_QUESTION = 'Application Question'
-    WORD_COUNT = 'Word count'
-    PRIOR_GRANT_APPLICATIONS = 'Prior grant applications'
-
 class UserInteractionType(Enum):
     YES_NO = auto()
     FILES = auto()
     TEXT = auto()
     START = auto()
     NONE = auto()
+
+class OutputKeys(Enum):
+    HAS_APPLIED_FOR_THIS_GRANT_BEFORE = auto()
+    PRIOR_GRANT_APPLICATIONS = auto()
+    APPLICATION_QUESTION = auto()
+    WORD_COUNT = auto()
+
+class ChatbotStep(ABC):
+    def __init__(
+        self,
+        user_interaction_type: UserInteractionType,
+        message: str,
+        output_key: OutputKeys,
+        generate_output_fn: Callable[[dict], str] | None = None
+    ):
+        self._user_interaction_type = user_interaction_type
+        self._message = message
+        self._output_key = output_key
+        self._generate_output_fn = generate_output_fn
     
-import gradio as gr
-from typing import Callable, get_args, get_type_hints
+    @property
+    def user_interaction_type(self):
+        return self._user_interaction_type
+
+    @property
+    def message(self):
+        return self._message
+    
+    @property
+    def output_key(self):
+        return self._output_key
+
+    @property
+    def generate_output_fn(self):
+        return self._generate_output_fn
+
+class FilesStep(ChatbotStep):
+    def __init__(
+        self,
+        message: str,
+        output_key: OutputKeys,
+        kind_of_document: str
+    ):
+        super().__init__(UserInteractionType.FILES, message, output_key)
+        self._kind_of_document = kind_of_document
+    
+    @property
+    def message(self):
+        return self._message.format(kind_of_document=self._kind_of_document)
+    
+    @property
+    def kind_of_document(self):
+        return self._kind_of_document
+
+class TextStep(ChatbotStep):
+    def __init__(
+        self,
+        message: str,
+        output_key: OutputKeys,
+        generate_output_fn: Callable[[dict], str] | None = None
+    ):
+        super().__init__(UserInteractionType.TEXT, message, output_key, generate_output_fn)
+
+class StartStep(ChatbotStep):
+    def __init__(
+        self,
+        message: str,
+        output_key: OutputKeys
+    ):
+        super().__init__(UserInteractionType.START, message, output_key)
+
+class YesNoStep(ChatbotStep):
+    def __init__(
+        self,
+        message: str,
+        output_key: OutputKeys
+    ):
+        super().__init__(UserInteractionType.YES_NO, message, output_key)
 
     
 class ComponentWrapper:
@@ -77,41 +147,22 @@ class ComponentWrapper:
         return trigger
 
 
-class ChatbotStep:
-    def __init__(
-        self,
-        message: str,
-        user_interaction_type: UserInteractionType,
-        output_key: OutputKeys | None = None,
-        generate_output_fn: Callable[[dict], str] | None = None,
-        format_values: dict = {}
-    ):
-        self.message = message
-        self.user_interaction_type = user_interaction_type
-        self.output_key = output_key
-        self.generate_output_fn = generate_output_fn
-        self.format_values = format_values
-
-
-
 chatbot_steps = [
-    ChatbotStep( # 0
+    YesNoStep( # 0
         message="Have you applied for this grant before?",
-        user_interaction_type=UserInteractionType.YES_NO),
-    ChatbotStep( # 1
-        message="That's very useful! Please upload your {document_type}.",
-        user_interaction_type=UserInteractionType.FILES,
+        output_key=OutputKeys.HAS_APPLIED_FOR_THIS_GRANT_BEFORE),
+    FilesStep( # 1
+        message="That's very useful! Please upload your {kind_of_document}.",
         output_key=OutputKeys.PRIOR_GRANT_APPLICATIONS,
-        format_values={"document_type": "prior grant application(s)"}),
-    ChatbotStep( # 2
+        kind_of_document="prior grant application(s)"),
+    TextStep( # 2
         message="Now, on to the first question! Please let me know what the first application question is, or copy and paste it from the application portal.",
-        user_interaction_type=UserInteractionType.TEXT,
         output_key=OutputKeys.APPLICATION_QUESTION),
-    ChatbotStep( # 3
+    TextStep( # 3
         message="What is the word count?",
-        user_interaction_type=UserInteractionType.TEXT,
         output_key=OutputKeys.WORD_COUNT,
         generate_output_fn=generate_answer_to_question)]
+
 
 OUTPUT_VARIABLES: dict = {}
 def handle_user_interaction(user_message, chat_history, step: int):
@@ -139,7 +190,7 @@ def handle_files_uploaded(files: list, step: int, chat_history: list[list]):
     OUTPUT_VARIABLES[output_var_for_files] = [file.name for file in files]
     print(f'{output_var_for_files}: {OUTPUT_VARIABLES[output_var_for_files]}')
 
-    validation_message = f'You successfully uploaded {len(files)} {files_step.format_values["document_type"]}! 🎉'
+    validation_message = f'You successfully uploaded {len(files)} {files_step.kind_of_document}! 🎉'
 
     return chat_history + [[validation_message, None]]
     
@@ -201,7 +252,7 @@ with gr.Blocks() as demo:
             outputs=step_var
         ).then(
             # stream chatbot message to chatbot component
-            fn=lambda chat_history, step: chat_history + [[chatbot_steps[step].message.format(**chatbot_steps[step].format_values), None]] if step > -1 and step < len(chatbot_steps) else chat_history,
+            fn=lambda chat_history, step: chat_history + [[chatbot_steps[step].message, None]] if step > -1 and step < len(chatbot_steps) else chat_history,
             inputs=[chatbot, step_var],
             outputs= chatbot
         ).then(
