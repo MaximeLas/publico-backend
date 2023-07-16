@@ -1,4 +1,5 @@
 langchain
+chromadb
 openai
 google-search-results
 tiktoken
