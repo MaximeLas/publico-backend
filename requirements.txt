@@ -2,7 +2,6 @@ langchain
 openai
 google-search-results
 tiktoken
-chromadb
 torch
 torchvision
 torchaudio
@@ -10,3 +9,4 @@ tiktoken
 jsonlines
 gradio
 StrEnum
+# export HNSWLIB_NO_NATIVE=1

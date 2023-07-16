@@ -9,6 +9,7 @@ from langchain.callbacks import get_openai_callback
 from langchain.chains.question_answering import load_qa_chain
 from langchain.chat_models import ChatOpenAI
 
+from prompts import get_prompt_template_for_question
 
 
 def print_pretty_index(index: int):
@@ -284,7 +285,8 @@ def get_most_relevant_docs_in_vector_store_for_answering_question(
 def generate_answers_from_documents_for_question(
     documents: List[Document],
     chat_openai: ChatOpenAI,
-    question: str
+    question: str,
+    step: int = 1
 ) -> List[str]:
     '''
     Generate answers from documents for question using chat_model and print them
@@ -292,6 +294,7 @@ def generate_answers_from_documents_for_question(
             documents (List[Document]): list of documents to generate answers from
             chat_model (BaseChatModel): chat model to use for generating answers
             question (str): question to generate answers for
+            step (int): see https://docs.google.com/document/d/1oxQJ0xYPkySs1C0t92md--t_AwD-smjhHkMd9dYqGyY/edit?pli=1 (default: 1)
         
         Returns:
             List[str]: list of answers generated from documents for question
@@ -300,12 +303,20 @@ def generate_answers_from_documents_for_question(
     answers = []
     for i, doc in enumerate(documents):
         with get_openai_callback() as cb:
-            chain = load_qa_chain(chat_openai, chain_type='stuff')
+            chain = load_qa_chain(
+                llm=chat_openai,
+                chain_type='stuff',
+                prompt=get_prompt_template_for_question() if step == 1 else None
+            )
+
             answer = chain.run(input_documents=[doc], question=question)
+
             print_pretty_index(i)
             print(f'Generated answer for "{question}":\n\n{answer}\n')
             print(f'Summary info OpenAI callback:\n{cb}\n\n')
+
             answers.append(answer)
     
     print(f'Finished generating answer(s) for question "{question}" from {len(documents)} documents\n\n')
+
     return answers

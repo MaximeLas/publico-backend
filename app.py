@@ -18,8 +18,8 @@ def generate_answer_to_question(vars: dict) -> str:
     vector_store = Chroma.from_documents(documents=documents_chunks, embedding=OpenAIEmbeddings(client=None))
     
     question_for_prompt = vars[OutputKeys.APPLICATION_QUESTION]
-    if vars[OutputKeys.WORD_COUNT] and vars[OutputKeys.WORD_COUNT].isdigit():
-        question_for_prompt += f' (Word Count: {vars[OutputKeys.WORD_COUNT]})'
+    if vars[OutputKeys.WORD_LIMIT] and vars[OutputKeys.WORD_LIMIT].isdigit():
+        question_for_prompt += f' ({vars[OutputKeys.WORD_LIMIT]} words)'
 
     most_relevant_documents = get_most_relevant_docs_in_vector_store_for_answering_question(
         vector_store=vector_store, question=question_for_prompt, n_results=1)
@@ -43,7 +43,7 @@ class OutputKeys(Enum):
     HAS_APPLIED_FOR_THIS_GRANT_BEFORE = auto()
     PRIOR_GRANT_APPLICATIONS = auto()
     APPLICATION_QUESTION = auto()
-    WORD_COUNT = auto()
+    WORD_LIMIT = auto()
 
 class ChatbotStep(ABC):
     def __init__(
@@ -214,8 +214,8 @@ CHATBOT_STEPS = [
         message="Now, on to the first question! Please let me know what the first application question is, or copy and paste it from the application portal.",
         output_key=OutputKeys.APPLICATION_QUESTION),
     TextStep( # 3
-        message="What is the word count?",
-        output_key=OutputKeys.WORD_COUNT,
+        message="What is the word limit?",
+        output_key=OutputKeys.WORD_LIMIT,
         generate_output_fn=generate_answer_to_question)]
 
 
