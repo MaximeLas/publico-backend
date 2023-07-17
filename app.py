@@ -9,8 +9,10 @@ from gradio.events import EventListenerMethod
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import Chroma
 from langchain.chat_models import ChatOpenAI
+from langchain.chains import LLMChain
 
 from helpers import *
+from prompts import get_prompt_template_for_comprehensiveness_check
 
 
 def generate_answer_to_question(vars: dict) -> str:
@@ -26,10 +28,26 @@ def generate_answer_to_question(vars: dict) -> str:
 
     chatopenai = ChatOpenAI(client=None, model_name='gpt-4', temperature=0.1)
 
-    final_answer = generate_answers_from_documents_for_question(most_relevant_documents, chatopenai, vars[OutputKeys.APPLICATION_QUESTION])[0]
+    vars[OutputKeys.APPLICATION_ANSWER] = generate_answers_from_documents_for_question(most_relevant_documents, chatopenai, vars[OutputKeys.APPLICATION_QUESTION])[0]
 
-    print(f'Final answer for application question "{vars[OutputKeys.APPLICATION_QUESTION]}":\n{final_answer}')
-    return final_answer
+    print(f'Final answer for application question "{vars[OutputKeys.APPLICATION_QUESTION]}":\n{vars[OutputKeys.APPLICATION_ANSWER]}')
+
+    return vars[OutputKeys.APPLICATION_ANSWER]
+
+
+def check_for_comprehensivenss(vars: dict) -> str | None:
+    if vars[OutputKeys.CHECK_COMPREHENSIVENESS] != 'Yes':
+        return None
+
+    chatopenai = ChatOpenAI(client=None, model_name='gpt-4', temperature=0.1)
+    prompt = get_prompt_template_for_comprehensiveness_check()
+
+    chain = LLMChain(llm=chatopenai, prompt=prompt)
+    response = chain.run(question=vars[OutputKeys.APPLICATION_QUESTION], answer=vars[OutputKeys.APPLICATION_ANSWER])
+
+    print(f'Response for check of comprehensiveness":\n{response}')
+
+    return response
 
 
 class UserInteractionType(Enum):
@@ -44,6 +62,8 @@ class OutputKeys(Enum):
     PRIOR_GRANT_APPLICATIONS = auto()
     APPLICATION_QUESTION = auto()
     WORD_LIMIT = auto()
+    APPLICATION_ANSWER = auto()
+    CHECK_COMPREHENSIVENESS = auto()
 
 class ChatbotStep(ABC):
     def __init__(
@@ -108,9 +128,16 @@ class StartStep(ChatbotStep):
 class YesNoStep(ChatbotStep):
     def __init__(
         self,
+        steps_to_skip_if_yes: int = 0,
+        steps_to_skip_if_no: int = 0,
         **kwargs
     ):
         super().__init__(user_interaction_type=UserInteractionType.YES_NO, **kwargs)
+        self._steps_to_skip_if_yes = steps_to_skip_if_yes
+        self._steps_to_skip_if_no = steps_to_skip_if_no
+
+    def steps_to_skip(self, yes_or_no: str) -> int:
+        return self._steps_to_skip_if_yes if yes_or_no == 'Yes' else self._steps_to_skip_if_no
         
 
 class ComponentWrapper(ABC):
@@ -197,7 +224,6 @@ class TextWrapper(ComponentWrapper):
             **kwargs)
 
 
-
 # define dict to store output variables from chatbot steps
 OUTPUT_VARIABLES = {}
 
@@ -205,7 +231,8 @@ OUTPUT_VARIABLES = {}
 CHATBOT_STEPS = [
     YesNoStep( # 0
         message="Have you applied for this grant before?",
-        output_key=OutputKeys.HAS_APPLIED_FOR_THIS_GRANT_BEFORE),
+        output_key=OutputKeys.HAS_APPLIED_FOR_THIS_GRANT_BEFORE,
+        steps_to_skip_if_no=1),
     FilesStep( # 1
         message="That's very useful! Please upload your {kind_of_document}.",
         output_key=OutputKeys.PRIOR_GRANT_APPLICATIONS,
@@ -216,47 +243,66 @@ CHATBOT_STEPS = [
     TextStep( # 3
         message="What is the word limit?",
         output_key=OutputKeys.WORD_LIMIT,
-        generate_output_fn=generate_answer_to_question)]
+        generate_output_fn=generate_answer_to_question),
+    YesNoStep( # 4
+        message="Do you want to check the comprehensiveness of the generated answer?",
+        output_key=OutputKeys.CHECK_COMPREHENSIVENESS,
+        generate_output_fn=check_for_comprehensivenss)]
+
+
+def save_to_output_variable(output_key: OutputKeys, value):
+    OUTPUT_VARIABLES[output_key] = value
+    print(f'{output_key}: {OUTPUT_VARIABLES[output_key]}')
 
 
 def handle_user_interaction(user_message, chat_history, step: int):
     text_step: TextStep = CHATBOT_STEPS[step]
 
     # save user message to output variable
-    OUTPUT_VARIABLES[text_step.output_key] = user_message
-    print(f'{text_step.output_key}: {OUTPUT_VARIABLES[text_step.output_key]}')
+    save_to_output_variable(text_step.output_key, user_message)
     
     # update chat history with user message
     new_chat_history = chat_history[:-1] + [[chat_history[-1][0], user_message]]
 
     # generate output if necessary and update chat history with it
-    gen_output_fn = text_step.generate_output_fn
-    if gen_output_fn is not None:
-        generated_output = gen_output_fn(OUTPUT_VARIABLES)
-        new_chat_history += [[generated_output, None]]
+    if (fn := text_step.generate_output_fn) is not None:
+        new_chat_history += [[fn(OUTPUT_VARIABLES), None]]
     
     return '', new_chat_history
 
 
-def handle_files_uploaded(files: list, step: int, chat_history: list[list]):
-    # iterate over files and print their names
-    for file in files: print(f'File uploaded: {file.name.split("/")[-1]}')
+def handle_yes_no_interaction(yes_or_no: str, chat_history, step: int):
+    yes_no_step: YesNoStep = CHATBOT_STEPS[step]
 
+    # save YES or NO to output variable
+    save_to_output_variable(yes_no_step.output_key, yes_or_no)
+
+    # generate output if necessary and update chat history with it
+    if (fn := yes_no_step.generate_output_fn) is not None:
+        if (chatbot_response := fn(OUTPUT_VARIABLES)) is not None:
+            chat_history += [[chatbot_response, None]]
+    
+    return chat_history, step + yes_no_step.steps_to_skip(yes_or_no)
+
+
+def handle_files_uploaded(files: list, step: int, chat_history: list[list]):
     files_step = CHATBOT_STEPS[step]
 
     # save file names to output variable
-    OUTPUT_VARIABLES[files_step.output_key] = [file.name for file in files]
-    print(f'{files_step.output_key}: {OUTPUT_VARIABLES[files_step.output_key]}')
+    save_to_output_variable(files_step.output_key, [file.name for file in files])
+
+    # iterate over files and print their names
+    for file in files: print(f'File uploaded: {file.name.split("/")[-1]}')
 
     # update chat history with validation message
     validation_message = f'You successfully uploaded {len(files)} {files_step.kind_of_document}! 🎉'
 
     return chat_history + [[validation_message, None]]
-    
+
 
 def is_visible_in_current_user_interaction(component_wrapper: ComponentWrapper, step: int):
     # if step is out of bounds, return False to hide component
-    if step < 0 or step >= len(CHATBOT_STEPS):
+    if not 0 <= step < len(CHATBOT_STEPS):
         return False
 
     # if step is in bounds, return True if component's user interaction type matches current step's user interaction type
@@ -276,11 +322,17 @@ with gr.Blocks() as demo:
         # start button component
         start_btn = StartWrapper(start_btn=gr.Button("Start", visible=True))
 
-        # yes button component
-        yes_btn = YesNoWrapper(yes_no_btn=gr.Button("Yes", visible=False))
-
-        # no button component
-        no_btn = YesNoWrapper(yes_no_btn=gr.Button("No", visible=False))
+        # yes/no button component
+        yes_no_btns = []
+        for value in ['Yes', 'No']:
+            btn_component = gr.Button(value, visible=False)
+            yes_no_btns.append(YesNoWrapper(
+                yes_no_btn=btn_component,
+                first_actions_after_trigger=[{
+                    'fn': handle_yes_no_interaction,
+                    'inputs': [btn_component, chatbot, step_var],
+                    'outputs': [chatbot, step_var]
+                }]))
 
         # user text box component
         text_box_component = gr.Textbox(label="User", lines=3, visible=False, interactive=True, placeholder="Type your message here")
@@ -302,7 +354,7 @@ with gr.Blocks() as demo:
                 'outputs': chatbot
             }])
 
-    components = [start_btn, yes_btn, no_btn, files, user_text_box]
+    components = [start_btn, yes_no_btns[0], yes_no_btns[1], files, user_text_box]
 
     for component in components:
         component.get_trigger_to_proceed().then(
@@ -311,8 +363,8 @@ with gr.Blocks() as demo:
             inputs=step_var,
             outputs=step_var
         ).then(
-            # stream chatbot message to chatbot component if step is within chatbot steps range
-            fn=lambda chat_history, step: chat_history + [[CHATBOT_STEPS[step].message, None]] if step > -1 and step < len(CHATBOT_STEPS) else chat_history,
+            # stream chatbot message to chatbot component if step is within chatbot steps range else stream default message
+            fn=lambda chat_history, step: chat_history + ([[CHATBOT_STEPS[step].message, None]] if 0 <= step < len(CHATBOT_STEPS) else [['End of demo, thanks for participating!', None]]),
             inputs=[chatbot, step_var],
             outputs= chatbot
         ).then(

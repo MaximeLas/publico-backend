@@ -181,7 +181,7 @@ def get_documents_chunks_from_documents(
 
     # print summary of metadata for each document
     for doc in documents_chunks:
-        print(f'• {doc.metadata["current_token_count"]} tokens in documents chunks from source \'{doc.metadata["source"]}\'')
+        print(f'• {doc.metadata["current_token_count"]} tokens in documents chunks from source \'{doc.metadata["source"].rsplit("/", 1)[-1]}\'')
     
     return documents_chunks
     
