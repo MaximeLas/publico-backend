@@ -27,7 +27,7 @@ if sqlite3.sqlite_version_info < (3, 35, 0):
     )
     __import__("pysqlite3")
     sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
-    print(f'installed sqlite3 version={sqlite3.sqlite_version_info}\n')
+    print(f'installed sqlite3 version={sys.modules["sqlite3"].sqlite_version_info}\n')
 
 
 def generate_answer_to_question(vars: dict) -> str:
