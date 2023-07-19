@@ -1,6 +1,5 @@
 from abc import ABC
 from enum import Enum, auto
-from strenum import StrEnum
 from typing import Callable
 
 import gradio as gr
@@ -22,16 +21,17 @@ from prompts import get_prompt_template_for_comprehensiveness_check
 # Error: Your system has an unsupported version of sqlite3. Chroma requires sqlite3 >= 3.35.0
 import sqlite3
 if sqlite3.sqlite_version_info < (3, 35, 0):
-    print(f'sqlite3 version is too old version={sqlite3.sqlite_version_info}\n')
+    print(f'sqlite3 version is too old version={sqlite3.sqlite_version_info}')
+    print(f'installing sqlite3 version >= 3.35.0\n')
+
     import subprocess
     import sys
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "pysqlite3-binary"])
 
-    subprocess.check_call(
-        [sys.executable, "-m", "pip", "install", "pysqlite3-binary"]
-    )
     __import__("pysqlite3")
     sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
-    print(f'\ninstalled sqlite3 version={sqlite3.sqlite_version_info}\n')
+
+    print(f'\ninstalled sqlite3 version={sys.modules["sqlite3"].sqlite_version_info}\n')
 
 
 def generate_answer_to_question(vars: dict) -> str:

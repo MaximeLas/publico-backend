@@ -9,7 +9,6 @@ torchaudio
 tiktoken
 jsonlines
 gradio
-StrEnum
 unstructured
 
 # export HNSWLIB_NO_NATIVE=1
