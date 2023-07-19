@@ -11,6 +11,5 @@ jsonlines
 gradio
 StrEnum
 unstructured
-pysqlite3-binary
 
 # export HNSWLIB_NO_NATIVE=1

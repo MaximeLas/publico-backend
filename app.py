@@ -14,15 +14,23 @@ from langchain.chains import LLMChain
 from helpers import *
 from prompts import get_prompt_template_for_comprehensiveness_check
 
+# check if sqlite3 version is too old and install newer version if necessary in order to avoid error:
+# Error: Your system has an unsupported version of sqlite3. Chroma requires sqlite3 >= 3.35.0
+import sqlite3
+if sqlite3.sqlite_version_info < (3, 35, 0):
+    print(f'sqlite3 version is too old version={sqlite3.sqlite_version_info}')
+    import subprocess
+    import sys
+
+    subprocess.check_call(
+        [sys.executable, "-m", "pip", "install", "pysqlite3-binary"]
+    )
+    __import__("pysqlite3")
+    sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
+    print(f'installed sqlite3 version={sqlite3.sqlite_version_info}\n')
+
 
 def generate_answer_to_question(vars: dict) -> str:
-    import sqlite3
-    if sqlite3.sqlite_version_info < (3, 35, 0):
-        print(sqlite3.sqlite_version_info)
-        import sys
-        __import__("pysqlite3")
-        sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
-
     documents_chunks = get_documents_chunks_for_files(vars[OutputKeys.PRIOR_GRANT_APPLICATIONS])
     vector_store = Chroma.from_documents(documents=documents_chunks, embedding=OpenAIEmbeddings(client=None))
 
