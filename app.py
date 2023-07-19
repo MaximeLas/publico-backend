@@ -16,6 +16,7 @@ from prompts import get_prompt_template_for_comprehensiveness_check
 
 
 def generate_answer_to_question(vars: dict) -> str:
+    import sqlite3
     if sqlite3.sqlite_version_info < (3, 35, 0):
         print(sqlite3.sqlite_version_info)
         import sys
