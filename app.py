@@ -16,21 +16,27 @@ from prompts import get_prompt_template_for_comprehensiveness_check
 
 
 def generate_answer_to_question(vars: dict) -> str:
-    documents_chunks = get_documents_chunks_for_txt_files(vars[OutputKeys.PRIOR_GRANT_APPLICATIONS])
+    documents_chunks = get_documents_chunks_for_files(vars[OutputKeys.PRIOR_GRANT_APPLICATIONS])
     vector_store = Chroma.from_documents(documents=documents_chunks, embedding=OpenAIEmbeddings(client=None))
-    
-    question_for_prompt = vars[OutputKeys.APPLICATION_QUESTION]
-    if vars[OutputKeys.WORD_LIMIT] and vars[OutputKeys.WORD_LIMIT].isdigit():
-        question_for_prompt += f' ({vars[OutputKeys.WORD_LIMIT]} words)'
 
+    if vars[OutputKeys.APPLICATION_QUESTION] == '':
+        vars[OutputKeys.APPLICATION_ANSWER] = ''
+        print(f'No application question provided, skipping generation of answer.\n')
+        return 'No answer generated due to missing application question.'
+
+    question_for_prompt = vars[OutputKeys.APPLICATION_QUESTION]
     most_relevant_documents = get_most_relevant_docs_in_vector_store_for_answering_question(
         vector_store=vector_store, question=question_for_prompt, n_results=1)
 
+    if vars[OutputKeys.WORD_LIMIT] and vars[OutputKeys.WORD_LIMIT].isdigit():
+        question_for_prompt += f' ({vars[OutputKeys.WORD_LIMIT]} words)'
+
     chatopenai = ChatOpenAI(client=None, model_name='gpt-4', temperature=0.1)
 
-    vars[OutputKeys.APPLICATION_ANSWER] = generate_answers_from_documents_for_question(most_relevant_documents, chatopenai, vars[OutputKeys.APPLICATION_QUESTION])[0]
+    vars[OutputKeys.APPLICATION_ANSWER] = generate_answers_from_documents_for_question(
+        most_relevant_documents, chatopenai, question_for_prompt)[0]
 
-    print(f'Final answer for application question "{vars[OutputKeys.APPLICATION_QUESTION]}":\n{vars[OutputKeys.APPLICATION_ANSWER]}')
+    print(f'Final answer for application question "{vars[OutputKeys.APPLICATION_QUESTION]}":\n\n{vars[OutputKeys.APPLICATION_ANSWER]}\n')
 
     return vars[OutputKeys.APPLICATION_ANSWER]
 
@@ -42,10 +48,10 @@ def check_for_comprehensivenss(vars: dict) -> str | None:
     chatopenai = ChatOpenAI(client=None, model_name='gpt-4', temperature=0.1)
     prompt = get_prompt_template_for_comprehensiveness_check()
 
-    chain = LLMChain(llm=chatopenai, prompt=prompt)
+    chain = LLMChain(llm=chatopenai, prompt=prompt, verbose=True)
     response = chain.run(question=vars[OutputKeys.APPLICATION_QUESTION], answer=vars[OutputKeys.APPLICATION_ANSWER])
 
-    print(f'Response for check of comprehensiveness":\n{response}')
+    print(f'Response for check of comprehensiveness:\n\n{response}\n')
 
     return response
 
@@ -166,7 +172,9 @@ class ComponentWrapper(ABC):
     def get_trigger_to_proceed(self):
         def print_trigger_index():
             ComponentWrapper.trigger_index += 1
-            print(f'\n-- {ComponentWrapper.trigger_index} -- Triggered {type(self._component).__name__}')
+            component_name = self._component.label or self._component.value
+            component_type = type(self._component).__name__
+            print(f'-- {ComponentWrapper.trigger_index} -- Triggered \'{component_name}\' {component_type}\n')
 
         trigger = self._trigger_to_proceed(print_trigger_index)
 
@@ -252,7 +260,7 @@ CHATBOT_STEPS = [
 
 def save_to_output_variable(output_key: OutputKeys, value):
     OUTPUT_VARIABLES[output_key] = value
-    print(f'{output_key}: {OUTPUT_VARIABLES[output_key]}')
+    print(f'{output_key}: {OUTPUT_VARIABLES[output_key]}\n')
 
 
 def handle_user_interaction(user_message, chat_history, step: int):
@@ -293,6 +301,7 @@ def handle_files_uploaded(files: list, step: int, chat_history: list[list]):
 
     # iterate over files and print their names
     for file in files: print(f'File uploaded: {file.name.split("/")[-1]}')
+    print()
 
     # update chat history with validation message
     validation_message = f'You successfully uploaded {len(files)} {files_step.kind_of_document}! 🎉'

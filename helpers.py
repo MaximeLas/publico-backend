@@ -2,12 +2,14 @@ from typing import List
 import os
 
 import tiktoken
-from langchain.docstore.document import Document
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores.base import VectorStore
+
 from langchain.callbacks import get_openai_callback
 from langchain.chains.question_answering import load_qa_chain
 from langchain.chat_models import ChatOpenAI
+from langchain.docstore.document import Document
+from langchain.document_loaders import UnstructuredFileLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.vectorstores.base import VectorStore
 
 from prompts import get_prompt_template_for_question
 
@@ -93,12 +95,12 @@ def create_document(file_path: str) -> Document:
     return document
 
 
-def create_documents_from_txt_files(files: list[str]) -> List[Document]:
+def create_documents_from_files(files: list[str]) -> List[Document]:
     '''
-    Create list of (type) Documents from txt files and return it
+    Create list of (type) Documents from files of different types and return it
     
         Parameters:
-            files (list[str]): list of paths to txt files
+            files (list[str]): list of paths to files
         
         Returns:
             List[Document]: list of documents created
@@ -108,10 +110,19 @@ def create_documents_from_txt_files(files: list[str]) -> List[Document]:
 
     for file_path in files:
         # create document from txt file and add it to list of documents
-        if file_path.endswith(".txt"):
+        if file_path.endswith('.txt'):
             documents.append(create_document(file_path))
+        elif file_path.endswith('.docx'):
+            loader = UnstructuredFileLoader(file_path)
+            text = loader.load()[0].page_content
 
-    print(f'\n{len(documents)} Documents created from given list of txt files')
+            file_path_txt = file_path.replace('.docx', '.txt')
+            with open(file_path_txt, 'w') as file:
+                file.write(text)
+
+            documents.append(create_document(file_path_txt))
+
+    print(f'\n{len(documents)} Documents created from given list of files')
 
     return documents
 
@@ -169,7 +180,7 @@ def get_documents_chunks_from_documents(
         chunk_overlap=chunk_overlap)
 
     print(f'\nSplitting original Documents using separators {separators} into chunks ' +
-        f'with max token size of {chunk_size} and max overlap of {chunk_overlap}')
+        f'with max token size of {chunk_size} and max overlap of {chunk_overlap}\n')
 
     # split documents into chunks
     documents_chunks = text_splitter.split_documents(documents)
@@ -182,11 +193,12 @@ def get_documents_chunks_from_documents(
     # print summary of metadata for each document
     for doc in documents_chunks:
         print(f'• {doc.metadata["current_token_count"]} tokens in documents chunks from source \'{doc.metadata["source"].rsplit("/", 1)[-1]}\'')
-    
+    print()
+
     return documents_chunks
     
     
-def get_documents_chunks_for_txt_files(
+def get_documents_chunks_for_files(
     files: list[str],
     model_name='gpt-4',
     chunk_size=4000,
@@ -199,17 +211,17 @@ def get_documents_chunks_for_txt_files(
     created from them with metadata containing current token count and index
 
         Parameters:
-            files (List[str]): list of paths to txt files to create documents from
+            files (List[str]): list of paths to files to create documents from
             model_name (str): name of the model to use for tokenization (default: 'gpt-4')
             chunk_size (int): max token size of each chunk (default: 4000)
             chunk_overlap (int): max overlap of each chunk (default: 400)
             separators (List[str]): list of separators to use for splitting text into chunks (default: ["\n\n", "\n"])
 
         Returns:
-            List[Document]: list of documents chunks created from txt files in dir
+            List[Document]: list of documents chunks created from files
     '''
 
-    documents = create_documents_from_txt_files(files)
+    documents = create_documents_from_files(files)
 
     return get_documents_chunks_from_documents(documents, model_name, chunk_size, chunk_overlap, separators)
 
@@ -272,7 +284,7 @@ def get_most_relevant_docs_in_vector_store_for_answering_question(
         print(f'Character length of chunk: {len(doc.page_content)}')
         print(f'Token count of chunk: {doc.metadata["current_token_count"]}')
         print(f'Source: \'{doc.metadata["source"]}\'\n')
-        print(f'Content:\n{doc.page_content[:120]}.....\n\n')
+        print(f'Content: (Preview of first 100 characters)\n{doc.page_content[:100]}.....\n\n')
 
     # return list of the relevant documents without their similarity scores
     relevant_docs = [doc for doc, _ in relevant_docs_and_scores]
@@ -306,6 +318,7 @@ def generate_answers_from_documents_for_question(
             chain = load_qa_chain(
                 llm=chat_openai,
                 chain_type='stuff',
+                verbose=False,
                 prompt=get_prompt_template_for_question() if step == 1 else None
             )
 
