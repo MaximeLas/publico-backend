@@ -273,7 +273,7 @@ def get_most_relevant_docs_in_vector_store_for_answering_question(
     # perform similarity search in vector store for question and return the n_results most relevant documents
     relevant_docs_and_scores = vector_store.similarity_search_with_score(query=question, k=n_results)
 
-    print(f'\nRetrieved {n_results} most relevant Documents by performing a similarity search for question "{question}"')
+    print(f'Retrieved {n_results} most relevant Documents by performing a similarity search for question "{question}"')
     print(f'Similarities (distance): {[f"{score:.3f}" for _, score in relevant_docs_and_scores]}\n')
 
     # print summary of each relevant document and its similarity score (distance) to question
@@ -283,8 +283,8 @@ def get_most_relevant_docs_in_vector_store_for_answering_question(
         print(f'Index: {doc.metadata["index"]}')
         print(f'Character length of chunk: {len(doc.page_content)}')
         print(f'Token count of chunk: {doc.metadata["current_token_count"]}')
-        print(f'Source: \'{doc.metadata["source"]}\'\n')
-        print(f'Content: (Preview of first 100 characters)\n{doc.page_content[:100]}.....\n\n')
+        print(f'Source: \'{doc.metadata["source"].rsplit("/", 1)[-1]}\'\n')
+        print(f'Content: (Preview of first 100 characters)\n{doc.page_content[:100]}.....\n')
 
     # return list of the relevant documents without their similarity scores
     relevant_docs = [doc for doc, _ in relevant_docs_and_scores]
@@ -326,7 +326,7 @@ def generate_answers_from_documents_for_question(
 
             print_pretty_index(i)
             print(f'Generated answer for "{question}":\n\n{answer}\n')
-            print(f'Summary info OpenAI callback:\n{cb}\n\n')
+            print(f'Summary info OpenAI callback:\n{cb}\n')
 
             answers.append(answer)
     

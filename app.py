@@ -11,6 +11,10 @@ from langchain.vectorstores import Chroma
 from langchain.chat_models import ChatOpenAI
 from langchain.chains import LLMChain
 
+from langchain.cache import InMemoryCache
+import langchain
+langchain.llm_cache = InMemoryCache()
+
 from helpers import *
 from prompts import get_prompt_template_for_comprehensiveness_check
 
@@ -18,7 +22,7 @@ from prompts import get_prompt_template_for_comprehensiveness_check
 # Error: Your system has an unsupported version of sqlite3. Chroma requires sqlite3 >= 3.35.0
 import sqlite3
 if sqlite3.sqlite_version_info < (3, 35, 0):
-    print(f'sqlite3 version is too old version={sqlite3.sqlite_version_info}')
+    print(f'sqlite3 version is too old version={sqlite3.sqlite_version_info}\n')
     import subprocess
     import sys
 
@@ -27,7 +31,7 @@ if sqlite3.sqlite_version_info < (3, 35, 0):
     )
     __import__("pysqlite3")
     sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
-    print(f'installed sqlite3 version={sys.modules["sqlite3"].sqlite_version_info}\n')
+    print(f'\ninstalled sqlite3 version={sqlite3.sqlite_version_info}\n')
 
 
 def generate_answer_to_question(vars: dict) -> str:
@@ -46,7 +50,7 @@ def generate_answer_to_question(vars: dict) -> str:
     if vars[OutputKeys.WORD_LIMIT] and vars[OutputKeys.WORD_LIMIT].isdigit():
         question_for_prompt += f' ({vars[OutputKeys.WORD_LIMIT]} words)'
 
-    chatopenai = ChatOpenAI(client=None, model_name='gpt-4', temperature=0.1)
+    chatopenai = ChatOpenAI(client=None, model_name='gpt-4', temperature=0)
 
     vars[OutputKeys.APPLICATION_ANSWER] = generate_answers_from_documents_for_question(
         most_relevant_documents, chatopenai, question_for_prompt)[0]
@@ -60,11 +64,13 @@ def check_for_comprehensivenss(vars: dict) -> str | None:
     if vars[OutputKeys.CHECK_COMPREHENSIVENESS] != 'Yes':
         return None
 
-    chatopenai = ChatOpenAI(client=None, model_name='gpt-4', temperature=0.1)
+    chatopenai = ChatOpenAI(client=None, model_name='gpt-4', temperature=0)
     prompt = get_prompt_template_for_comprehensiveness_check()
 
-    chain = LLMChain(llm=chatopenai, prompt=prompt, verbose=True)
-    response = chain.run(question=vars[OutputKeys.APPLICATION_QUESTION], answer=vars[OutputKeys.APPLICATION_ANSWER])
+    with get_openai_callback() as cb:
+        chain = LLMChain(llm=chatopenai, prompt=prompt, verbose=True)
+        response = chain.run(question=vars[OutputKeys.APPLICATION_QUESTION], answer=vars[OutputKeys.APPLICATION_ANSWER])
+        print(f'Summary info OpenAI callback:\n{cb}\n')
 
     print(f'Response for check of comprehensiveness:\n\n{response}\n')
 
