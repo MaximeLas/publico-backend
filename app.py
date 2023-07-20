@@ -23,7 +23,6 @@ if sqlite3.sqlite_version_info < (3, 35, 0):
     print(f'sqlite3 version is too old version={sqlite3.sqlite_version_info}')
     print(f'installing sqlite3 version >= 3.35.0\n')
 
-    
     subprocess.check_call([sys.executable, "-m", "pip", "install", "pysqlite3-binary"])
 
     __import__("pysqlite3")
@@ -31,11 +30,10 @@ if sqlite3.sqlite_version_info < (3, 35, 0):
 
     print(f'\ninstalled sqlite3 version={sys.modules["sqlite3"].sqlite_version_info}\n')
 
-subprocess.check_call([sys.executable, "-m", "pip", "install", "langchain==0.0.230"])
-
 from pip._internal.operations import freeze
 pkgs = freeze.freeze()
 for pkg in pkgs: print(pkg)
+
 
 class ChatbotStep(ABC):
     def __init__(
