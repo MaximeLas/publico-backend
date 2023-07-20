@@ -31,7 +31,7 @@ if sqlite3.sqlite_version_info < (3, 35, 0):
 
     print(f'\ninstalled sqlite3 version={sys.modules["sqlite3"].sqlite_version_info}\n')
 
-subprocess.check_call([sys.executable, "-m", "pip", "install", "-I", "langchain"])
+subprocess.check_call([sys.executable, "-m", "pip", "install", "langchain==0.0.230"])
 
 from pip._internal.operations import freeze
 pkgs = freeze.freeze()
