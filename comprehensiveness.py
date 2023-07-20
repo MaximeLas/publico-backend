@@ -1,3 +1,6 @@
+from pydantic import BaseModel, Field
+from pydantic.schema import Optional
+
 from langchain.callbacks import get_openai_callback
 from langchain.chains.openai_functions import create_openai_fn_chain
 from langchain.chains.question_answering import load_qa_chain
@@ -41,7 +44,15 @@ def generate_answer_to_question(vars: dict) -> str:
     return vars[OutputKeys.APPLICATION_ANSWER]
 
 
-def check_for_comprehensiveness_fn(missing_information: str, implicit_questions: list[str]):
+class ImplicitQuestion(BaseModel):
+    '''An implicit question to be answered to fill in any missing information required to make the answer comprehensive.'''
+
+    question: str | None = Field(
+        None,
+        description='The question to be answered to fill in missing information.',
+    )
+
+def check_for_comprehensiveness_fn(missing_information: str, implicit_questions: list[ImplicitQuestion]):
     '''
     Check for comprehensiveness of an answer to a grant application question and return missing information and implicit questions.
 
@@ -75,9 +86,10 @@ def check_for_comprehensiveness(vars: dict) -> str | None:
     vars[OutputKeys.MISSING_INFORMATION] = response['missing_information']
     vars[OutputKeys.IMPLICIT_QUESTIONS] = response['implicit_questions']
 
-    print(vars[OutputKeys.MISSING_INFORMATION])
+    print(vars[OutputKeys.MISSING_INFORMATION] + '\n')
     for i, q in enumerate(vars[OutputKeys.IMPLICIT_QUESTIONS]):
-        print(f"Question {i + 1}: {q}")
+        print(f'Question {i + 1}: {q}')
+    print()
 
     return vars[OutputKeys.MISSING_INFORMATION]
 
@@ -99,9 +111,9 @@ def generate_answers_for_implicit_questions(vars: dict) -> list[str]:
 
             if 'Not enough information' not in answer:
                 vars[OutputKeys.ANSWERS_TO_IMPLICIT_QUESTIONS].append(answer)
-                print(f'Generated answer for "{question}":\n\n{answer}\n')
+                print(f'Generated answer for question #{i+1} "{question}":\n\n{answer}\n')
             else:
-                print(f'Skipping including this answer as not enough information provided to answer question "{question}"\n')
+                print(f'Excluding answer for question #{i+1} as not enough information provided to answer question "{question}"\n')
 
             print(f'Summary info OpenAI callback:\n{cb}\n\n')
             answers.append(f'({i+1}) {question}\n\n{answer}')
