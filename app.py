@@ -5,17 +5,14 @@ from typing import Callable
 import gradio as gr
 from gradio.events import EventListenerMethod
 
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import Chroma
-from langchain.chat_models import ChatOpenAI
-from langchain.chains import LLMChain
-
 from langchain.cache import InMemoryCache
 import langchain
 langchain.llm_cache = InMemoryCache()
 
+from constants import *
 from helpers import *
-from prompts import get_prompt_template_for_comprehensiveness_check
+from prompts import *
+from comprehensiveness import *
 
 # check if sqlite3 version is too old and install newer version if necessary in order to avoid error:
 # Error: Your system has an unsupported version of sqlite3. Chroma requires sqlite3 >= 3.35.0
@@ -34,76 +31,18 @@ if sqlite3.sqlite_version_info < (3, 35, 0):
     print(f'\ninstalled sqlite3 version={sys.modules["sqlite3"].sqlite_version_info}\n')
 
 
-def generate_answer_to_question(vars: dict) -> str:
-    documents_chunks = get_documents_chunks_for_files(vars[OutputKeys.PRIOR_GRANT_APPLICATIONS])
-    vector_store = Chroma.from_documents(documents=documents_chunks, embedding=OpenAIEmbeddings(client=None))
-
-    if vars[OutputKeys.APPLICATION_QUESTION] == '':
-        vars[OutputKeys.APPLICATION_ANSWER] = ''
-        print(f'No application question provided, skipping generation of answer.\n')
-        return 'No answer generated due to missing application question.'
-
-    question_for_prompt = vars[OutputKeys.APPLICATION_QUESTION]
-    most_relevant_documents = get_most_relevant_docs_in_vector_store_for_answering_question(
-        vector_store=vector_store, question=question_for_prompt, n_results=1)
-
-    if vars[OutputKeys.WORD_LIMIT] and vars[OutputKeys.WORD_LIMIT].isdigit():
-        question_for_prompt += f' ({vars[OutputKeys.WORD_LIMIT]} words)'
-
-    chatopenai = ChatOpenAI(client=None, model_name='gpt-4', temperature=0)
-
-    vars[OutputKeys.APPLICATION_ANSWER] = generate_answers_from_documents_for_question(
-        most_relevant_documents, chatopenai, question_for_prompt)[0]
-
-    print(f'Final answer for application question "{vars[OutputKeys.APPLICATION_QUESTION]}":\n\n{vars[OutputKeys.APPLICATION_ANSWER]}\n')
-
-    return vars[OutputKeys.APPLICATION_ANSWER]
-
-
-def check_for_comprehensivenss(vars: dict) -> str | None:
-    if vars[OutputKeys.CHECK_COMPREHENSIVENESS] != 'Yes':
-        return None
-
-    chatopenai = ChatOpenAI(client=None, model_name='gpt-4', temperature=0)
-    prompt = get_prompt_template_for_comprehensiveness_check()
-
-    with get_openai_callback() as cb:
-        chain = LLMChain(llm=chatopenai, prompt=prompt, verbose=True)
-        response = chain.run(question=vars[OutputKeys.APPLICATION_QUESTION], answer=vars[OutputKeys.APPLICATION_ANSWER])
-        print(f'Summary info OpenAI callback:\n{cb}\n')
-
-    print(f'Response for check of comprehensiveness:\n\n{response}\n')
-
-    return response
-
-
-class UserInteractionType(Enum):
-    YES_NO = auto()
-    FILES = auto()
-    TEXT = auto()
-    START = auto()
-    NONE = auto()
-
-class OutputKeys(Enum):
-    HAS_APPLIED_FOR_THIS_GRANT_BEFORE = auto()
-    PRIOR_GRANT_APPLICATIONS = auto()
-    APPLICATION_QUESTION = auto()
-    WORD_LIMIT = auto()
-    APPLICATION_ANSWER = auto()
-    CHECK_COMPREHENSIVENESS = auto()
-
 class ChatbotStep(ABC):
     def __init__(
         self,
         user_interaction_type: UserInteractionType,
         message: str,
         output_key: OutputKeys,
-        generate_output_fn: Callable[[dict], str] | None = None
+        generate_output_fns: list[Callable[[dict], str]] = []
     ):
         self._user_interaction_type = user_interaction_type
         self._message = message
         self._output_key = output_key
-        self._generate_output_fn = generate_output_fn
+        self._generate_output_fns = generate_output_fns
     
     @property
     def user_interaction_type(self):
@@ -118,8 +57,8 @@ class ChatbotStep(ABC):
         return self._output_key
 
     @property
-    def generate_output_fn(self):
-        return self._generate_output_fn
+    def generate_output_fns(self):
+        return self._generate_output_fns
 
 class FilesStep(ChatbotStep):
     def __init__(
@@ -272,11 +211,11 @@ CHATBOT_STEPS = [
     TextStep( # 3
         message="What is the word limit?",
         output_key=OutputKeys.WORD_LIMIT,
-        generate_output_fn=generate_answer_to_question),
+        generate_output_fns=[generate_answer_to_question]),
     YesNoStep( # 4
         message="Do you want to check the comprehensiveness of the generated answer?",
         output_key=OutputKeys.CHECK_COMPREHENSIVENESS,
-        generate_output_fn=check_for_comprehensivenss)]
+        generate_output_fns=[check_for_comprehensiveness, generate_answers_for_implicit_questions, generate_final_answer])]
 
 
 def save_to_output_variable(output_key: OutputKeys, value):
@@ -294,8 +233,14 @@ def handle_user_interaction(user_message, chat_history, step: int):
     new_chat_history = chat_history[:-1] + [[chat_history[-1][0], user_message]]
 
     # generate output if necessary and update chat history with it
-    if (fn := text_step.generate_output_fn) is not None:
-        new_chat_history += [[fn(OUTPUT_VARIABLES), None]]
+    if (fns := text_step.generate_output_fns) is not None:
+        for fn in fns:
+            if (response := fn(OUTPUT_VARIABLES)) is not None:
+                if type(response) == list:
+                    for chatbot_response in response:
+                        new_chat_history += [[chatbot_response, None]]
+                else:
+                    new_chat_history += [[response, None]]
     
     return '', new_chat_history
 
@@ -307,9 +252,14 @@ def handle_yes_no_interaction(yes_or_no: str, chat_history, step: int):
     save_to_output_variable(yes_no_step.output_key, yes_or_no)
 
     # generate output if necessary and update chat history with it
-    if (fn := yes_no_step.generate_output_fn) is not None:
-        if (chatbot_response := fn(OUTPUT_VARIABLES)) is not None:
-            chat_history += [[chatbot_response, None]]
+    if (fns := yes_no_step.generate_output_fns) is not None:
+        for fn in fns:
+            if (response := fn(OUTPUT_VARIABLES)) is not None:
+                if type(response) == list:
+                    for chatbot_response in response:
+                        chat_history += [[chatbot_response, None]]
+                else:
+                    chat_history += [[response, None]]
     
     return chat_history, step + yes_no_step.steps_to_skip(yes_or_no)
 
@@ -338,13 +288,18 @@ def is_visible_in_current_user_interaction(component_wrapper: ComponentWrapper, 
     # if step is in bounds, return True if component's user interaction type matches current step's user interaction type
     return component_wrapper.user_interaction_type is CHATBOT_STEPS[step].user_interaction_type
 
+CSS ="""
+.contain { display: flex; flex-direction: column; }
+#component-0 { height: 100%; }
+#chatbot { flex-grow: 1; }
+"""
 
 with gr.Blocks() as demo:
     # create state variable to keep track of current chatbot step
     step_var = gr.State(-1)
 
     # create chatbot component
-    chatbot = gr.Chatbot()
+    chatbot = gr.Chatbot(elem_id="chatbot", height=800)
     
     with gr.Row():
         # create component wrappers for each component in the chatbot UI

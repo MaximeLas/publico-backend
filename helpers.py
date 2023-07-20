@@ -11,7 +11,7 @@ from langchain.document_loaders import UnstructuredFileLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores.base import VectorStore
 
-from prompts import get_prompt_template_for_question
+from prompts import get_prompt_template_for_generating_original_answer
 
 
 def print_pretty_index(index: int):
@@ -319,7 +319,7 @@ def generate_answers_from_documents_for_question(
                 llm=chat_openai,
                 chain_type='stuff',
                 verbose=False,
-                prompt=get_prompt_template_for_question() if step == 1 else None
+                prompt=get_prompt_template_for_generating_original_answer() if step == 1 else None
             )
 
             answer = chain.run(input_documents=[doc], question=question)
