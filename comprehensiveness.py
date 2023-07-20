@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from pydantic.schema import Optional
 
 from langchain.callbacks import get_openai_callback
-from langchain.chains.openai_functions import create_openai_fn_chain
+from langchain.chains.openai_functions import create_openai_fn_chain, create_structured_output_chain
 from langchain.chains.question_answering import load_qa_chain
 from langchain.chains.llm import LLMChain
 from langchain.chat_models import ChatOpenAI
@@ -47,7 +47,7 @@ def generate_answer_to_question(vars: dict) -> str:
 class ImplicitQuestion(BaseModel):
     '''An implicit question to be answered to fill in any missing information required to make the answer comprehensive.'''
 
-    question: str | None = Field(
+    question: str = Field(
         None,
         description='The question to be answered to fill in missing information.',
     )
@@ -66,6 +66,46 @@ def check_for_comprehensiveness_fn(missing_information: str, implicit_questions:
         print(f"Question {i + 1}: {question.question}")
 
 
+def get_json_schema_for_comprehensiveness_check() -> dict:
+    '''Get a JSON schema for the output of a model to check the comprehensiveness of a grant application answer.'''
+
+    return {
+        "title": "ComprehensivenessParams",
+        "type": "object",
+        "properties": {
+            "missing_information": {
+                "title": "Missing Information",
+                "description": "Description of the information that should be in a good grant application answer to the given question but is missing from this answer.",
+                "type": "string"
+            },
+            "implicit_questions": {
+                "title": "Implicit Questions",
+                "description": "Questions to be answered to fill in any missing information required to make the answer comprehensive.",
+                "type": "array",
+                "items": {
+                    "$ref": "#/definitions/ImplicitQuestion"
+                }
+            }
+        },
+        "required": ["missing_information", "implicit_questions"],
+        "definitions": {
+            "ImplicitQuestion": {
+                "title": "ImplicitQuestion",
+                "description": "An implicit question to be answered to fill in any missing information required to make the answer comprehensive.",
+                "type": "object",
+                "properties": {
+                    "question": {
+                        "description": "The question to be answered to fill in missing information.",
+                        "type": "string",
+                        "title": "Question"
+                    }
+                },
+                "required": []
+            }
+        }
+    }
+
+
 def check_for_comprehensiveness(vars: dict) -> str | None:
     '''Check for comprehensiveness of an answer to a grant application question using OpenAI functions.'''
 
@@ -76,7 +116,8 @@ def check_for_comprehensiveness(vars: dict) -> str | None:
     prompt = get_prompt_template_for_comprehensiveness_check_openai_functions()
 
     with get_openai_callback() as cb:
-        chain = create_openai_fn_chain([check_for_comprehensiveness_fn], chat_openai, prompt, verbose=True)
+        #chain = create_openai_fn_chain([check_for_comprehensiveness_fn], chat_openai, prompt, verbose=True)
+        chain = create_structured_output_chain(get_json_schema_for_comprehensiveness_check(), chat_openai, prompt, verbose=True)
         response = chain.run(question=vars[OutputKeys.APPLICATION_QUESTION], answer=vars[OutputKeys.APPLICATION_ANSWER])
         print(f'Summary info OpenAI callback:\n{cb}\n')
 
