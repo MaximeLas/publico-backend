@@ -30,9 +30,12 @@ if sqlite3.sqlite_version_info < (3, 35, 0):
 
     print(f'\ninstalled sqlite3 version={sys.modules["sqlite3"].sqlite_version_info}\n')
 
+import openapi-schema-pydantic
+print(f'openapi-schema-pydantic.__version__ = {openapi-schema-pydantic.__version__}')
 import pydantic
 print(f'pydantic.__version__ = {pydantic.__version__}')
-
+import pydantic_core
+print(f'pydantic_core.__version__ = {pydantic_core.__version__}')
 
 class ChatbotStep(ABC):
     def __init__(
