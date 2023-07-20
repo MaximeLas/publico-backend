@@ -125,7 +125,7 @@ def check_for_comprehensiveness(vars: dict) -> str | None:
 
     assert type(response) == dict
     vars[OutputKeys.MISSING_INFORMATION] = response['missing_information']
-    vars[OutputKeys.IMPLICIT_QUESTIONS] = response['implicit_questions']
+    vars[OutputKeys.IMPLICIT_QUESTIONS] = [q['question'] for q in response['implicit_questions']]
 
     print(vars[OutputKeys.MISSING_INFORMATION] + '\n')
     for i, q in enumerate(vars[OutputKeys.IMPLICIT_QUESTIONS]):
