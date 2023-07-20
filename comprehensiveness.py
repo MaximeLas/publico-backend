@@ -1,5 +1,3 @@
-from pydantic import BaseModel, Field
-
 from langchain.callbacks import get_openai_callback
 from langchain.chains.openai_functions import create_openai_fn_chain
 from langchain.chains.question_answering import load_qa_chain
@@ -43,21 +41,13 @@ def generate_answer_to_question(vars: dict) -> str:
     return vars[OutputKeys.APPLICATION_ANSWER]
 
 
-class ImplicitQuestion(BaseModel):
-    '''An implicit question to be answered to fill in any missing information required to make the answer comprehensive.'''
-
-    question: str = Field(
-        ...,
-        description="The question to be answered to fill in missing information."
-    )
-
-def check_for_comprehensiveness_fn(missing_information: str, implicit_questions: list[ImplicitQuestion]):
+def check_for_comprehensiveness_fn(missing_information: str, implicit_questions: list[str]):
     '''
-    Check for comprehensiveness of an answer to a grant application question.
+    Check for comprehensiveness of an answer to a grant application question and return missing information and implicit questions.
 
     Args:
-        missing_information: A description of the information that should be in a good grant application answer to the given question but is missing from this answer
-        implicit_questions: List of questions to be answered to fill in any missing information required to make the answer comprehensive.
+        missing_information: Description of the information that should be in a good grant application answer to the given question but is missing from this answer.
+        implicit_questions: Questions to be answered to fill in any missing information required to make the answer comprehensive.
     '''
 
     print(f"Missing information: {missing_information}")
