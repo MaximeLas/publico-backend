@@ -1,6 +1,3 @@
-from pydantic import BaseModel, Field
-from pydantic.schema import Optional
-
 from langchain.callbacks import get_openai_callback
 from langchain.chains.openai_functions import create_openai_fn_chain, create_structured_output_chain
 from langchain.chains.question_answering import load_qa_chain
@@ -12,6 +9,8 @@ from langchain.vectorstores import Chroma
 from constants import OutputKeys
 from helpers import *
 from prompts import *
+from openai_functions_utils import *
+from settings import GPT_MODEL
 
 
 def generate_answer_to_question(vars: dict) -> str:
@@ -34,7 +33,7 @@ def generate_answer_to_question(vars: dict) -> str:
     if vars[OutputKeys.WORD_LIMIT] and vars[OutputKeys.WORD_LIMIT].isdigit():
         question_for_prompt += f' ({vars[OutputKeys.WORD_LIMIT]} words)'
 
-    chat_openai = ChatOpenAI(client=None, model_name='gpt-4', temperature=0)
+    chat_openai = ChatOpenAI(client=None, model_name=GPT_MODEL, temperature=0)
 
     vars[OutputKeys.APPLICATION_ANSWER] = generate_answers_from_documents_for_question(
         most_relevant_documents, chat_openai, question_for_prompt)[0]
@@ -44,80 +43,18 @@ def generate_answer_to_question(vars: dict) -> str:
     return vars[OutputKeys.APPLICATION_ANSWER]
 
 
-class ImplicitQuestion(BaseModel):
-    '''An implicit question to be answered to fill in any missing information required to make the answer comprehensive.'''
-
-    question: str = Field(
-        None,
-        description='The question to be answered to fill in missing information.',
-    )
-
-def check_for_comprehensiveness_fn(missing_information: str, implicit_questions: list[ImplicitQuestion]):
-    '''
-    Check for comprehensiveness of an answer to a grant application question and return missing information and implicit questions.
-
-    Args:
-        missing_information: Description of the information that should be in a good grant application answer to the given question but is missing from this answer.
-        implicit_questions: Questions to be answered to fill in any missing information required to make the answer comprehensive.
-    '''
-
-    print(f"Missing information: {missing_information}")
-    for i, question in enumerate(implicit_questions):
-        print(f"Question {i + 1}: {question.question}")
-
-
-def get_json_schema_for_comprehensiveness_check() -> dict:
-    '''Get a JSON schema for the output of a model to check the comprehensiveness of a grant application answer.'''
-
-    return {
-        "title": "ComprehensivenessParams",
-        "type": "object",
-        "properties": {
-            "missing_information": {
-                "title": "Missing Information",
-                "description": "Description of the information that should be in a good grant application answer to the given question but is missing from this answer.",
-                "type": "string"
-            },
-            "implicit_questions": {
-                "title": "Implicit Questions",
-                "description": "Questions to be answered to fill in any missing information required to make the answer comprehensive.",
-                "type": "array",
-                "items": {
-                    "$ref": "#/definitions/ImplicitQuestion"
-                }
-            }
-        },
-        "required": ["missing_information", "implicit_questions"],
-        "definitions": {
-            "ImplicitQuestion": {
-                "title": "ImplicitQuestion",
-                "description": "An implicit question to be answered to fill in any missing information required to make the answer comprehensive.",
-                "type": "object",
-                "properties": {
-                    "question": {
-                        "description": "The question to be answered to fill in missing information.",
-                        "type": "string",
-                        "title": "Question"
-                    }
-                },
-                "required": []
-            }
-        }
-    }
-
-
 def check_for_comprehensiveness(vars: dict) -> str | None:
     '''Check for comprehensiveness of an answer to a grant application question using OpenAI functions.'''
 
     if vars[OutputKeys.CHECK_COMPREHENSIVENESS] != 'Yes':
         return None
 
-    chat_openai = ChatOpenAI(client=None, model_name='gpt-4', temperature=0)
+    chat_openai = ChatOpenAI(client=None, model_name=GPT_MODEL, temperature=0)
     prompt = get_prompt_template_for_comprehensiveness_check_openai_functions()
 
     with get_openai_callback() as cb:
-        #chain = create_openai_fn_chain([check_for_comprehensiveness_fn], chat_openai, prompt, verbose=True)
-        chain = create_structured_output_chain(get_json_schema_for_comprehensiveness_check(), chat_openai, prompt, verbose=True)
+        #chain = create_structured_output_chain(get_json_schema_for_comprehensiveness_check(), chat_openai, prompt, verbose=True)
+        chain = create_openai_fn_chain([function_for_comprehensiveness_check], chat_openai, prompt, verbose=True)
         response = chain.run(question=vars[OutputKeys.APPLICATION_QUESTION], answer=vars[OutputKeys.APPLICATION_ANSWER])
         print(f'Summary info OpenAI callback:\n{cb}\n')
 
@@ -135,15 +72,18 @@ def check_for_comprehensiveness(vars: dict) -> str | None:
     return vars[OutputKeys.MISSING_INFORMATION]
 
 
-def generate_answers_for_implicit_questions(vars: dict) -> list[str]:
+def generate_answers_for_implicit_questions(vars: dict) -> list[str] | None:
     '''Generate answers for implicit questions to be answered to fill in any missing information required to make the answer comprehensive.'''
+
+    if vars[OutputKeys.CHECK_COMPREHENSIVENESS] != 'Yes':
+        return None
 
     vars[OutputKeys.ANSWERS_TO_IMPLICIT_QUESTIONS] = []
     answers = []
     for i, question in enumerate(vars[OutputKeys.IMPLICIT_QUESTIONS]):
         with get_openai_callback() as cb:
             chain = load_qa_chain(
-                llm=ChatOpenAI(client=None, model_name='gpt-4', temperature=0),
+                llm=ChatOpenAI(client=None, model_name=GPT_MODEL, temperature=0),
                 chain_type='stuff',
                 verbose=False,
                 prompt=get_prompt_template_for_generating_answer_to_implicit_question()
@@ -162,12 +102,15 @@ def generate_answers_for_implicit_questions(vars: dict) -> list[str]:
     return answers
 
 
-def generate_final_answer(vars: dict) -> list[str]:
+def generate_final_answer(vars: dict) -> list[str] | None:
     '''Generate a final answer to a grant application question.'''
+
+    if vars[OutputKeys.CHECK_COMPREHENSIVENESS] != 'Yes':
+        return None
 
     with get_openai_callback() as cb:
         chain = LLMChain(
-            llm=ChatOpenAI(client=None, model_name='gpt-4', temperature=0),
+            llm=ChatOpenAI(client=None, model_name=GPT_MODEL, temperature=0),
             prompt=get_prompt_template_for_generating_final_answer(),
             verbose=True
         )
