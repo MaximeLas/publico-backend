@@ -292,18 +292,14 @@ def is_visible_in_current_user_interaction(component_wrapper: ComponentWrapper, 
     # if step is in bounds, return True if component's user interaction type matches current step's user interaction type
     return component_wrapper.user_interaction_type is CHATBOT_STEPS[step].user_interaction_type
 
-CSS ="""
-.contain { display: flex; flex-direction: column; }
-#component-0 { height: 100%; }
-#chatbot { flex-grow: 1; }
-"""
+
 
 with gr.Blocks() as demo:
     # create state variable to keep track of current chatbot step
     step_var = gr.State(-1)
 
     # create chatbot component
-    chatbot = gr.Chatbot(elem_id="chatbot", height=800)
+    chatbot = gr.Chatbot(label='AI Grant Writing Coach').style(height=800)
     
     with gr.Row():
         # create component wrappers for each component in the chatbot UI
