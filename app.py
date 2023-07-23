@@ -194,11 +194,15 @@ with gr.Blocks() as demo:
             submit_btn_component=gr.Button(value='Submit', variant='primary', visible=False, interactive=False, scale=1)
 
             # clear button component
-            clear_btn_component=gr.ClearButton(value='Clear', variant='stop', visible=False, interactive=False, scale=1)
+            clear_btn_component=gr.Button(value='Clear', variant='stop', visible=False, interactive=False, scale=1)
+            #clear_btn_component=gr.ClearButton(value='Clear', variant='stop', visible=False, interactive=False, scale=1)
 
         # files component
         files_component = gr.Files(label='Documents', visible=False, interactive=False, file_types=['.docx', '.txt'], scale=3)
-        clear_btn_component.add(files_component) # make the clear button clear the files
+
+        import json
+        clear_btn_component.click(None, [], [files_component], _js=f"() => {json.dumps([files_component.postprocess(None)])}")
+        # clear_btn_component.add(files_component) # make the clear button clear the files
     
     with gr.Row():
         # examples component (not a true gradio component in fact)

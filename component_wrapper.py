@@ -112,7 +112,7 @@ class SubmitWrapper(ComponentWrapper):
 class ClearWrapper(ComponentWrapper):
     def __init__(
         self,
-        clear_btn: gr.ClearButton,
+        clear_btn: gr.Button, # replace with gr.ClearButton once hf issue fixed
         **kwargs
     ):
         super().__init__(
