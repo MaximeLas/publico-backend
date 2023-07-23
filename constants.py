@@ -1,8 +1,12 @@
 from enum import Enum, auto
 
+
 class UserInteractionType(Enum):
     YES_NO = auto()
     FILES = auto()
+    UPLOAD = auto()
+    SUBMIT = auto()
+    CLEAR = auto()
     TEXT = auto()
     START = auto()
     NONE = auto()

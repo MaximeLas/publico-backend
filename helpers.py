@@ -12,6 +12,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores.base import VectorStore
 
 from prompts import get_prompt_template_for_generating_original_answer
+from settings import GPT_MODEL
 
 
 def print_pretty_index(index: int):
@@ -24,48 +25,48 @@ def print_pretty_index(index: int):
     print(f"{'_'*35}\n|{'_'*15} {index+1} {'_'*15}|\n")
     
 
-def get_token_count_in_text(text: str, model_name: str = 'gpt-4') -> int:
+def get_token_count_in_text(text: str, model: str = GPT_MODEL) -> int:
     '''
     Get token count in text
     
         Parameters:
             text (str): text to get token count in
-            model_name (str): name of the model to use for tokenization (default: 'gpt-4')
+            model (str): name of the model to use for tokenization (default: 'GPT_MODEL')
         
             Returns:
                 int: token count in text
     '''
-    return len(tiktoken.encoding_for_model(model_name).encode(text))
+    return len(tiktoken.encoding_for_model(model).encode(text))
 
 
-def get_token_count_in_documents(documents: List[Document], model_name: str = 'gpt-4') -> List[int]:
+def get_token_count_in_documents(documents: List[Document], model: str = GPT_MODEL) -> List[int]:
     '''
     Get token count in documents
     
         Parameters:
             documents (List[Document]): list of documents to get token count in
-            model_name (str): name of the model to use for tokenization (default: 'gpt-4')
+            model (str): name of the model to use for tokenization (default: GPT_MODEL)
         
         Returns:
             List[int]: list of token counts in documents
     '''
-    return [get_token_count_in_text(doc.page_content, model_name) for doc in documents]
+    return [get_token_count_in_text(doc.page_content, model) for doc in documents]
 
 
 def add_index_and_current_token_count_to_metadata_in_documents(
     documents: List[Document],
-    model_name: str = 'gpt-4'
+    model: str = GPT_MODEL
 ) -> None:
     '''
     Add index and current token count to metadata in documents
     
         Parameters:
             documents (List[Document]): list of documents to add index and current token count to metadata
-            model_name (str): name of the model to use for tokenization (default: 'gpt-4')
+            model (str): name of the model to use for tokenization (default: GPT_MODEL)
         
     '''
     for i, doc in enumerate(documents):
-        doc.metadata['current_token_count'] = get_token_count_in_text(doc.page_content, model_name)
+        doc.metadata['current_token_count'] = get_token_count_in_text(doc.page_content, model)
         doc.metadata['index'] = i + 1
 
 
@@ -153,7 +154,7 @@ def create_documents_from_txt_files_in_dir(dir: str) -> List[Document]:
 
 def get_documents_chunks_from_documents(
     documents: list[Document],
-    model_name='gpt-4',
+    model=GPT_MODEL,
     chunk_size=4000,
     chunk_overlap=400,
     separators=["\n\n", "\n"]
@@ -163,7 +164,7 @@ def get_documents_chunks_from_documents(
     
         Parameters:
             documents (list[Document]): list of documents to split into chunks
-            model_name (str): name of the model to use for tokenization (default: 'gpt-4')
+            model (str): name of the model to use for tokenization (default: GPT_MODEL)
             chunk_size (int): max token size of chunks (default: 4000)
             chunk_overlap (int): max overlap of chunks (default: 400)
             separators (list[str]): list of separators to use for splitting documents into chunks (default: ["\n\n", "\n"])
@@ -174,7 +175,7 @@ def get_documents_chunks_from_documents(
 
     # create text splitter for splitting documents into chunks
     text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
-        model_name=model_name,
+        model_name=model,
         separators=separators,
         chunk_size=chunk_size,
         chunk_overlap=chunk_overlap)
@@ -200,7 +201,7 @@ def get_documents_chunks_from_documents(
     
 def get_documents_chunks_for_files(
     files: list[str],
-    model_name='gpt-4',
+    model=GPT_MODEL,
     chunk_size=4000,
     chunk_overlap=400,
     separators=["\n\n", "\n"]
@@ -212,7 +213,7 @@ def get_documents_chunks_for_files(
 
         Parameters:
             files (List[str]): list of paths to files to create documents from
-            model_name (str): name of the model to use for tokenization (default: 'gpt-4')
+            model (str): name of the model to use for tokenization (default: GPT_MODEL)
             chunk_size (int): max token size of each chunk (default: 4000)
             chunk_overlap (int): max overlap of each chunk (default: 400)
             separators (List[str]): list of separators to use for splitting text into chunks (default: ["\n\n", "\n"])
@@ -223,12 +224,12 @@ def get_documents_chunks_for_files(
 
     documents = create_documents_from_files(files)
 
-    return get_documents_chunks_from_documents(documents, model_name, chunk_size, chunk_overlap, separators)
+    return get_documents_chunks_from_documents(documents, model, chunk_size, chunk_overlap, separators)
 
 
 def get_documents_chunks_for_txt_files_in_dir(
     dir: str,
-    model_name='gpt-4',
+    model=GPT_MODEL,
     chunk_size=4000,
     chunk_overlap=400,
     separators=["\n\n", "\n"]
@@ -240,7 +241,7 @@ def get_documents_chunks_for_txt_files_in_dir(
 
         Parameters:
             dir (str): path to directory containing txt files
-            model_name (str): name of the model to use for tokenization (default: 'gpt-4')
+            model (str): name of the model to use for tokenization (default: GPT_MODEL)
             chunk_size (int): max token size of each chunk (default: 4000)
             chunk_overlap (int): max overlap of each chunk (default: 400)
             separators (List[str]): list of separators to use for splitting text into chunks (default: ["\n\n", "\n"])
@@ -251,7 +252,7 @@ def get_documents_chunks_for_txt_files_in_dir(
 
     documents = create_documents_from_txt_files_in_dir(dir)
 
-    return get_documents_chunks_from_documents(documents, model_name, chunk_size, chunk_overlap, separators)
+    return get_documents_chunks_from_documents(documents, model, chunk_size, chunk_overlap, separators)
 
 
 def get_most_relevant_docs_in_vector_store_for_answering_question(

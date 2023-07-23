@@ -33,7 +33,7 @@ def generate_answer_to_question(vars: dict) -> str:
     if vars[OutputKeys.WORD_LIMIT] and vars[OutputKeys.WORD_LIMIT].isdigit():
         question_for_prompt += f' ({vars[OutputKeys.WORD_LIMIT]} words)'
 
-    chat_openai = ChatOpenAI(client=None, model_name=GPT_MODEL, temperature=0)
+    chat_openai = ChatOpenAI(client=None, model=GPT_MODEL, temperature=0)
 
     vars[OutputKeys.APPLICATION_ANSWER] = generate_answers_from_documents_for_question(
         most_relevant_documents, chat_openai, question_for_prompt)[0]
@@ -49,7 +49,7 @@ def check_for_comprehensiveness(vars: dict) -> str | None:
     if vars[OutputKeys.CHECK_COMPREHENSIVENESS] != 'Yes':
         return None
 
-    chat_openai = ChatOpenAI(client=None, model_name=GPT_MODEL, temperature=0)
+    chat_openai = ChatOpenAI(client=None, model=GPT_MODEL, temperature=0)
     prompt = get_prompt_template_for_comprehensiveness_check_openai_functions()
 
     with get_openai_callback() as cb:
@@ -62,9 +62,24 @@ def check_for_comprehensiveness(vars: dict) -> str | None:
 
     assert type(response) == dict
     vars[OutputKeys.MISSING_INFORMATION] = response['missing_information']
-    vars[OutputKeys.IMPLICIT_QUESTIONS] = [(q if type(q) is str else q['question']) for q in response['implicit_questions']]
+    print(f'Missing information: {vars[OutputKeys.MISSING_INFORMATION]}\n')
 
-    print(vars[OutputKeys.MISSING_INFORMATION] + '\n')
+    vars[OutputKeys.IMPLICIT_QUESTIONS] = []
+    if type(response['implicit_questions']) is dict:
+        # if response['implicit_questions'] is a dict, then just set vars[OutputKeys.IMPLICIT_QUESTIONS] to the values of that dict
+        vars[OutputKeys.IMPLICIT_QUESTIONS] = [q for q in response['implicit_questions'].values()] # type: ignore
+    elif type(response['implicit_questions']) is list:
+        for q in response['implicit_questions']:  # type: ignore
+            if type(q) is dict:
+                q = q['question']
+            elif type(q) is not str:
+                print(f'Unexpected type for implicit question: {type(q)}')
+                break
+            vars[OutputKeys.IMPLICIT_QUESTIONS].append(q)
+    else:
+        print(f'Unexpected type for implicit questions: {type(response["implicit_questions"])}\n')
+
+    print(f'Implicit questions ({len(vars[OutputKeys.IMPLICIT_QUESTIONS])}):')
     for i, q in enumerate(vars[OutputKeys.IMPLICIT_QUESTIONS]):
         print(f'Question {i + 1}: {q}')
     print()
@@ -75,7 +90,7 @@ def check_for_comprehensiveness(vars: dict) -> str | None:
 def generate_answers_for_implicit_questions(vars: dict) -> list[str] | None:
     '''Generate answers for implicit questions to be answered to fill in any missing information required to make the answer comprehensive.'''
 
-    if vars[OutputKeys.CHECK_COMPREHENSIVENESS] != 'Yes':
+    if vars[OutputKeys.CHECK_COMPREHENSIVENESS] != 'Yes' or OutputKeys.IMPLICIT_QUESTIONS not in vars:
         return None
 
     vars[OutputKeys.ANSWERS_TO_IMPLICIT_QUESTIONS] = []
@@ -83,7 +98,7 @@ def generate_answers_for_implicit_questions(vars: dict) -> list[str] | None:
     for i, question in enumerate(vars[OutputKeys.IMPLICIT_QUESTIONS]):
         with get_openai_callback() as cb:
             chain = load_qa_chain(
-                llm=ChatOpenAI(client=None, model_name=GPT_MODEL, temperature=0),
+                llm=ChatOpenAI(client=None, model=GPT_MODEL, temperature=0),
                 chain_type='stuff',
                 verbose=False,
                 prompt=get_prompt_template_for_generating_answer_to_implicit_question()
@@ -105,12 +120,12 @@ def generate_answers_for_implicit_questions(vars: dict) -> list[str] | None:
 def generate_final_answer(vars: dict) -> list[str] | None:
     '''Generate a final answer to a grant application question.'''
 
-    if vars[OutputKeys.CHECK_COMPREHENSIVENESS] != 'Yes':
+    if vars[OutputKeys.CHECK_COMPREHENSIVENESS] != 'Yes' or OutputKeys.IMPLICIT_QUESTIONS not in vars:
         return None
 
     with get_openai_callback() as cb:
         chain = LLMChain(
-            llm=ChatOpenAI(client=None, model_name=GPT_MODEL, temperature=0),
+            llm=ChatOpenAI(client=None, model=GPT_MODEL, temperature=0),
             prompt=get_prompt_template_for_generating_final_answer(),
             verbose=True
         )
@@ -124,5 +139,14 @@ def generate_final_answer(vars: dict) -> list[str] | None:
 
     print(f'Final answer for application question "{vars[OutputKeys.APPLICATION_QUESTION]}":\n\n{response}\n')
 
-    return [f'Here is the final answer to "{vars[OutputKeys.APPLICATION_QUESTION]}":\n\n{response}',
-            f'For reference, here is the original answer:\n\n{vars[OutputKeys.APPLICATION_ANSWER]}']
+    number_of_implicit_questions = len(vars[OutputKeys.ANSWERS_TO_IMPLICIT_QUESTIONS])
+    implicit_questions_integration_summary = (
+        f'answers to {number_of_implicit_questions} implicit questions'
+            if number_of_implicit_questions > 1 else
+        ('answer to 1 implicit question'
+            if number_of_implicit_questions == 1 else
+        'answers to none of the implicit questions')
+        )
+
+    return [f'Here is the final answer to "{vars[OutputKeys.APPLICATION_QUESTION]}" after integrating {implicit_questions_integration_summary}:\n\n{response}',
+            f'For reference, here is the original answer generated prior to the comprehensiveness checker:\n\n{vars[OutputKeys.APPLICATION_ANSWER]}']
