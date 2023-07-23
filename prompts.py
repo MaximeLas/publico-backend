@@ -123,12 +123,10 @@ def get_prompt_template_for_generating_final_answer() -> ChatPromptTemplate:
 
     system_template = (
         'The following paragraph is an answer to a grant application question submitted by a nonprofit. '
-        'The grant application questions was: "{question}". '
+        'The grant application questions was: "{question} ({word_limit} words)". '
         'Please improve the answer by incorporating the potentially valuable information contained in the following lines:\n'
         '----------------\n'
         '{answers_to_implicit_questions}.\n'
-        '----------------\n'
-        'Please make the new generated answer compelling and comprehensive whilst limiting the total number of words to {word_limit}.'
     )
 
     messages = [

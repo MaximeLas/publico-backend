@@ -40,7 +40,7 @@ def generate_answer_to_question(vars: dict) -> str:
 
     print(f'Final answer for application question "{vars[OutputKeys.APPLICATION_QUESTION]}":\n\n{vars[OutputKeys.APPLICATION_ANSWER]}\n')
 
-    return vars[OutputKeys.APPLICATION_ANSWER]
+    return f'Generated answer ({len(vars[OutputKeys.APPLICATION_ANSWER].split())} words) to "{vars[OutputKeys.APPLICATION_QUESTION]}":\n\n{vars[OutputKeys.APPLICATION_ANSWER]}'
 
 
 def check_for_comprehensiveness(vars: dict) -> str | None:
@@ -148,5 +148,5 @@ def generate_final_answer(vars: dict) -> list[str] | None:
         'answers to none of the implicit questions')
         )
 
-    return [f'Here is the final answer to "{vars[OutputKeys.APPLICATION_QUESTION]}" after integrating {implicit_questions_integration_summary}:\n\n{response}',
-            f'For reference, here is the original answer generated prior to the comprehensiveness checker:\n\n{vars[OutputKeys.APPLICATION_ANSWER]}']
+    return [f'Here is the final answer ({len(response.split())} words) to "{vars[OutputKeys.APPLICATION_QUESTION]}" after integrating {implicit_questions_integration_summary}:\n\n{response}',
+            f'For reference, here is the original answer generated ({len(vars[OutputKeys.APPLICATION_ANSWER].split())} words) prior to the comprehensiveness checker:\n\n{vars[OutputKeys.APPLICATION_ANSWER]}']
