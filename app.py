@@ -82,12 +82,13 @@ with gr.Blocks() as demo:
         files_component = gr.Files(label='Documents', visible=False, interactive=False, file_types=['.docx', '.txt'])
 
     # specify that the clear button should clear the files component
-    if type(clear_btn_component) is gr.ClearButton:
-        clear_btn_component.add(files_component) # make the clear button clear the files
-    else:
+    if type(clear_btn_component) is gr.Button:
         # current workaround until hg supports gradio>=3.35.0 in which ClearButton was introduced
         import json
         clear_btn_component.click(None, [], [files_component], _js=f"() => {json.dumps([files_component.postprocess(None)])}")
+    else:
+        assert type(clear_btn_component) is gr.ClearButton
+        clear_btn_component.add(files_component) # make the clear button clear the files
 
 
     # create state variable to keep track of current chatbot step
