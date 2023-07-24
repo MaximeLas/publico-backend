@@ -1,6 +1,7 @@
 from abc import ABC
 
-from gradio.events import EventListenerMethod
+from gradio.events import EventListenerMethod, Dependency
+from gradio.components import Component
 import gradio as gr
 
 from constants import UserInteractionType
@@ -12,8 +13,8 @@ class ComponentWrapper(ABC):
     def __init__(
         self,
         user_interaction_type: UserInteractionType,
-        component: gr.Button | gr.Textbox | gr.Files | gr.UploadButton,
-        trigger_to_proceed: EventListenerMethod,
+        component: Component,
+        trigger_to_proceed: EventListenerMethod | None = None,
         first_actions_after_trigger: list[dict] = []
     ):
         self._user_interaction_type = user_interaction_type
@@ -22,21 +23,32 @@ class ComponentWrapper(ABC):
         self._first_actions_after_trigger = first_actions_after_trigger
     
     @property
-    def user_interaction_type(self):
+    def user_interaction_type(self) -> UserInteractionType:
         return self._user_interaction_type
 
     @property
-    def component(self):
+    def component(self) -> Component:
         return self._component
 
-    def get_trigger_to_proceed(self):
-        def print_trigger_index():
+    @property
+    def trigger_to_proceed(self) -> EventListenerMethod | None:
+        return self._trigger_to_proceed
+
+    @property
+    def first_actions_after_trigger(self) -> list[dict]:
+        return self._first_actions_after_trigger
+
+
+    def chain_first_actions_after_trigger(self, **kwargs) -> Dependency:
+        def print_trigger_index() -> None:
             ComponentWrapper.trigger_index += 1
-            component_name = self._component.label or self._component.value
+            component_name = self._component.label or self._component.value # type: ignore
             component_type = type(self._component).__name__
             print(f'-- {ComponentWrapper.trigger_index} -- Triggered \'{component_name}\' {component_type}\n')
 
-        trigger = self._trigger_to_proceed(print_trigger_index)
+        assert self.trigger_to_proceed is not None, f'Cannot chain first actions after trigger for {self._component} as trigger_to_proceed is None'
+
+        trigger = self.trigger_to_proceed(print_trigger_index).then(**kwargs)
 
         for action in self._first_actions_after_trigger:
             trigger = trigger.then(**action)
@@ -79,7 +91,6 @@ class FilesWrapper(ComponentWrapper):
         super().__init__(
             user_interaction_type=UserInteractionType.FILES,
             component=files,
-            trigger_to_proceed=getattr(files, 'clear'),
             **kwargs)
 
 
@@ -132,4 +143,17 @@ class TextWrapper(ComponentWrapper):
             user_interaction_type=UserInteractionType.TEXT,
             component=text_box,
             trigger_to_proceed=getattr(text_box, 'submit'),
+            **kwargs)
+
+
+class SubmitTextButtonWrapper(ComponentWrapper):
+    def __init__(
+        self,
+        submit_text_btn: gr.Button,
+        **kwargs
+    ):
+        super().__init__(
+            user_interaction_type=UserInteractionType.SUBMIT_TEXT,
+            component=submit_text_btn,
+            trigger_to_proceed=getattr(submit_text_btn, 'click'),
             **kwargs)

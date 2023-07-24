@@ -1,36 +1,37 @@
 from abc import ABC
 from typing import Callable
 
-from constants import UserInteractionType, OutputKeys
+from constants import UserInteractionType, ContextKeys
 
+GenerateOutputFnType = Callable[[dict], str | list[str] | None]
 
 class ChatbotStep(ABC):
     def __init__(
         self,
         user_interaction_types: list[UserInteractionType],
         message: str,
-        output_key: OutputKeys,
-        generate_output_fns: list[Callable[[dict], str | list[str] | None]] = []
+        context_key: ContextKeys,
+        generate_output_fns: list[GenerateOutputFnType] = []
     ):
         self._user_interaction_types = user_interaction_types
         self._message = message
-        self._output_key = output_key
+        self._output_key = context_key
         self._generate_output_fns = generate_output_fns
     
     @property
-    def user_interaction_types(self):
+    def user_interaction_types(self) -> list[UserInteractionType]:
         return self._user_interaction_types
 
     @property
-    def message(self):
+    def message(self) -> str:
         return self._message
     
     @property
-    def output_key(self):
+    def context_key(self) -> ContextKeys:
         return self._output_key
 
     @property
-    def generate_output_fns(self):
+    def generate_output_fns(self) -> list[GenerateOutputFnType] | None:
         return self._generate_output_fns
 
 class FilesStep(ChatbotStep):
@@ -55,7 +56,7 @@ class TextStep(ChatbotStep):
         self,
         **kwargs
     ):
-        super().__init__(user_interaction_types=[UserInteractionType.TEXT], **kwargs)
+        super().__init__(user_interaction_types=[UserInteractionType.TEXT, UserInteractionType.SUBMIT_TEXT], **kwargs)
 
 class StartStep(ChatbotStep):
     def __init__(

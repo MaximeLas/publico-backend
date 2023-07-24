@@ -1,5 +1,9 @@
 import sys
 
+from chatbot_step import ChatbotStep
+from  constants import ContextKeys
+
+
 # check if sqlite3 version is too old and install newer version if necessary in order to avoid error:
 # Error: Your system has an unsupported version of sqlite3. Chroma requires sqlite3 >= 3.35.0
 import sqlite3
@@ -26,3 +30,9 @@ print(f'current gradio version={importlib.metadata.version("gradio")}\n')
 
 # get arguments from command line and set GPT_MODEL
 GPT_MODEL = 'gpt-3.5-turbo' if len(sys.argv) > 1 else 'gpt-4'
+
+# define list of chatbot steps
+CHATBOT_STEPS: list[ChatbotStep] = []
+
+# define dict to store context variables from chatbot steps
+CONTEXT: dict[ContextKeys, str | list[str] | None] = {}

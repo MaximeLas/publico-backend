@@ -8,10 +8,11 @@ class UserInteractionType(Enum):
     SUBMIT = auto()
     CLEAR = auto()
     TEXT = auto()
+    SUBMIT_TEXT = auto()
     START = auto()
     NONE = auto()
 
-class OutputKeys(Enum):
+class ContextKeys(Enum):
     HAS_APPLIED_FOR_THIS_GRANT_BEFORE = auto()
     PRIOR_GRANT_APPLICATIONS = auto()
     APPLICATION_QUESTION = auto()
@@ -22,3 +23,14 @@ class OutputKeys(Enum):
     MISSING_INFORMATION = auto()
     IMPLICIT_QUESTIONS = auto()
     ANSWERS_TO_IMPLICIT_QUESTIONS = auto()
+
+GRANT_APPLICATION_QUESTIONS_EXAMPLES = [
+    'What is your mission?',
+    'Give me a background of your organization.',
+    'What are your achievements to date?',
+    'Where does this project fit within your organizational strategy and vision?',
+    'How is your organization building an inclusive workplace culture? What are your diversity, equity, and inclusion goals?',
+    'How does the proposed project contribute to the foundation\'s funding priority of increasing diversity, equity, and inclusion (DEI)?',
+    'What is your organization\'s approach to measuring impact?',
+    'What are your organization\'s goals for the next 3-5 years?'
+]

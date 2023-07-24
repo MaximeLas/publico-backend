@@ -6,7 +6,7 @@ from langchain.chat_models import ChatOpenAI
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import Chroma
 
-from constants import OutputKeys
+from constants import ContextKeys
 from helpers import *
 from prompts import *
 from openai_functions_utils import *
@@ -16,37 +16,37 @@ from settings import GPT_MODEL
 def generate_answer_to_question(vars: dict) -> str:
     '''Generate an answer to a grant application question.'''
 
-    documents_chunks = get_documents_chunks_for_files(vars[OutputKeys.PRIOR_GRANT_APPLICATIONS])
+    documents_chunks = get_documents_chunks_for_files(vars[ContextKeys.PRIOR_GRANT_APPLICATIONS])
     vector_store = Chroma.from_documents(documents=documents_chunks, embedding=OpenAIEmbeddings(client=None))
 
-    if vars[OutputKeys.APPLICATION_QUESTION] == '':
-        vars[OutputKeys.APPLICATION_ANSWER] = ''
+    if vars[ContextKeys.APPLICATION_QUESTION] == '':
+        vars[ContextKeys.APPLICATION_ANSWER] = ''
         print(f'No application question provided, skipping generation of answer.\n')
         return 'No answer generated due to missing application question.'
 
-    question_for_prompt = vars[OutputKeys.APPLICATION_QUESTION]
+    question_for_prompt = vars[ContextKeys.APPLICATION_QUESTION]
     most_relevant_documents = get_most_relevant_docs_in_vector_store_for_answering_question(
         vector_store=vector_store, question=question_for_prompt, n_results=1)
 
-    vars[OutputKeys.MOST_RELEVANT_DOCUMENTS] = most_relevant_documents
+    vars[ContextKeys.MOST_RELEVANT_DOCUMENTS] = most_relevant_documents
 
-    if vars[OutputKeys.WORD_LIMIT] and vars[OutputKeys.WORD_LIMIT].isdigit():
-        question_for_prompt += f' ({vars[OutputKeys.WORD_LIMIT]} words)'
+    if vars[ContextKeys.WORD_LIMIT] and vars[ContextKeys.WORD_LIMIT].isdigit():
+        question_for_prompt += f' ({vars[ContextKeys.WORD_LIMIT]} words)'
 
     chat_openai = ChatOpenAI(client=None, model=GPT_MODEL, temperature=0)
 
-    vars[OutputKeys.APPLICATION_ANSWER] = generate_answers_from_documents_for_question(
+    vars[ContextKeys.APPLICATION_ANSWER] = generate_answers_from_documents_for_question(
         most_relevant_documents, chat_openai, question_for_prompt)[0]
 
-    print(f'Final answer for application question "{vars[OutputKeys.APPLICATION_QUESTION]}":\n\n{vars[OutputKeys.APPLICATION_ANSWER]}\n')
+    print(f'Final answer for application question "{vars[ContextKeys.APPLICATION_QUESTION]}":\n\n{vars[ContextKeys.APPLICATION_ANSWER]}\n')
 
-    return f'Generated answer ({len(vars[OutputKeys.APPLICATION_ANSWER].split())} words) to "{vars[OutputKeys.APPLICATION_QUESTION]}":\n\n{vars[OutputKeys.APPLICATION_ANSWER]}'
+    return f'Generated answer ({len(vars[ContextKeys.APPLICATION_ANSWER].split())} words) to "{vars[ContextKeys.APPLICATION_QUESTION]}":\n\n{vars[ContextKeys.APPLICATION_ANSWER]}'
 
 
 def check_for_comprehensiveness(vars: dict) -> str | None:
     '''Check for comprehensiveness of an answer to a grant application question using OpenAI functions.'''
 
-    if vars[OutputKeys.CHECK_COMPREHENSIVENESS] != 'Yes':
+    if vars[ContextKeys.CHECK_COMPREHENSIVENESS] != 'Yes':
         return None
 
     chat_openai = ChatOpenAI(client=None, model=GPT_MODEL, temperature=0)
@@ -55,19 +55,19 @@ def check_for_comprehensiveness(vars: dict) -> str | None:
     with get_openai_callback() as cb:
         #chain = create_structured_output_chain(get_json_schema_for_comprehensiveness_check(), chat_openai, prompt, verbose=True)
         chain = create_openai_fn_chain([function_for_comprehensiveness_check], chat_openai, prompt, verbose=True)
-        response = chain.run(question=vars[OutputKeys.APPLICATION_QUESTION], answer=vars[OutputKeys.APPLICATION_ANSWER])
+        response = chain.run(question=vars[ContextKeys.APPLICATION_QUESTION], answer=vars[ContextKeys.APPLICATION_ANSWER])
         print(f'Summary info OpenAI callback:\n{cb}\n')
 
     print(f'Response for check of comprehensiveness:\n\n{response}\n')
 
     assert type(response) == dict
-    vars[OutputKeys.MISSING_INFORMATION] = response['missing_information']
-    print(f'Missing information: {vars[OutputKeys.MISSING_INFORMATION]}\n')
+    vars[ContextKeys.MISSING_INFORMATION] = response['missing_information']
+    print(f'Missing information: {vars[ContextKeys.MISSING_INFORMATION]}\n')
 
-    vars[OutputKeys.IMPLICIT_QUESTIONS] = []
+    vars[ContextKeys.IMPLICIT_QUESTIONS] = []
     if type(response['implicit_questions']) is dict:
-        # if response['implicit_questions'] is a dict, then just set vars[OutputKeys.IMPLICIT_QUESTIONS] to the values of that dict
-        vars[OutputKeys.IMPLICIT_QUESTIONS] = [q for q in response['implicit_questions'].values()] # type: ignore
+        # if response['implicit_questions'] is a dict, then just set vars[ContextKeys.IMPLICIT_QUESTIONS] to the values of that dict
+        vars[ContextKeys.IMPLICIT_QUESTIONS] = [q for q in response['implicit_questions'].values()] # type: ignore
     elif type(response['implicit_questions']) is list:
         for q in response['implicit_questions']:  # type: ignore
             if type(q) is dict:
@@ -75,27 +75,27 @@ def check_for_comprehensiveness(vars: dict) -> str | None:
             elif type(q) is not str:
                 print(f'Unexpected type for implicit question: {type(q)}')
                 break
-            vars[OutputKeys.IMPLICIT_QUESTIONS].append(q)
+            vars[ContextKeys.IMPLICIT_QUESTIONS].append(q)
     else:
         print(f'Unexpected type for implicit questions: {type(response["implicit_questions"])}\n')
 
-    print(f'Implicit questions ({len(vars[OutputKeys.IMPLICIT_QUESTIONS])}):')
-    for i, q in enumerate(vars[OutputKeys.IMPLICIT_QUESTIONS]):
+    print(f'Implicit questions ({len(vars[ContextKeys.IMPLICIT_QUESTIONS])}):')
+    for i, q in enumerate(vars[ContextKeys.IMPLICIT_QUESTIONS]):
         print(f'Question {i + 1}: {q}')
     print()
 
-    return vars[OutputKeys.MISSING_INFORMATION]
+    return vars[ContextKeys.MISSING_INFORMATION]
 
 
 def generate_answers_for_implicit_questions(vars: dict) -> list[str] | None:
     '''Generate answers for implicit questions to be answered to fill in any missing information required to make the answer comprehensive.'''
 
-    if vars[OutputKeys.CHECK_COMPREHENSIVENESS] != 'Yes' or OutputKeys.IMPLICIT_QUESTIONS not in vars:
+    if vars[ContextKeys.CHECK_COMPREHENSIVENESS] != 'Yes' or ContextKeys.IMPLICIT_QUESTIONS not in vars:
         return None
 
-    vars[OutputKeys.ANSWERS_TO_IMPLICIT_QUESTIONS] = []
+    vars[ContextKeys.ANSWERS_TO_IMPLICIT_QUESTIONS] = []
     answers = []
-    for i, question in enumerate(vars[OutputKeys.IMPLICIT_QUESTIONS]):
+    for i, question in enumerate(vars[ContextKeys.IMPLICIT_QUESTIONS]):
         with get_openai_callback() as cb:
             chain = load_qa_chain(
                 llm=ChatOpenAI(client=None, model=GPT_MODEL, temperature=0),
@@ -103,10 +103,10 @@ def generate_answers_for_implicit_questions(vars: dict) -> list[str] | None:
                 verbose=False,
                 prompt=get_prompt_template_for_generating_answer_to_implicit_question()
             )
-            answer = chain.run(input_documents=vars[OutputKeys.MOST_RELEVANT_DOCUMENTS], question=question)
+            answer = chain.run(input_documents=vars[ContextKeys.MOST_RELEVANT_DOCUMENTS], question=question)
 
             if 'Not enough information' not in answer:
-                vars[OutputKeys.ANSWERS_TO_IMPLICIT_QUESTIONS].append(answer)
+                vars[ContextKeys.ANSWERS_TO_IMPLICIT_QUESTIONS].append(answer)
                 print(f'Generated answer for question #{i+1} "{question}":\n\n{answer}\n')
             else:
                 print(f'Excluding answer for question #{i+1} as not enough information provided to answer question "{question}"\n')
@@ -120,7 +120,7 @@ def generate_answers_for_implicit_questions(vars: dict) -> list[str] | None:
 def generate_final_answer(vars: dict) -> list[str] | None:
     '''Generate a final answer to a grant application question.'''
 
-    if vars[OutputKeys.CHECK_COMPREHENSIVENESS] != 'Yes' or OutputKeys.IMPLICIT_QUESTIONS not in vars:
+    if vars[ContextKeys.CHECK_COMPREHENSIVENESS] != 'Yes' or ContextKeys.IMPLICIT_QUESTIONS not in vars:
         return None
 
     with get_openai_callback() as cb:
@@ -130,16 +130,16 @@ def generate_final_answer(vars: dict) -> list[str] | None:
             verbose=True
         )
         response = chain.run(
-            question=vars[OutputKeys.APPLICATION_QUESTION],
-            answers_to_implicit_questions='\n\n'.join(vars[OutputKeys.ANSWERS_TO_IMPLICIT_QUESTIONS]),
-            word_limit=vars[OutputKeys.WORD_LIMIT],
-            original_answer=vars[OutputKeys.APPLICATION_ANSWER]
+            question=vars[ContextKeys.APPLICATION_QUESTION],
+            answers_to_implicit_questions='\n\n'.join(vars[ContextKeys.ANSWERS_TO_IMPLICIT_QUESTIONS]),
+            word_limit=vars[ContextKeys.WORD_LIMIT],
+            original_answer=vars[ContextKeys.APPLICATION_ANSWER]
         )
         print(f'Summary info OpenAI callback:\n{cb}\n')
 
-    print(f'Final answer for application question "{vars[OutputKeys.APPLICATION_QUESTION]}":\n\n{response}\n')
+    print(f'Final answer for application question "{vars[ContextKeys.APPLICATION_QUESTION]}":\n\n{response}\n')
 
-    number_of_implicit_questions = len(vars[OutputKeys.ANSWERS_TO_IMPLICIT_QUESTIONS])
+    number_of_implicit_questions = len(vars[ContextKeys.ANSWERS_TO_IMPLICIT_QUESTIONS])
     implicit_questions_integration_summary = (
         f'answers to {number_of_implicit_questions} implicit questions'
             if number_of_implicit_questions > 1 else
@@ -148,5 +148,5 @@ def generate_final_answer(vars: dict) -> list[str] | None:
         'answers to none of the implicit questions')
         )
 
-    return [f'Here is the final answer ({len(response.split())} words) to "{vars[OutputKeys.APPLICATION_QUESTION]}" after integrating {implicit_questions_integration_summary}:\n\n{response}',
-            f'For reference, here is the original answer generated ({len(vars[OutputKeys.APPLICATION_ANSWER].split())} words) prior to the comprehensiveness checker:\n\n{vars[OutputKeys.APPLICATION_ANSWER]}']
+    return [f'Here is the final answer ({len(response.split())} words) to "{vars[ContextKeys.APPLICATION_QUESTION]}" after integrating {implicit_questions_integration_summary}:\n\n{response}',
+            f'For reference, here is the original answer generated ({len(vars[ContextKeys.APPLICATION_ANSWER].split())} words) prior to the comprehensiveness checker:\n\n{vars[ContextKeys.APPLICATION_ANSWER]}']
