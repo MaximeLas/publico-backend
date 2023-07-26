@@ -23,6 +23,7 @@ class ContextKeys(Enum):
     MISSING_INFORMATION = auto()
     IMPLICIT_QUESTIONS = auto()
     ANSWERS_TO_IMPLICIT_QUESTIONS = auto()
+    TRY_WITH_ANOTHER_QUESTION = auto()
 
 GRANT_APPLICATION_QUESTIONS_EXAMPLES = [
     'What is your mission?',

@@ -1,6 +1,6 @@
 from abc import ABC
-from collections.abc import Iterator
-from typing import Callable
+from collections.abc import Callable, Iterator
+from types import GeneratorType
 
 from constants import UserInteractionType, ContextKeys
 
@@ -35,6 +35,30 @@ class ChatbotStep(ABC):
     @property
     def generate_message_fns(self) -> list[GenerateMessageFnType]:
         return self._generate_message_fns
+
+
+    def generate_chatbot_message(self, chatbot_history, context):
+        new_chatbot_messages = []
+        for fn in self.generate_message_fns:
+            if (response := fn(context)) is not None:
+                current_new_messages = []
+                if type(response) is GeneratorType:
+                    for streamed_so_far in response:
+                        current_new_messages = (
+                            [[streamed_so_far, None]]
+                                if type(streamed_so_far) is str else
+                            [[message, None] for message in streamed_so_far])
+                        yield chatbot_history + new_chatbot_messages + current_new_messages
+                else:
+                    current_new_messages = (
+                        [[response, None]]
+                            if type(response) is str else
+                        [[message, None] for message in response])
+                    yield chatbot_history + new_chatbot_messages + current_new_messages
+                new_chatbot_messages += current_new_messages
+
+        yield chatbot_history + new_chatbot_messages
+
 
 class FilesStep(ChatbotStep):
     def __init__(
@@ -80,13 +104,13 @@ class StartStep(ChatbotStep):
 class YesNoStep(ChatbotStep):
     def __init__(
         self,
-        steps_to_skip_if_yes: int = 0,
-        steps_to_skip_if_no: int = 0,
+        next_step_if_yes: Callable[[int], int] = lambda step: step,
+        next_step_if_no: Callable[[int], int] = lambda step: step,
         **kwargs
     ):
         super().__init__(user_interaction_types=[UserInteractionType.YES_NO], **kwargs)
-        self._steps_to_skip_if_yes = steps_to_skip_if_yes
-        self._steps_to_skip_if_no = steps_to_skip_if_no
+        self._next_step_if_yes = next_step_if_yes
+        self._next_step_if_no = next_step_if_no
 
-    def steps_to_skip(self, yes_or_no: str) -> int:
-        return self._steps_to_skip_if_yes if yes_or_no == 'Yes' else self._steps_to_skip_if_no
+    def go_to_step(self, yes_or_no: str, step: int) -> int:
+        return self._next_step_if_yes(step) if yes_or_no == 'Yes' else self._next_step_if_no(step)

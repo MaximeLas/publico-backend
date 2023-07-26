@@ -3,15 +3,11 @@ import os
 
 import tiktoken
 
-from langchain.callbacks import get_openai_callback
-from langchain.chains.question_answering import load_qa_chain
-from langchain.chat_models import ChatOpenAI
 from langchain.docstore.document import Document
 from langchain.document_loaders import UnstructuredFileLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores.base import VectorStore
 
-from prompts import get_prompt_template_for_generating_original_answer
 from settings import GPT_MODEL
 
 
@@ -293,44 +289,3 @@ def get_most_relevant_docs_in_vector_store_for_answering_question(
     print(f'Total token count of most relevant documents: {sum([doc.metadata["current_token_count"] for doc in relevant_docs])}\n')
 
     return relevant_docs
-
-
-def generate_answers_from_documents_for_question(
-    documents: List[Document],
-    chat_openai: ChatOpenAI,
-    question: str,
-    step: int = 1
-) -> List[str]:
-    '''
-    Generate answers from documents for question using chat_model and print them
-        Parameters:
-            documents (List[Document]): list of documents to generate answers from
-            chat_model (BaseChatModel): chat model to use for generating answers
-            question (str): question to generate answers for
-            step (int): see https://docs.google.com/document/d/1oxQJ0xYPkySs1C0t92md--t_AwD-smjhHkMd9dYqGyY/edit?pli=1 (default: 1)
-        
-        Returns:
-            List[str]: list of answers generated from documents for question
-    '''
-
-    answers = []
-    for i, doc in enumerate(documents):
-        with get_openai_callback() as cb:
-            chain = load_qa_chain(
-                llm=chat_openai,
-                chain_type='stuff',
-                verbose=False,
-                prompt=get_prompt_template_for_generating_original_answer() if step == 1 else None
-            )
-
-            answer = chain.run(input_documents=[doc], question=question)
-
-            print_pretty_index(i)
-            print(f'Generated answer for "{question}":\n\n{answer}\n')
-            print(f'Summary info OpenAI callback:\n{cb}\n')
-
-            answers.append(answer)
-    
-    print(f'Finished generating answer(s) for question "{question}" from {len(documents)} documents\n\n')
-
-    return answers

@@ -38,7 +38,7 @@ def stream_from_llm_generation(
     '''
     This function will return a generator that will yield the next token from the LLM.
     
-        Args:
+        Parameters:
             prompt: the prompt to use for the LLM
             chain_type: the type of chain to use for the LLM (defaults to llm_chain)
             model: the model to use for the LLM (defaults to GPT_MODEL)

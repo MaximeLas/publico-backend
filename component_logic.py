@@ -1,83 +1,50 @@
-from collections.abc import Iterator
-from types import GeneratorType
 import tempfile
 
 import gradio as gr
 
-from settings import CHATBOT_STEPS, CONTEXT
+from settings import CHATBOT_STEPS
 from constants import ContextKeys
-from chatbot_step import TextStep, YesNoStep, FilesStep, GenerateMessageFnType
+from chatbot_step import TextStep, YesNoStep, FilesStep
 
 
 
-def save_to_context(context_key: ContextKeys, value: str | list[str]):
-    CONTEXT[context_key] = value
-    print(f'{context_key}: {CONTEXT[context_key]}\n')
-
-
-def generate_chatbot_messages(generate_message_fns: list[GenerateMessageFnType]) -> Iterator[list[list[str]]]:
-    new_chatbot_messages = []
-    for fn in generate_message_fns:
-        if (response := fn(CONTEXT)) is not None:
-            current_new_messages = []
-            if type(response) is GeneratorType:
-                for streamed_so_far in response:
-                    current_new_messages = (
-                        [[streamed_so_far, None]]
-                            if type(streamed_so_far) is str else
-                        [[message, None] for message in streamed_so_far])
-                    yield new_chatbot_messages + current_new_messages
-            else:
-                current_new_messages = (
-                    [[response, None]]
-                        if type(response) is str else
-                    [[message, None] for message in response])
-                yield new_chatbot_messages + current_new_messages
-            new_chatbot_messages += current_new_messages
-    
-    print('Done with generate_chatbot_messages\n')
+def add_to_context(context: dict, context_key: ContextKeys, value: str | list[str]) -> dict:
+    '''Add a value to the context dictionary and print the value added to the context'''
+    context[context_key] = value
+    print(f'{context_key}: {context[context_key]}\n')
+    return context
 
 
 def handle_text_submitted(
     user_message: str,
     chat_history: list[list],
-    step: int
+    step: int,
+    context: dict
 ):
     text_step = CHATBOT_STEPS[step]
     assert type(text_step) is TextStep
 
-    save_to_context(text_step.context_key, user_message)
-
     # update chat history with user message
     chat_history[-1][1] = user_message
 
-    if (fns := text_step.generate_message_fns) != []:
-        # generate new message(s) and update chat history accordingly
-        for messages in generate_chatbot_messages(fns):
-            yield '', chat_history + messages
-    else:
-        yield '', chat_history
+    return '', chat_history, add_to_context(context, text_step.context_key, user_message)
 
 
 def handle_yes_no_clicked(
     yes_or_no: str,
     chat_history: list[list],
-    step: int
+    step: int,
+    context: dict
 ):
     yes_no_step = CHATBOT_STEPS[step]
     assert type(yes_no_step) is YesNoStep
 
-    # save YES or NO to context variable
-    save_to_context(yes_no_step.context_key, yes_or_no)
+    # update chat history with user selection of yes or no
+    chat_history[-1][1] = yes_or_no
 
-    steps_to_skip = yes_no_step.steps_to_skip(yes_or_no)
+    step = yes_no_step.go_to_step(yes_or_no, step)
     
-    if (fns := yes_no_step.generate_message_fns) != []:
-        # generate new message(s) and update chat history accordingly
-        for new_messages in generate_chatbot_messages(fns):
-            yield chat_history + new_messages, step + steps_to_skip
-    else:
-        yield chat_history, step + steps_to_skip
+    return chat_history, step, add_to_context(context, yes_no_step.context_key, yes_or_no)
 
 
 def handle_files_uploaded(
@@ -101,29 +68,24 @@ def handle_files_uploaded(
 
 def handle_files_submitted(
     files: list[tempfile._TemporaryFileWrapper],
-    chat_history: list[list],
-    step: int
+    step: int,
+    context: dict
 ):
     files_step = CHATBOT_STEPS[step]
     assert type(files_step) is FilesStep
-
-    # save file names to context variable
-    save_to_context(files_step.context_key, [file.name for file in files])
 
     # iterate over files and print their names
     for file in files: print(f'File uploaded: {file.name.split("/")[-1]}')
     print()
 
-    # update chat history with validation message
-    validation_message = f'You successfully uploaded {len(files)} {files_step.kind_of_document}! 🎉'
-
-    return chat_history + [[validation_message, None]]
+    return add_to_context(context, files_step.context_key, [file.name for file in files])
 
 
 def stream_next_step_chatbot_message(chat_history: list[list], step: int):
-    chat_history += (
-        [[CHATBOT_STEPS[step + 1].message, None]]
+    return (
+        # if there are more steps, then stream the next step's message and increment the step counter
+        [chat_history + [[CHATBOT_STEPS[step + 1].message, None]], step + 1, gr.skip()]
             if step + 1 < len(CHATBOT_STEPS) else
-        [['End of demo, thanks for participating!', None]])
-
-    return chat_history, step + 1
+        # if there are no more steps, then end the chat and reset the step counter and context
+        [chat_history + [['End of demo, thanks for participating!', None]], -1, {}]
+    )

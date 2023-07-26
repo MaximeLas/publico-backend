@@ -14,13 +14,15 @@ class ComponentWrapper(ABC):
         self,
         user_interaction_type: UserInteractionType,
         component: Component,
-        trigger_to_proceed: EventListenerMethod | None = None,
-        first_actions_after_trigger: list[dict] = []
+        user_action: EventListenerMethod | None = None,
+        first_actions_after_trigger: list[dict] = [],
+        proceed_to_next_step: bool = True
     ):
         self._user_interaction_type = user_interaction_type
         self._component = component
-        self._trigger_to_proceed = trigger_to_proceed
+        self._user_action = user_action
         self._first_actions_after_trigger = first_actions_after_trigger
+        self._proceed_to_next_step = proceed_to_next_step
     
     @property
     def user_interaction_type(self) -> UserInteractionType:
@@ -31,12 +33,16 @@ class ComponentWrapper(ABC):
         return self._component
 
     @property
-    def trigger_to_proceed(self) -> EventListenerMethod | None:
-        return self._trigger_to_proceed
+    def user_action(self) -> EventListenerMethod | None:
+        return self._user_action
 
     @property
     def first_actions_after_trigger(self) -> list[dict]:
         return self._first_actions_after_trigger
+
+    @property
+    def proceed_to_next_step(self) -> bool:
+        return self._proceed_to_next_step
 
 
     def chain_first_actions_after_trigger(self, **kwargs) -> Dependency:
@@ -46,9 +52,9 @@ class ComponentWrapper(ABC):
             component_type = type(self._component).__name__
             print(f'-- {ComponentWrapper.trigger_index} -- Triggered \'{component_name}\' {component_type}\n')
 
-        assert self.trigger_to_proceed is not None, f'Cannot chain first actions after trigger for {self._component} as trigger_to_proceed is None'
+        assert self.user_action is not None, f'Cannot chain first actions after trigger for {self._component} as user_action is None'
 
-        trigger = self.trigger_to_proceed(print_trigger_index).then(**kwargs)
+        trigger = self.user_action(print_trigger_index).then(**kwargs)
         for action in self._first_actions_after_trigger:
             trigger = trigger.then(**action)
         return trigger
@@ -63,7 +69,7 @@ class StartWrapper(ComponentWrapper):
         super().__init__(
             user_interaction_type=UserInteractionType.START,
             component=start_btn,
-            trigger_to_proceed = getattr(start_btn, 'click'),
+            user_action = getattr(start_btn, 'click'),
             **kwargs)
 
 
@@ -76,7 +82,7 @@ class YesNoWrapper(ComponentWrapper):
         super().__init__(
             user_interaction_type=UserInteractionType.YES_NO,
             component=yes_no_btn,
-            trigger_to_proceed=getattr(yes_no_btn, 'click'),
+            user_action=getattr(yes_no_btn, 'click'),
             **kwargs)
 
 
@@ -101,7 +107,8 @@ class UploadWrapper(ComponentWrapper):
         super().__init__(
             user_interaction_type=UserInteractionType.UPLOAD,
             component=upload_btn,
-            trigger_to_proceed=getattr(upload_btn, 'upload'),
+            user_action=getattr(upload_btn, 'upload'),
+            proceed_to_next_step=False,
             **kwargs)
 
 
@@ -114,7 +121,7 @@ class SubmitWrapper(ComponentWrapper):
         super().__init__(
             user_interaction_type=UserInteractionType.SUBMIT,
             component=submit_btn,
-            trigger_to_proceed=getattr(submit_btn, 'click'),
+            user_action=getattr(submit_btn, 'click'),
             **kwargs)
 
 
@@ -127,7 +134,8 @@ class ClearWrapper(ComponentWrapper):
         super().__init__(
             user_interaction_type=UserInteractionType.CLEAR,
             component=clear_btn,
-            trigger_to_proceed=getattr(clear_btn, 'click'),
+            user_action=getattr(clear_btn, 'click'),
+            proceed_to_next_step=False,
             **kwargs)
 
 
@@ -140,7 +148,7 @@ class TextWrapper(ComponentWrapper):
         super().__init__(
             user_interaction_type=UserInteractionType.TEXT,
             component=text_box,
-            trigger_to_proceed=getattr(text_box, 'submit'),
+            user_action=getattr(text_box, 'submit'),
             **kwargs)
 
 
@@ -153,5 +161,5 @@ class SubmitTextButtonWrapper(ComponentWrapper):
         super().__init__(
             user_interaction_type=UserInteractionType.SUBMIT_TEXT,
             component=submit_text_btn,
-            trigger_to_proceed=getattr(submit_text_btn, 'click'),
+            user_action=getattr(submit_text_btn, 'click'),
             **kwargs)

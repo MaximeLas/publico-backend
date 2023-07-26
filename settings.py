@@ -25,6 +25,3 @@ GPT_MODEL = 'gpt-3.5-turbo' if len(sys.argv) > 1 else 'gpt-4'
 
 # define list of chatbot steps
 CHATBOT_STEPS: list[ChatbotStep] = []
-
-# define dict to store context variables from chatbot steps
-CONTEXT: dict[ContextKeys, str | list[str] | None] = {}
