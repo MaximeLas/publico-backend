@@ -1,4 +1,5 @@
 from abc import ABC
+import time
 
 from gradio.events import EventListenerMethod, Dependency
 from gradio.components import Component
@@ -57,6 +58,7 @@ class ComponentWrapper(ABC):
         trigger = self.user_action(print_trigger_index).then(**kwargs)
         for action in self._first_actions_after_trigger:
             trigger = trigger.then(**action)
+            trigger = trigger.then(fn=lambda: time.sleep(0.5))
         return trigger
 
 

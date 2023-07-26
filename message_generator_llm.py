@@ -9,7 +9,7 @@ from langchain.vectorstores import Chroma
 from chatbot_step import MessageGenerationType
 from constants import ContextKeys
 from helpers import get_most_relevant_docs_in_vector_store_for_answering_question, get_documents_chunks_for_files
-from llm_utils import stream_from_llm_generation
+from llm_streaming_utils import stream_from_llm_generation
 from settings import GPT_MODEL
 from openai_functions_utils import function_for_comprehensiveness_check, get_json_schema_for_comprehensiveness_check
 from prompts import (
@@ -47,11 +47,10 @@ def generate_answer_to_question_stream(context: dict) -> MessageGenerationType:
     for next_token, response in stream_from_llm_generation(
         prompt=get_prompt_template_for_generating_original_answer(),
         chain_type='qa_chain',
-        verbose=True,
+        verbose=False,
         docs=most_relevant_documents,
         question=question_for_prompt
     ):
-        print(next_token)
         final_answer = response
         yield response
 
@@ -112,9 +111,10 @@ def generate_answers_for_implicit_questions_stream(context: dict) -> MessageGene
     '''Generate and stream answers for implicit questions to be answered to make the answer comprehensive.'''
 
     if context[ContextKeys.CHECK_COMPREHENSIVENESS] != 'Yes' or ContextKeys.IMPLICIT_QUESTIONS not in context:
-        yield 'No answers generated for implicit questions due to not having checked comprehensiveness.'
+        print('No answers generated for implicit questions due to not having checked comprehensiveness.')
         return
 
+    time.sleep(1)
     context[ContextKeys.ANSWERS_TO_IMPLICIT_QUESTIONS] = []
     answers: list[str] = []
     for i, question in enumerate(context[ContextKeys.IMPLICIT_QUESTIONS]):
@@ -123,7 +123,7 @@ def generate_answers_for_implicit_questions_stream(context: dict) -> MessageGene
         time.sleep(0.5)
         yield answers
         print(f'-------- Streaming tokens in generate_answers_for_implicit_questions_stream --------\n')
-        for next_token, response in stream_from_llm_generation(
+        for _, response in stream_from_llm_generation(
             prompt=get_prompt_template_for_generating_answer_to_implicit_question(),
             chain_type='qa_chain',
             model='gpt-3.5-turbo',
@@ -131,7 +131,6 @@ def generate_answers_for_implicit_questions_stream(context: dict) -> MessageGene
             docs=context[ContextKeys.MOST_RELEVANT_DOCUMENTS],
             question=question
         ):
-            print(next_token)
             answers[-1] = f'{start_of_sentence_for_answer}\n\n{response}'
             yield answers
 
@@ -145,18 +144,16 @@ def generate_answers_for_implicit_questions_stream(context: dict) -> MessageGene
 def generate_final_answer_stream(context: dict) -> MessageGenerationType:
     '''Generate and stream a final answer to a grant application question.'''
 
-    return_message = ''
+    message = ''
     if context[ContextKeys.CHECK_COMPREHENSIVENESS] != 'Yes' or ContextKeys.IMPLICIT_QUESTIONS not in context:
-        return_message = f'No final answer generated due to not having checked comprehensiveness.'
+        message = f'No final answer generated due to not having checked comprehensiveness.'
     elif len(context[ContextKeys.IMPLICIT_QUESTIONS]) == 0:
-        return_message = f'No final answer generated due to having no implicit questions.'
+        message = f'No final answer generated due to having no implicit questions.'
     elif len(context[ContextKeys.ANSWERS_TO_IMPLICIT_QUESTIONS]) == 0:
-        return_message = f'No final answer generated due having answered none of the implicit questions.'
+        message = f'No final answer generated due to having answered none of the implicit questions.'
 
-    if return_message != '':
-        time.sleep(0.5)
-        yield return_message
-        time.sleep(0.5)
+    if message != '':
+        print(message)
         return
 
     num_implicit_questions = len(context[ContextKeys.ANSWERS_TO_IMPLICIT_QUESTIONS])
@@ -172,7 +169,7 @@ def generate_final_answer_stream(context: dict) -> MessageGenerationType:
     final_llm_response = ''
 
     print(f'-------- Streaming tokens in generate_final_answer_stream --------\n')
-    for next_token, llm_response in stream_from_llm_generation(
+    for _, llm_response in stream_from_llm_generation(
         prompt=get_prompt_template_for_generating_final_answer(),
         chain_type='llm_chain',
         verbose=True,
@@ -181,7 +178,6 @@ def generate_final_answer_stream(context: dict) -> MessageGenerationType:
         word_limit=context[ContextKeys.WORD_LIMIT],
         original_answer=context[ContextKeys.APPLICATION_ANSWER]
     ):
-        print(next_token)
         final_llm_response = llm_response
         final_answer = f'{start_of_sentence_for_final_answer}:\n\n{llm_response}'
         yield final_answer

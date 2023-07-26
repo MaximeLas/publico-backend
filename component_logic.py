@@ -41,10 +41,8 @@ def handle_yes_no_clicked(
 
     # update chat history with user selection of yes or no
     chat_history[-1][1] = yes_or_no
-
-    step = yes_no_step.go_to_step(yes_or_no, step)
     
-    return chat_history, step, add_to_context(context, yes_no_step.context_key, yes_or_no)
+    return chat_history, add_to_context(context, yes_no_step.context_key, yes_or_no)
 
 
 def handle_files_uploaded(
@@ -79,13 +77,3 @@ def handle_files_submitted(
     print()
 
     return add_to_context(context, files_step.context_key, [file.name for file in files])
-
-
-def stream_next_step_chatbot_message(chat_history: list[list], step: int):
-    return (
-        # if there are more steps, then stream the next step's message and increment the step counter
-        [chat_history + [[CHATBOT_STEPS[step + 1].message, None]], step + 1, gr.skip()]
-            if step + 1 < len(CHATBOT_STEPS) else
-        # if there are no more steps, then end the chat and reset the step counter and context
-        [chat_history + [['End of demo, thanks for participating!', None]], -1, {}]
-    )

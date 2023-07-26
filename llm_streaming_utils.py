@@ -13,6 +13,7 @@ from langchain.prompts.chat import ChatPromptTemplate
 from settings import GPT_MODEL
 
 
+
 class QueueCallback(BaseCallbackHandler):
     '''Callback handler for streaming LLM generated tokens to a queue, used to create a generator.'''
 
@@ -76,6 +77,12 @@ def stream_from_llm_generation(
             prompt= prompt,
             verbose=verbose)
 
+        if chain_type == 'qa_chain':
+            if docs is not None:
+                print(f'length of document provided: {len(docs[0].page_content)}\n')
+            else:
+                print(f'no documents provided, not expected!\n')
+
         # add the documents to the kwargs if we're using a qa_chain and run the chain
         kwargs = input_variables if chain_type == 'llm_chain' else {'input_documents': docs, **input_variables}
         chain.run(**kwargs)
@@ -88,15 +95,17 @@ def stream_from_llm_generation(
     t.start()
 
     content = ""
+    num_tokens = 0
     # Get each new token from the queue and yield for our generator
     while True:
         try:
             # get the next token from the queue
             if (next_token := q.get(True, timeout=1)) is not job_done:
+                num_tokens += 1
                 content += next_token
                 yield next_token, content
             else:
-                # if we get the job_done object, we're done
+                print(f'job_done object received, ending stream after {num_tokens} tokens\n')
                 break
         except Empty:
             continue

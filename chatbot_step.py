@@ -4,19 +4,22 @@ from types import GeneratorType
 
 from constants import UserInteractionType, ContextKeys
 
+
 MessageGenerationType = str | Iterator[str] | list[str] | Iterator[list[str]]
 GenerateMessageFnType = Callable[[dict], MessageGenerationType]
+
+
 
 class ChatbotStep(ABC):
     def __init__(
         self,
         user_interaction_types: list[UserInteractionType],
-        message: str,
+        initial_message: str,
         context_key: ContextKeys,
         generate_message_fns: list[GenerateMessageFnType] = []
     ):
         self._user_interaction_types = user_interaction_types
-        self._message = message
+        self._initial_message = initial_message
         self._output_key = context_key
         self._generate_message_fns = generate_message_fns
     
@@ -25,8 +28,8 @@ class ChatbotStep(ABC):
         return self._user_interaction_types
 
     @property
-    def message(self) -> str:
-        return self._message
+    def initial_message(self) -> str:
+        return self._initial_message
     
     @property
     def context_key(self) -> ContextKeys:
@@ -78,8 +81,8 @@ class FilesStep(ChatbotStep):
         self._kind_of_document = kind_of_document
     
     @property
-    def message(self):
-        return self._message.format(kind_of_document=self._kind_of_document)
+    def initial_message(self):
+        return self._initial_message.format(kind_of_document=self._kind_of_document)
     
     @property
     def kind_of_document(self):
@@ -104,8 +107,8 @@ class StartStep(ChatbotStep):
 class YesNoStep(ChatbotStep):
     def __init__(
         self,
-        next_step_if_yes: Callable[[int], int] = lambda step: step,
-        next_step_if_no: Callable[[int], int] = lambda step: step,
+        next_step_if_yes: Callable[[int], int] = lambda step: step + 1,
+        next_step_if_no: Callable[[int], int] = lambda step: step + 1,
         **kwargs
     ):
         super().__init__(user_interaction_types=[UserInteractionType.YES_NO], **kwargs)
