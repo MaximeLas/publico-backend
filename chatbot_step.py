@@ -1,9 +1,11 @@
 from abc import ABC
+from collections.abc import Iterator
 from typing import Callable
 
 from constants import UserInteractionType, ContextKeys
 
-GenerateOutputFnType = Callable[[dict], str | list[str] | None]
+MessageGenerationType = str | Iterator[str] | list[str] | Iterator[list[str]]
+GenerateMessageFnType = Callable[[dict], MessageGenerationType]
 
 class ChatbotStep(ABC):
     def __init__(
@@ -11,12 +13,12 @@ class ChatbotStep(ABC):
         user_interaction_types: list[UserInteractionType],
         message: str,
         context_key: ContextKeys,
-        generate_output_fns: list[GenerateOutputFnType] = []
+        generate_message_fns: list[GenerateMessageFnType] = []
     ):
         self._user_interaction_types = user_interaction_types
         self._message = message
         self._output_key = context_key
-        self._generate_output_fns = generate_output_fns
+        self._generate_message_fns = generate_message_fns
     
     @property
     def user_interaction_types(self) -> list[UserInteractionType]:
@@ -31,8 +33,8 @@ class ChatbotStep(ABC):
         return self._output_key
 
     @property
-    def generate_output_fns(self) -> list[GenerateOutputFnType] | None:
-        return self._generate_output_fns
+    def generate_message_fns(self) -> list[GenerateMessageFnType]:
+        return self._generate_message_fns
 
 class FilesStep(ChatbotStep):
     def __init__(
@@ -40,7 +42,15 @@ class FilesStep(ChatbotStep):
         kind_of_document: str,
         **kwargs
     ):
-        super().__init__(user_interaction_types=[UserInteractionType.FILES, UserInteractionType.UPLOAD, UserInteractionType.SUBMIT, UserInteractionType.CLEAR], **kwargs)
+        super().__init__(
+            user_interaction_types=[
+                UserInteractionType.FILES,
+                UserInteractionType.UPLOAD,
+                UserInteractionType.SUBMIT,
+                UserInteractionType.CLEAR
+            ],
+            **kwargs)
+
         self._kind_of_document = kind_of_document
     
     @property
@@ -56,7 +66,9 @@ class TextStep(ChatbotStep):
         self,
         **kwargs
     ):
-        super().__init__(user_interaction_types=[UserInteractionType.TEXT, UserInteractionType.SUBMIT_TEXT], **kwargs)
+        super().__init__(
+            user_interaction_types=[UserInteractionType.TEXT, UserInteractionType.SUBMIT_TEXT],
+            **kwargs)
 
 class StartStep(ChatbotStep):
     def __init__(

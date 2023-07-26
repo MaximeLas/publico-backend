@@ -1,19 +1,40 @@
 import importlib.metadata
 
 import gradio as gr
+from gradio.components import Component
 
+# initialize langchain llm cache
 from langchain.cache import InMemoryCache
 import langchain
 langchain.llm_cache = InMemoryCache()
 
 from settings import CHATBOT_STEPS
-from constants import *
-from helpers import *
-from prompts import *
-from comprehensiveness import *
-from chatbot_step import *
-from component_wrapper import *
-from component_logic import *
+from chatbot_step import YesNoStep, FilesStep, TextStep
+from constants import ContextKeys, UserInteractionType, GRANT_APPLICATION_QUESTIONS_EXAMPLES
+from component_logic import (
+    handle_yes_no_clicked,
+    handle_files_uploaded,
+    handle_files_submitted,
+    handle_text_submitted,
+    stream_next_step_chatbot_message
+)
+from component_wrapper import (
+    ComponentWrapper,
+    StartWrapper,
+    YesNoWrapper,
+    FilesWrapper,
+    UploadWrapper,
+    SubmitWrapper,
+    ClearWrapper,
+    TextWrapper,
+    SubmitTextButtonWrapper
+)
+from comprehensiveness import (
+    generate_answer_to_question_stream,
+    check_for_comprehensiveness,
+    generate_answers_for_implicit_questions_stream,
+    generate_final_answer_stream
+)
 
 
 
@@ -33,11 +54,14 @@ CHATBOT_STEPS += [
     TextStep( # 3
         message="What is the word limit?",
         context_key=ContextKeys.WORD_LIMIT,
-        generate_output_fns=[generate_answer_to_question]),
+        generate_message_fns=[generate_answer_to_question_stream]),
     YesNoStep( # 4
         message="Do you want to check the comprehensiveness of the generated answer?",
         context_key=ContextKeys.CHECK_COMPREHENSIVENESS,
-        generate_output_fns=[check_for_comprehensiveness, generate_answers_for_implicit_questions, generate_final_answer])]
+        generate_message_fns=[
+            check_for_comprehensiveness,
+            generate_answers_for_implicit_questions_stream,
+            generate_final_answer_stream])]
 
 
 
@@ -45,9 +69,9 @@ with gr.Blocks() as demo:
     with gr.Row():
         # create chatbot component
         if importlib.metadata.version('gradio') < '3.34.0':
-            chatbot = gr.Chatbot(label='AI Grant Writing Coach', show_share_button=True).style(height=800)
+            chatbot = gr.Chatbot(label='AI Grant Writing Coach', show_share_button=True).style(height=620)
         else:
-            chatbot = gr.Chatbot(label='AI Grant Writing Coach', show_share_button=True, height=800)
+            chatbot = gr.Chatbot(label='AI Grant Writing Coach', show_share_button=True, height=620)
 
     with gr.Row():
         with gr.Column():
@@ -174,4 +198,4 @@ with gr.Blocks() as demo:
 
 
 if __name__ == '__main__':
-    demo.launch()
+    demo.queue().launch()

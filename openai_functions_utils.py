@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 
 
+
 class ImplicitQuestion(BaseModel):
     '''An implicit question to be answered to fill in any missing information required to make the answer comprehensive.'''
 
@@ -8,6 +9,7 @@ class ImplicitQuestion(BaseModel):
         None,
         description='The question to be answered to fill in missing information.',
     )
+
 
 def function_for_comprehensiveness_check(missing_information: str, implicit_questions: list[ImplicitQuestion]):
     '''

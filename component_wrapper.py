@@ -49,10 +49,8 @@ class ComponentWrapper(ABC):
         assert self.trigger_to_proceed is not None, f'Cannot chain first actions after trigger for {self._component} as trigger_to_proceed is None'
 
         trigger = self.trigger_to_proceed(print_trigger_index).then(**kwargs)
-
         for action in self._first_actions_after_trigger:
             trigger = trigger.then(**action)
-
         return trigger
 
 
