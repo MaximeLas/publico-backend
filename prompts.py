@@ -27,7 +27,7 @@ def get_prompt_template_for_generating_original_answer() -> ChatPromptTemplate:
 
     messages = [
         SystemMessagePromptTemplate.from_template(system_template),
-        HumanMessagePromptTemplate.from_template('{question}'),
+        HumanMessagePromptTemplate.from_template('{question} ({word_limit} words)'),
     ]
 
     return ChatPromptTemplate.from_messages(messages)

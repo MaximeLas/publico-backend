@@ -1,7 +1,10 @@
+from collections import defaultdict
 import importlib.metadata
+from typing import Any
 
 import gradio as gr
-from gradio.components import Component
+from gradio.components import Component, IOComponent
+from gradio.blocks import Block
 
 # initialize langchain llm cache
 from langchain.cache import InMemoryCache
@@ -9,9 +12,18 @@ import langchain
 langchain.llm_cache = InMemoryCache()
 
 from settings import CHATBOT_STEPS
-from chatbot_step import YesNoStep, FilesStep, TextStep
-from constants import ContextKeys, GRANT_APPLICATION_QUESTIONS_EXAMPLES
+from chatbot_step import ChatbotStep
+from constants import StepID, GRANT_APPLICATION_QUESTIONS_EXAMPLES
+from context import (
+    UserContext,
+    set_do_check_for_comprehensiveness,
+    set_grant_application_question,
+    set_prior_grant_applications,
+    set_word_limit,
+    set_current_step_id
+)
 from component_logic import (
+    handle_number_submitted,
     handle_yes_no_clicked,
     handle_files_uploaded,
     handle_files_submitted,
@@ -19,9 +31,10 @@ from component_logic import (
 )
 from component_wrapper import (
     ComponentWrapper,
+    FilesWrapper,
+    NumberWrapper,
     StartWrapper,
     YesNoWrapper,
-    FilesWrapper,
     UploadWrapper,
     SubmitWrapper,
     ClearWrapper,
@@ -34,59 +47,114 @@ from message_generator_llm import (
     generate_answers_for_implicit_questions_stream,
     generate_final_answer_stream
 )
-from message_generator_publico import generate_validation_message_following_files_upload
+from message_generator_publico import generate_chatbot_messages, generate_validation_message_following_files_upload
 
 
-application_question_step = lambda: next(
-    (step for step, chatbot_step_object in enumerate(CHATBOT_STEPS) if chatbot_step_object.context_key == ContextKeys.APPLICATION_QUESTION))
+
+def get_current_step(context: UserContext) -> ChatbotStep:
+    '''Get the current step based on the current step id in the context.'''
+
+    return CHATBOT_STEPS[context.current_step_id]
+
+
+def store_event_value_in_context(
+    context: UserContext,
+    default_value: Any,
+    components: list[IOComponent],
+    *components_values: Any,
+) -> UserContext:
+    '''Store the value of an event in the context, if a store_in_context_fn is defined for the current step.'''
+
+    step = get_current_step(context)
+
+    if step.store_in_context_fn is None:
+        return context
+
+    fn, component_name = step.store_in_context_fn
+
+    # get index of element in components that has the same name as component_name, return None if not found
+    index_component = next(
+        (i for i, c in enumerate(components) if (c.label or c.value) == component_name),
+        None)
+
+    print(f'index_component: {index_component}\ncomponent_name: {component_name}\n' +
+          f'components_values: {[f"{i}={c}" for i, c in enumerate(components_values)]}\n' +
+          f'component_names={[f"{i}={c.label or c.value}" for i, c in enumerate(components)]}\n' +
+          f'and will use {components_values[index_component] if index_component is not None else default_value}')
+    return (
+        fn(context, components_values[index_component])
+            if (component_name and index_component is not None)
+            else
+        fn(context, default_value))
 
 
 # define chatbot steps and their properties
-CHATBOT_STEPS += [
-    YesNoStep( # 0
+CHATBOT_STEPS.update({
+    StepID.START: ChatbotStep(
+        initial_message="Hello there, please hit 'Start' when you're ready.",
+        next_step=StepID.HAVE_YOU_APPLIED_BEFORE
+    ),
+    StepID.HAVE_YOU_APPLIED_BEFORE: ChatbotStep(
         initial_message="Have you applied for this grant before?",
-        context_key=ContextKeys.HAS_APPLIED_FOR_THIS_GRANT_BEFORE,
-        next_step_if_no=lambda step: step + 1),
-    FilesStep( # 1
-        initial_message="That's very useful! Please upload your {kind_of_document}.",
-        context_key=ContextKeys.PRIOR_GRANT_APPLICATIONS,
-        kind_of_document="prior grant application(s)",
-        generate_message_fns=[generate_validation_message_following_files_upload]),
-    TextStep( # 2
+        next_step=dict(
+            Yes=StepID.UPLOAD_PRIOR_GRANT_APPLICATIONS,
+            No=StepID.ENTER_QUESTION)
+    ),
+    StepID.UPLOAD_PRIOR_GRANT_APPLICATIONS: ChatbotStep(
+        initial_message="That's very useful! Please upload your prior grant application(s).",
+        next_step=StepID.ENTER_QUESTION,
+        store_in_context_fn=(set_prior_grant_applications, 'Documents'),
+        generate_chatbot_messages_fns=[generate_validation_message_following_files_upload]
+    ),
+    StepID.ENTER_QUESTION: ChatbotStep(
         initial_message="Please type the grant application question, or copy and paste it from the application portal.",
-        context_key=ContextKeys.APPLICATION_QUESTION),
-    TextStep( # 3
+        next_step=StepID.ENTER_WORD_LIMIT,
+        store_in_context_fn=(set_grant_application_question, 'User')
+    ),
+    StepID.ENTER_WORD_LIMIT: ChatbotStep(
         initial_message="What is the word limit?",
-        context_key=ContextKeys.WORD_LIMIT,
-        generate_message_fns=[generate_answer_to_question_stream]),
-    YesNoStep( # 4
+        next_step=StepID.DO_COMPREHENSIVENESS_CHECK,
+        store_in_context_fn=(set_word_limit, 'Number'),
+        generate_chatbot_messages_fns=[generate_answer_to_question_stream]
+    ),
+    StepID.DO_COMPREHENSIVENESS_CHECK: ChatbotStep(
         initial_message="Do you want to check the comprehensiveness of the generated answer?",
-        context_key=ContextKeys.CHECK_COMPREHENSIVENESS,
-        generate_message_fns=[
-            check_for_comprehensiveness,
-            generate_answers_for_implicit_questions_stream,
-            generate_final_answer_stream]),
-    YesNoStep( # 5
+        next_step=dict(Yes=StepID.DO_ANOTHER_QUESTION, No=StepID.DO_ANOTHER_QUESTION),
+        store_in_context_fn=(set_do_check_for_comprehensiveness, None),
+        generate_chatbot_messages_fns=defaultdict(list,
+            Yes=[check_for_comprehensiveness, generate_answers_for_implicit_questions_stream, generate_final_answer_stream])
+    ),
+    StepID.DO_ANOTHER_QUESTION: ChatbotStep(
         initial_message="Do you want to generate an answer for another question?",
-        context_key=ContextKeys.TRY_WITH_ANOTHER_QUESTION,
-        next_step_if_yes=lambda _: application_question_step())]
+        next_step=dict(
+            Yes=StepID.ENTER_QUESTION,
+            No=StepID.END
+        )
+    ),
+    StepID.END: ChatbotStep(
+        initial_message='End of demo, thanks for participating!',
+        next_step=StepID.END
+    )
+})
 
 
 
 with gr.Blocks() as demo:
     with gr.Row():
         # create chatbot component
-        if importlib.metadata.version('gradio') < '3.34.0':
-            chatbot = gr.Chatbot(label='AI Grant Writing Coach', show_share_button=True).style(height=650)
-        else:
-            chatbot = gr.Chatbot(label='AI Grant Writing Coach', show_share_button=True, height=650)
+        chatbot = (gr.Chatbot(label='AI Grant Writing Coach', show_share_button=True, height=650))
 
     with gr.Row():
         with gr.Column():
             # user text box component
-            user_text_box_component = gr.Textbox(label='User', visible=False, interactive=True, lines=3, placeholder='Type your message here')
+            user_text_box_component = gr.Textbox(label='User', visible=False, interactive=True, lines=3, show_copy_button=True, placeholder='Type your message here')
             # submit text button component
             submit_text_btn_component = gr.Button(value='Submit', variant='primary', visible=False)
+            # number component
+            number_component = gr.Number(value=30, precision=0, label='Number', visible=False, interactive=True)
+            # submit number component
+            submit_number_btn_component = gr.Button(value='Submit', variant='primary', visible=False)
+
         
         with gr.Row(visible=False) as examples_row:
             # examples component (not a true gradio 'Component' techincally)
@@ -97,15 +165,14 @@ with gr.Blocks() as demo:
 
     with gr.Row():
         # start button component
-        start_btn = StartWrapper(start_btn=gr.Button(value='Start', variant='primary', visible=True))
+        start_btn_component = gr.Button(value='Start', variant='primary', visible=True)
         # yes/no button component
         yes_btn_component = gr.Button(value='Yes', variant='primary', visible=False)
         no_btn_component = gr.Button(value='No', variant='stop', visible=False)
         # upload button component
         upload_btn_component = gr.UploadButton(label='Upload', variant='primary', visible=False, file_types=['.docx', '.txt'], file_count='multiple')
         # clear button component
-        ClearButtonType = gr.Button if importlib.metadata.version('gradio') < '3.35.0' else gr.ClearButton
-        clear_btn_component=ClearButtonType(value='Clear', variant='stop', visible=False, interactive=False)
+        clear_btn_component=gr.ClearButton(value='Clear', variant='stop', visible=False, interactive=False)
         # submit button component
         submit_btn_component=gr.Button(value='Submit', variant='primary', visible=False, interactive=False)
 
@@ -114,132 +181,138 @@ with gr.Blocks() as demo:
         files_component = gr.Files(label='Documents', visible=False, interactive=False, file_types=['.docx', '.txt'])
 
     # specify that the clear button should clear the files component
-    if type(clear_btn_component) is gr.Button:
-        # current workaround until hg supports gradio>=3.35.0 in which ClearButton was introduced
-        import json
-        clear_btn_component.click(None, [], [files_component], _js=f"() => {json.dumps([files_component.postprocess(None)])}")
-    else:
-        assert type(clear_btn_component) is gr.ClearButton
-        clear_btn_component.add(files_component) # make the clear button clear the files
+    clear_btn_component.add(files_component) # make the clear button clear the files
+
+    CHATBOT_STEPS[StepID.START].components = [start_btn_component]
+    CHATBOT_STEPS[StepID.HAVE_YOU_APPLIED_BEFORE].components = [yes_btn_component, no_btn_component]
+    CHATBOT_STEPS[StepID.UPLOAD_PRIOR_GRANT_APPLICATIONS].components = [upload_btn_component, files_component, submit_btn_component, clear_btn_component]
+    CHATBOT_STEPS[StepID.ENTER_QUESTION].components = [user_text_box_component, submit_text_btn_component, examples_row]
+    CHATBOT_STEPS[StepID.ENTER_WORD_LIMIT].components = [number_component, submit_number_btn_component]
+    CHATBOT_STEPS[StepID.DO_COMPREHENSIVENESS_CHECK].components = [yes_btn_component, no_btn_component]
+    CHATBOT_STEPS[StepID.DO_ANOTHER_QUESTION].components = [yes_btn_component, no_btn_component]
 
 
-    # define dict to store context variables from chatbot steps
-    context: dict[ContextKeys, str | list[str] | None] = {}
-    # create state variable to keep track of current context as well as the current chatbot step
-    context_var = gr.State(context)
-    step_var = gr.State(-1)
+    # create wrappers for each component and define the actions to be executed after being triggered, if any
+    start_btn = StartWrapper(component=start_btn_component)
 
-    # create wrappers for each component in the chatbot UI and define their first actions after trigger (i.e. after user interaction)
     create_yes_no_btn = lambda yes_no_btn_component: YesNoWrapper(
-        yes_no_btn=yes_no_btn_component,
-        first_actions_after_trigger=[{
+        component=yes_no_btn_component,
+        handle_user_action={
             'fn': handle_yes_no_clicked,
-            'inputs': [yes_no_btn_component, chatbot, step_var, context_var],
-            'outputs': [chatbot, context_var]}])
+            'inputs': [yes_no_btn_component, chatbot],
+            'outputs': [chatbot]})
     yes_btn = create_yes_no_btn(yes_btn_component)
     no_btn = create_yes_no_btn(no_btn_component)
 
-    files = FilesWrapper(files=files_component)
+    files = FilesWrapper(component=files_component)
 
     upload_btn = UploadWrapper(
-        upload_btn=upload_btn_component,
-        first_actions_after_trigger=[{
+        component=upload_btn_component,
+        handle_user_action={
             'fn': handle_files_uploaded,
             'inputs': [upload_btn_component, files_component],
             'outputs': [files_component, submit_btn_component, clear_btn_component]
-        }])
+        })
 
     submit_btn = SubmitWrapper(
-        submit_btn=submit_btn_component,
-        first_actions_after_trigger=[{
+        component=submit_btn_component,
+        handle_user_action={
             'fn': handle_files_submitted,
-            'inputs': [files_component, step_var, context_var],
-            'outputs': context_var}])
+            'inputs': [files_component]
+        })
 
     clear_btn = ClearWrapper(
-        clear_btn=clear_btn_component,
-        first_actions_after_trigger=[{
+        component=clear_btn_component,
+        handle_user_action={
             'fn': lambda: [gr.update(interactive=False), gr.update(interactive=False)],
-            'outputs': [submit_btn_component, clear_btn_component]}])
+            'outputs': [submit_btn_component, clear_btn_component]})
 
     user_text_box = TextWrapper(
-        text_box=user_text_box_component,
-        first_actions_after_trigger=[{
+        component=user_text_box_component,
+        handle_user_action={
             'fn': handle_text_submitted,
-            'inputs': [user_text_box_component, chatbot, step_var, context_var],
-            'outputs': [user_text_box_component, chatbot, context_var]}])
+            'inputs': [user_text_box_component, chatbot],
+            'outputs': [user_text_box_component, chatbot]})
 
     submit_text_btn = SubmitTextButtonWrapper(
-        submit_text_btn=submit_text_btn_component,
-        first_actions_after_trigger=user_text_box.first_actions_after_trigger)
+        component=submit_text_btn_component,
+        handle_user_action=user_text_box.handle_user_action)
 
+    number = NumberWrapper(
+        component=number_component,
+        handle_user_action={
+            'fn': handle_number_submitted,
+            'inputs': [number_component, chatbot],
+            'outputs': [number_component, chatbot]})
 
-    components: list[ComponentWrapper] = [start_btn, yes_btn, no_btn, files, upload_btn, submit_btn, clear_btn, user_text_box, submit_text_btn]
+    submit_number_btn = SubmitTextButtonWrapper(
+        component=submit_number_btn_component,
+        handle_user_action=number.handle_user_action)
+
+    # create state variable to keep track of current context as well as the current chatbot step
+    context = gr.State(UserContext())
+
+    components: list[ComponentWrapper] = [
+        start_btn, yes_btn, no_btn, files, upload_btn, submit_btn, clear_btn, user_text_box, submit_text_btn, number, submit_number_btn]
+
     internal_components: list[Component] = [component.component for component in components]
+    internal_components_with_row: list[Component | gr.Row] = internal_components + [examples_row]
 
 
-    for component in components:
-        if component.user_action is None:
+    for c in components:
+        if c.user_action is None:
             continue
 
-        chain = component.chain_first_actions_after_trigger(
-            # if we proceed then we make all components invisible until we show the next step's initial message
-            fn=lambda component_wrapper: (
-                [gr.update(visible=False) if component_wrapper.proceed_to_next_step else gr.skip()] * len(components)
-            ),
-            inputs=gr.State(component),
-            outputs=internal_components
-        )
-
-        if not component.proceed_to_next_step:
-             continue
-
-        chain.then(
-            # generate chatbot messages for current step by streaming the messages from a generator function, if any
-            fn=lambda chat_history, step, context: (
-                (yield from CHATBOT_STEPS[step].generate_chatbot_message(chat_history, context))
-                    if step > 0 else
-                (yield chat_history)
-            ),
-            inputs=[chatbot, step_var, context_var],
-            outputs=chatbot
-        ).then(
-            # update chatbot step by incrementing the step counter or by going to a specific step
-            fn=lambda component, step: (
-                # if the component is not a yes/no button, then simply increment the step counter
-                step + 1
-                    if step == -1 or type(CHATBOT_STEPS[step]) is not YesNoStep else
-                # if the component is a yes/no button, then go to the next step according to the logic of the yes/no button for this step
-                CHATBOT_STEPS[step].go_to_step(component, step)
-            ),
-            inputs=[component.component, step_var],
-            outputs=step_var
-        ).then(
-            # if we proceed then we show next step's initial msg, if we're done then show a final message + reset step counter & context
-            fn=lambda chat_history, step: (
-                # if there are more steps, then stream the next step's message
-                [chat_history + [[CHATBOT_STEPS[step].initial_message, None]], gr.skip(), gr.skip()]
-                    if step < len(CHATBOT_STEPS) else
-                # if there are no more steps, then end the chat and reset the step counter and context
-                [chat_history + [['End of demo, thanks for participating!', None]], -1, {}]
-            ),
-            inputs=[chatbot, step_var],
-            outputs= [chatbot, step_var, context_var]
+        chain = c.get_initial_chain_following_trigger(
         ).then(
             # update visibility of components based on current chatbot step and user interaction type of component
-            fn=lambda step: (
-                [gr.update(visible=(
-                    0 <= step < len(CHATBOT_STEPS) and
-                    component.user_interaction_type in CHATBOT_STEPS[step].user_interaction_types)
-                ) for component in components]
+            fn=lambda proceed: [gr.update(visible=False) if proceed else gr.skip() for _ in internal_components_with_row],
+            inputs=gr.State(c.proceed_to_next_step),
+            outputs=internal_components_with_row # type: ignore
+        )
+
+        if c.proceed_to_next_step:
+            # if we proceed then we store the value of the relevant component in the context, if defined
+            # for the current step (e.g. store the user's reply to a question)
+            chain = chain.then(
+                fn=store_event_value_in_context,
+                inputs=[context, c.component, gr.State(internal_components), *internal_components],
+                outputs=context,
+            )
+
+        if c.handle_user_action is not None:
+            # handle user action as defined by the component wrapper (e.g. upload files, submit text)
+            chain = chain.then(**c.handle_user_action)
+
+        if not c.proceed_to_next_step:
+            continue
+
+        chain.then(
+            # generate any chatbot messages for current step (e.g. validation message following files upload, llm answer to question)
+            fn=lambda component, chat_history, context: (
+                yield from generate_chatbot_messages(
+                    fns=get_current_step(context).determine_generate_chatbot_messages_fns(component),
+                    chat_history=chat_history,
+                    context=context
+                )
             ),
-            inputs=step_var,
-            outputs=internal_components
+            inputs=[c.component, chatbot, context],
+            outputs=chatbot
         ).then(
-            # update visibility of the examples (via its parent row) based on whether we're at the grant application question step
-            fn=lambda step: gr.update(visible=step==application_question_step()),
-            inputs=step_var,
-            outputs=examples_row # type: ignore
+            # update chatbot step according to the next step id determined by the current step and the user action (e.g. click yes/no)
+            fn=lambda component, context: set_current_step_id(context, get_current_step(context).determine_next_step(component)),
+            inputs=[c.component, context],
+            outputs=context
+        ).then(
+            # show the initial (chatbot) message of the next step
+            fn=lambda chat_history, context: chat_history + [[get_current_step(context).initial_message, None]],
+            inputs=[chatbot, context],
+            outputs= chatbot
+        ).then(
+            # update visibility of components based on whether they are defined for the next step (e.g. show yes/no buttons if defined for next step)
+            fn=lambda context: [gr.update(visible=(c in get_current_step(context).components)) for c in internal_components_with_row],
+            inputs=context,
+            outputs=internal_components_with_row # type: ignore
         )
 
 

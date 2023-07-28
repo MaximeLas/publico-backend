@@ -1,29 +1,16 @@
 from enum import Enum, auto
 
 
-class UserInteractionType(Enum):
-    YES_NO = auto()
-    FILES = auto()
-    UPLOAD = auto()
-    SUBMIT = auto()
-    CLEAR = auto()
-    TEXT = auto()
-    SUBMIT_TEXT = auto()
+class StepID(Enum):
     START = auto()
-    NONE = auto()
+    HAVE_YOU_APPLIED_BEFORE = auto()
+    UPLOAD_PRIOR_GRANT_APPLICATIONS = auto()
+    ENTER_QUESTION = auto()
+    ENTER_WORD_LIMIT = auto()
+    DO_COMPREHENSIVENESS_CHECK = auto()
+    DO_ANOTHER_QUESTION = auto()
+    END = auto()
 
-class ContextKeys(Enum):
-    HAS_APPLIED_FOR_THIS_GRANT_BEFORE = auto()
-    PRIOR_GRANT_APPLICATIONS = auto()
-    APPLICATION_QUESTION = auto()
-    WORD_LIMIT = auto()
-    MOST_RELEVANT_DOCUMENTS = auto()
-    APPLICATION_ANSWER = auto()
-    CHECK_COMPREHENSIVENESS = auto()
-    MISSING_INFORMATION = auto()
-    IMPLICIT_QUESTIONS = auto()
-    ANSWERS_TO_IMPLICIT_QUESTIONS = auto()
-    TRY_WITH_ANOTHER_QUESTION = auto()
 
 GRANT_APPLICATION_QUESTIONS_EXAMPLES = [
     'What is your mission?',

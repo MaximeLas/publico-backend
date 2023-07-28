@@ -1,4 +1,3 @@
-from typing import List
 import os
 
 import tiktoken
@@ -35,29 +34,29 @@ def get_token_count_in_text(text: str, model: str = GPT_MODEL) -> int:
     return len(tiktoken.encoding_for_model(model).encode(text))
 
 
-def get_token_count_in_documents(documents: List[Document], model: str = GPT_MODEL) -> List[int]:
+def get_token_count_in_documents(documents: list[Document], model: str = GPT_MODEL) -> list[int]:
     '''
     Get token count in documents
     
         Parameters:
-            documents (List[Document]): list of documents to get token count in
+            documents (list[Document]): list of documents to get token count in
             model (str): name of the model to use for tokenization (default: GPT_MODEL)
         
         Returns:
-            List[int]: list of token counts in documents
+            list[int]: list of token counts in documents
     '''
     return [get_token_count_in_text(doc.page_content, model) for doc in documents]
 
 
 def add_index_and_current_token_count_to_metadata_in_documents(
-    documents: List[Document],
+    documents: list[Document],
     model: str = GPT_MODEL
 ) -> None:
     '''
     Add index and current token count to metadata in documents
     
         Parameters:
-            documents (List[Document]): list of documents to add index and current token count to metadata
+            documents (list[Document]): list of documents to add index and current token count to metadata
             model (str): name of the model to use for tokenization (default: GPT_MODEL)
         
     '''
@@ -92,7 +91,7 @@ def create_document(file_path: str) -> Document:
     return document
 
 
-def create_documents_from_files(files: list[str]) -> List[Document]:
+def create_documents_from_files(files: list[str]) -> list[Document]:
     '''
     Create list of (type) Documents from files of different types and return it
     
@@ -100,10 +99,10 @@ def create_documents_from_files(files: list[str]) -> List[Document]:
             files (list[str]): list of paths to files
         
         Returns:
-            List[Document]: list of documents created
+            list[Document]: list of documents created
     '''
 
-    documents: List[Document] = []
+    documents: list[Document] = []
 
     for file_path in files:
         # create document from txt file and add it to list of documents
@@ -124,7 +123,7 @@ def create_documents_from_files(files: list[str]) -> List[Document]:
     return documents
 
 
-def create_documents_from_txt_files_in_dir(dir: str) -> List[Document]:
+def create_documents_from_txt_files_in_dir(dir: str) -> list[Document]:
     '''
     Create list of (type) Documents from txt files in directory and return it
     
@@ -132,10 +131,10 @@ def create_documents_from_txt_files_in_dir(dir: str) -> List[Document]:
             dir (str): path to directory containing txt files
         
         Returns:
-            List[Document]: list of documents created
+            list[Document]: list of documents created
     '''
 
-    documents: List[Document] = []
+    documents: list[Document] = []
 
     for file in os.listdir(dir):
         # create document from txt file and add it to list of documents
@@ -154,7 +153,7 @@ def get_documents_chunks_from_documents(
     chunk_size=4000,
     chunk_overlap=400,
     separators=["\n\n", "\n"]
-) -> List[Document]:
+) -> list[Document]:
     '''
     Get list of (type) Documents containing chunks of documents with given model name, chunk size, chunk overlap and separators
     
@@ -166,7 +165,7 @@ def get_documents_chunks_from_documents(
             separators (list[str]): list of separators to use for splitting documents into chunks (default: ["\n\n", "\n"])
         
         Returns:
-            List[Document]: list of documents containing chunks of documents
+            list[Document]: list of documents containing chunks of documents
     '''
 
     # create text splitter for splitting documents into chunks
@@ -201,21 +200,21 @@ def get_documents_chunks_for_files(
     chunk_size=4000,
     chunk_overlap=400,
     separators=["\n\n", "\n"]
-) -> List[Document]:
+) -> list[Document]:
     '''
     Split documents into chunks with max token size of chunk_size and
     max overlap of chunk_overlap using separators and return list of documents chunks
     created from them with metadata containing current token count and index
 
         Parameters:
-            files (List[str]): list of paths to files to create documents from
+            files (list[str]): list of paths to files to create documents from
             model (str): name of the model to use for tokenization (default: GPT_MODEL)
             chunk_size (int): max token size of each chunk (default: 4000)
             chunk_overlap (int): max overlap of each chunk (default: 400)
-            separators (List[str]): list of separators to use for splitting text into chunks (default: ["\n\n", "\n"])
+            separators (list[str]): list of separators to use for splitting text into chunks (default: ["\n\n", "\n"])
 
         Returns:
-            List[Document]: list of documents chunks created from files
+            list[Document]: list of documents chunks created from files
     '''
 
     documents = create_documents_from_files(files)
@@ -229,7 +228,7 @@ def get_documents_chunks_for_txt_files_in_dir(
     chunk_size=4000,
     chunk_overlap=400,
     separators=["\n\n", "\n"]
-) -> List[Document]:
+) -> list[Document]:
     '''
     Split documents in dir into chunks with max token size of chunk_size and
     max overlap of chunk_overlap using separators and return list of documents chunks
@@ -240,10 +239,10 @@ def get_documents_chunks_for_txt_files_in_dir(
             model (str): name of the model to use for tokenization (default: GPT_MODEL)
             chunk_size (int): max token size of each chunk (default: 4000)
             chunk_overlap (int): max overlap of each chunk (default: 400)
-            separators (List[str]): list of separators to use for splitting text into chunks (default: ["\n\n", "\n"])
+            separators (list[str]): list of separators to use for splitting text into chunks (default: ["\n\n", "\n"])
 
         Returns:
-            List[Document]: list of documents chunks created from txt files in dir
+            list[Document]: list of documents chunks created from txt files in dir
     '''
 
     documents = create_documents_from_txt_files_in_dir(dir)
@@ -251,30 +250,12 @@ def get_documents_chunks_for_txt_files_in_dir(
     return get_documents_chunks_from_documents(documents, model, chunk_size, chunk_overlap, separators)
 
 
-def get_most_relevant_docs_in_vector_store_for_answering_question(
-    vector_store: VectorStore,
-    question: str,
-    n_results: int = 3
-) -> List[Document]:
-    '''
-    Perform a similarity search in vector store for question and return the n_results most relevant documents
-        Parameters:
-            vector_store (VectorStore): vector store to perform similarity search in
-            question (str): question to perform similarity search for
-            n_results (int): number of most relevant documents to return (default: 3)
-        
-        Returns:
-            List[Document]: list of the n_results most relevant documents for question
-    '''
+def print_summary_of_relevant_documents_and_scored(docs: list[tuple[Document, float]]):
 
-    # perform similarity search in vector store for question and return the n_results most relevant documents
-    relevant_docs_and_scores = vector_store.similarity_search_with_score(query=question, k=n_results)
-
-    print(f'Retrieved {n_results} most relevant Documents by performing a similarity search for question "{question}"')
-    print(f'Similarities (distance): {[f"{score:.3f}" for _, score in relevant_docs_and_scores]}\n')
+    print(f'Similarities (distance): {[f"{score:.3f}" for _, score in docs]}\n')
 
     # print summary of each relevant document and its similarity score (distance) to question
-    for i, (doc, score) in enumerate(relevant_docs_and_scores):
+    for i, (doc, score) in enumerate(docs):
         print_pretty_index(i)
         print(f'Similarity score (distance): {score:.3f}')
         print(f'Index: {doc.metadata["index"]}')
@@ -283,9 +264,33 @@ def get_most_relevant_docs_in_vector_store_for_answering_question(
         print(f'Source: \'{doc.metadata["source"].rsplit("/", 1)[-1]}\'\n')
         print(f'Content: (Preview of first 100 characters)\n{doc.page_content[:100]}.....\n')
 
+    # print total token count of relevant documents
+    print(f'Total token count of relevant documents: {sum([doc.metadata["current_token_count"] for doc in docs])}\n') # type: ignore
+
+
+def get_most_relevant_docs_in_vector_store_for_answering_question(
+    vector_store: VectorStore,
+    question: str,
+    n_results: int = 3
+) -> list[Document]:
+    '''
+    Perform a similarity search in vector store for question and return the n_results most relevant documents
+        Parameters:
+            vector_store (VectorStore): vector store to perform similarity search in
+            question (str): question to perform similarity search for
+            n_results (int): number of most relevant documents to return (default: 3)
+        
+        Returns:
+            list[Document]: list of the n_results most relevant documents for question
+    '''
+
+    # perform similarity search in vector store for question and return the n_results most relevant documents
+    relevant_docs_and_scores = vector_store.similarity_search_with_score(query=question, k=n_results)
+
+    print(f'Retrieved {n_results} most relevant Documents by performing a similarity search for question "{question}"')
+    print_summary_of_relevant_documents_and_scored(relevant_docs_and_scores)
+
     # return list of the relevant documents without their similarity scores
     relevant_docs = [doc for doc, _ in relevant_docs_and_scores]
-
-    print(f'Total token count of most relevant documents: {sum([doc.metadata["current_token_count"] for doc in relevant_docs])}\n')
 
     return relevant_docs

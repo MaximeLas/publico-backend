@@ -56,6 +56,14 @@ def stream_from_llm_generation(
         print(f'chain_type: {chain_type} not recognized\n')
         return
 
+    print('\n-------------------------------------------------------------')
+    print('---------------------- Input variables ----------------------')
+    for i, (key, value) in enumerate(input_variables.items()):
+        print(f'{key} ->\n{value}')
+        if i < len(input_variables) - 1:
+            print('- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -')
+    print('-------------------------------------------------------------\n')
+
     # Create a Queue
     q = Queue()
     job_done = object()
@@ -94,7 +102,7 @@ def stream_from_llm_generation(
     t = Thread(target=task)
     t.start()
 
-    content = ""
+    content = ''
     num_tokens = 0
     # Get each new token from the queue and yield for our generator
     while True:
@@ -105,7 +113,11 @@ def stream_from_llm_generation(
                 content += next_token
                 yield next_token, content
             else:
-                print(f'job_done object received, ending stream after {num_tokens} tokens\n')
+                print('\n-------------------------------------------------------------')
+                print('----------------------- End of stream -----------------------')
+                print(f'Generated in total {num_tokens} tokens\n')
+                print(f'Final answer ({len(content.split())} words) from LLM:\n\n{content}')
+                print('-------------------------------------------------------------\n')
                 break
         except Empty:
             continue

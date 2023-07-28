@@ -2,47 +2,36 @@ import tempfile
 
 import gradio as gr
 
-from settings import CHATBOT_STEPS
-from constants import ContextKeys
-from chatbot_step import TextStep, YesNoStep, FilesStep
-
-
-
-def add_to_context(context: dict, context_key: ContextKeys, value: str | list[str]) -> dict:
-    '''Add a value to the context dictionary and print the value added to the context'''
-    context[context_key] = value
-    print(f'{context_key}: {context[context_key]}\n')
-    return context
 
 
 def handle_text_submitted(
     user_message: str,
-    chat_history: list[list],
-    step: int,
-    context: dict
+    chat_history: list[list]
 ):
-    text_step = CHATBOT_STEPS[step]
-    assert type(text_step) is TextStep
-
     # update chat history with user message
-    chat_history[-1][1] = user_message
+    chat_history[-1][1] = f'**{user_message}**'
 
-    return '', chat_history, add_to_context(context, text_step.context_key, user_message)
+    return '', chat_history
+
+
+def handle_number_submitted(
+    number: int,
+    chat_history: list[list]
+):
+    # update chat history with number submitted
+    chat_history[-1][1] = f'**{str(number)}**'
+
+    return 30, chat_history
 
 
 def handle_yes_no_clicked(
     yes_or_no: str,
-    chat_history: list[list],
-    step: int,
-    context: dict
+    chat_history: list[list]
 ):
-    yes_no_step = CHATBOT_STEPS[step]
-    assert type(yes_no_step) is YesNoStep
-
     # update chat history with user selection of yes or no
-    chat_history[-1][1] = yes_or_no
+    chat_history[-1][1] = f'**{yes_or_no}**'
     
-    return chat_history, add_to_context(context, yes_no_step.context_key, yes_or_no)
+    return chat_history
 
 
 def handle_files_uploaded(
@@ -65,15 +54,8 @@ def handle_files_uploaded(
 
 
 def handle_files_submitted(
-    files: list[tempfile._TemporaryFileWrapper],
-    step: int,
-    context: dict
+    files: list[tempfile._TemporaryFileWrapper]
 ):
-    files_step = CHATBOT_STEPS[step]
-    assert type(files_step) is FilesStep
-
     # iterate over files and print their names
-    for file in files: print(f'File uploaded: {file.name.split("/")[-1]}')
+    [print(f'File uploaded: {file.name.split("/")[-1]}') for file in files]
     print()
-
-    return add_to_context(context, files_step.context_key, [file.name for file in files])
