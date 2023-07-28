@@ -265,7 +265,7 @@ def print_summary_of_relevant_documents_and_scored(docs: list[tuple[Document, fl
         print(f'Content: (Preview of first 100 characters)\n{doc.page_content[:100]}.....\n')
 
     # print total token count of relevant documents
-    print(f'Total token count of relevant documents: {sum([doc.metadata["current_token_count"] for doc in docs])}\n') # type: ignore
+    print(f'Total token count of relevant documents: {sum([doc.metadata["current_token_count"] for doc, _ in docs])}\n')
 
 
 def get_most_relevant_docs_in_vector_store_for_answering_question(

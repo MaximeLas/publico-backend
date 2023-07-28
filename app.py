@@ -1,10 +1,8 @@
 from collections import defaultdict
-import importlib.metadata
-from typing import Any
+from typing import Any, Callable
 
 import gradio as gr
 from gradio.components import Component, IOComponent
-from gradio.blocks import Block
 
 # initialize langchain llm cache
 from langchain.cache import InMemoryCache
@@ -12,7 +10,7 @@ import langchain
 langchain.llm_cache = InMemoryCache()
 
 from settings import CHATBOT_STEPS
-from chatbot_step import ChatbotStep
+from chatbot_step import ChatbotStep, EventOutcomeContextSaver
 from constants import StepID, GRANT_APPLICATION_QUESTIONS_EXAMPLES
 from context import (
     UserContext,
@@ -51,11 +49,7 @@ from message_generator_publico import generate_chatbot_messages, generate_valida
 
 
 
-def get_current_step(context: UserContext) -> ChatbotStep:
-    '''Get the current step based on the current step id in the context.'''
-
-    return CHATBOT_STEPS[context.current_step_id]
-
+get_current_step: Callable[[UserContext], ChatbotStep] = lambda context: CHATBOT_STEPS[context.current_step_id]
 
 def store_event_value_in_context(
     context: UserContext,
@@ -63,35 +57,31 @@ def store_event_value_in_context(
     components: list[IOComponent],
     *components_values: Any,
 ) -> UserContext:
-    '''Store the value of an event in the context, if a store_in_context_fn is defined for the current step.'''
+    '''Save the outcome of an event in the context, if one is defined for the current step.'''
 
     step = get_current_step(context)
+    outcome_saver = step.save_event_outcome_in_context
 
-    if step.store_in_context_fn is None:
+    if not outcome_saver:
         return context
 
-    fn, component_name = step.store_in_context_fn
+    save_fn = outcome_saver.fn
+    component_name = outcome_saver.component_name
 
-    # get index of element in components that has the same name as component_name, return None if not found
-    index_component = next(
-        (i for i, c in enumerate(components) if (c.label or c.value) == component_name),
-        None)
+    # Find the matching component, or use default_value if none found
+    value_to_save = next(
+        (components_values[i] for i, c in enumerate(components) if (c.label or c.value) == component_name),
+        default_value
+    )
 
-    print(f'index_component: {index_component}\ncomponent_name: {component_name}\n' +
-          f'components_values: {[f"{i}={c}" for i, c in enumerate(components_values)]}\n' +
-          f'component_names={[f"{i}={c.label or c.value}" for i, c in enumerate(components)]}\n' +
-          f'and will use {components_values[index_component] if index_component is not None else default_value}')
-    return (
-        fn(context, components_values[index_component])
-            if (component_name and index_component is not None)
-            else
-        fn(context, default_value))
+    # Save the value in the context
+    return save_fn(context, value_to_save)
 
 
 # define chatbot steps and their properties
 CHATBOT_STEPS.update({
     StepID.START: ChatbotStep(
-        initial_message="Hello there, please hit 'Start' when you're ready.",
+        initial_message="Hello there, please hit **Start** when you're ready.",
         next_step=StepID.HAVE_YOU_APPLIED_BEFORE
     ),
     StepID.HAVE_YOU_APPLIED_BEFORE: ChatbotStep(
@@ -103,24 +93,24 @@ CHATBOT_STEPS.update({
     StepID.UPLOAD_PRIOR_GRANT_APPLICATIONS: ChatbotStep(
         initial_message="That's very useful! Please upload your prior grant application(s).",
         next_step=StepID.ENTER_QUESTION,
-        store_in_context_fn=(set_prior_grant_applications, 'Documents'),
+        save_event_outcome_in_context=EventOutcomeContextSaver(set_prior_grant_applications, 'Documents'),
         generate_chatbot_messages_fns=[generate_validation_message_following_files_upload]
     ),
     StepID.ENTER_QUESTION: ChatbotStep(
-        initial_message="Please type the grant application question, or copy and paste it from the application portal.",
+        initial_message="Please type the grant application question.",
         next_step=StepID.ENTER_WORD_LIMIT,
-        store_in_context_fn=(set_grant_application_question, 'User')
+        save_event_outcome_in_context=EventOutcomeContextSaver(set_grant_application_question, 'User')
     ),
     StepID.ENTER_WORD_LIMIT: ChatbotStep(
         initial_message="What is the word limit?",
         next_step=StepID.DO_COMPREHENSIVENESS_CHECK,
-        store_in_context_fn=(set_word_limit, 'Number'),
+        save_event_outcome_in_context=EventOutcomeContextSaver(set_word_limit, 'Number'),
         generate_chatbot_messages_fns=[generate_answer_to_question_stream]
     ),
     StepID.DO_COMPREHENSIVENESS_CHECK: ChatbotStep(
         initial_message="Do you want to check the comprehensiveness of the generated answer?",
         next_step=dict(Yes=StepID.DO_ANOTHER_QUESTION, No=StepID.DO_ANOTHER_QUESTION),
-        store_in_context_fn=(set_do_check_for_comprehensiveness, None),
+        save_event_outcome_in_context=EventOutcomeContextSaver(set_do_check_for_comprehensiveness, None),
         generate_chatbot_messages_fns=defaultdict(list,
             Yes=[check_for_comprehensiveness, generate_answers_for_implicit_questions_stream, generate_final_answer_stream])
     ),
@@ -128,11 +118,10 @@ CHATBOT_STEPS.update({
         initial_message="Do you want to generate an answer for another question?",
         next_step=dict(
             Yes=StepID.ENTER_QUESTION,
-            No=StepID.END
-        )
+            No=StepID.END)
     ),
     StepID.END: ChatbotStep(
-        initial_message='End of demo, thanks for participating!',
+        initial_message='End of demo, thanks for participating! 🏆',
         next_step=StepID.END
     )
 })
@@ -142,7 +131,7 @@ CHATBOT_STEPS.update({
 with gr.Blocks() as demo:
     with gr.Row():
         # create chatbot component
-        chatbot = (gr.Chatbot(label='AI Grant Writing Coach', show_share_button=True, height=650))
+        chatbot = gr.Chatbot(value=[[CHATBOT_STEPS[StepID.START].initial_message, None]], label='AI Grant Writing Coach', show_share_button=True, height=650)
 
     with gr.Row():
         with gr.Column():

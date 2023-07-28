@@ -13,13 +13,18 @@ MessageGenerationType = str | Iterator[str] | list[str] | Iterator[list[str]]
 GenerateMessageFnType = Callable[[UserContext], MessageGenerationType]
 GenerateMessageFnsType = list[GenerateMessageFnType] | defaultdict[str, list[GenerateMessageFnType]]
 
+@dataclass
+class EventOutcomeContextSaver:
+    fn: Callable[[UserContext, Any], UserContext]
+    component_name: str | None
+
 
 @dataclass
 class ChatbotStep():
     initial_message: str
     next_step: StepID | dict[str, StepID]
     components: list[Block] = field(default_factory=list)
-    store_in_context_fn: tuple[Callable[[UserContext, Any], UserContext], str | None] | None = None
+    save_event_outcome_in_context: EventOutcomeContextSaver | None = None
     generate_chatbot_messages_fns: GenerateMessageFnsType = field(default_factory=list)
 
 
