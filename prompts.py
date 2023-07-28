@@ -8,6 +8,24 @@ from langchain.schema.messages import (
     SystemMessage
 )
 
+# single comment
+# another comment
+'''
+multiple lines
+of comments
+'''
+
+example_prompt_to_user_for_an_implicit_question = (
+    'This is the start of the prompt '
+    'and it continues on and on and on.\n'
+    'Here is the question:\n'
+    '{implicit_question}\n'
+    'Alright bye!'
+)
+
+# define below prompt in the future for step 3
+prompt_to_use_for_anu_additional_information_in_the_end: str
+
 
 def get_prompt_template_for_generating_original_answer() -> ChatPromptTemplate:
     '''
