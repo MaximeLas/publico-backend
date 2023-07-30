@@ -15,14 +15,12 @@ multiple lines
 of comments
 '''
 
-# First, all implicit questions are presented without attempts to answer
 message_to_user_when_all_iqs_first_presented = (
     'Here's a list of questions that could improve the generated answer.\n'
     '{implicit_questions}'
     'Let's go through them one by one.'
 )
 
-# Then, each implicit question is presented one at a time for review
 message_to_user_when_presenting_first_iq_for_interaction = (
     'Let's start with the first question:\n'
     '{implicit_question_1}\n'
@@ -34,7 +32,7 @@ message_to_user_when_presenting_first_iq_for_interaction = (
 # If user selects no, move to next question
 
 # If yes, then user is presented with three additional options
-message_to_user_when_answering_first_iq_for_interaction = (
+message_to_user_when_answering_first_relevant_iq = (
     'Here's what I found to answer the question.\n'
     '{model_answer_to_implicit_question_1}\n'
     'Is this helpful?\n'
@@ -43,7 +41,7 @@ message_to_user_when_answering_first_iq_for_interaction = (
 # User selects "yes, that's good as is" or "yes, but I'd like to edit it" or "no, let me write one myself"
 # If good as is, save answer to {approved_answers_to_implicit_questions}
 # If needs revision
-message_to_user_to_revised_implicit_question
+message_to_user_to_revise_implicit_question
     'Okay, let's edit the proposed answer.\n'
     'You can edit the text in the box below, or type over it to replace it \n
     'with any information you think better answers the question.'
