@@ -43,14 +43,14 @@ message_to_user_when_answering_first_relevant_iq = (
 # If needs revision
 message_to_user_to_revise_implicit_question = (
     'Okay, let's edit the proposed answer.\n'
-    'You can edit the text in the box below, or type over it to replace it \n
+    'You can edit the text in the box below, or type over it to replace it \n'
     'with any information you think better answers the question.'
 )
 
 # Once user has submitted edited/revised answer, save to {approved_answers_to_implicit_questions}
 # Move on to next implicit question
 message_to_user_to_move_to_next_implicit_question = (
-    'Great! Now that we've answered that question, \n
+    'Great! Now that we've answered that question, \n'
     'let's move on to the next.'
 )
     
