@@ -8,30 +8,56 @@ from gradio.blocks import Block
 from constants import StepID
 from context import UserContext
 
+from devtools import debug
 
-MessageGenerationType = str | Iterator[str] | list[str] | Iterator[list[str]]
-GenerateMessageFnType = Callable[[UserContext], MessageGenerationType]
-GenerateMessageFnsType = list[GenerateMessageFnType] | defaultdict[str, list[GenerateMessageFnType]]
+
+MessageOutputType = str | Iterator[str] | list[str] | Iterator[list[str]]
+GenerateMessageFunc = Callable[[UserContext], MessageOutputType]
+GenerateMessageFuncList = list[GenerateMessageFunc]
+
 
 @dataclass
-class EventOutcomeContextSaver:
-    fn: Callable[[UserContext, Any], UserContext]
+class EventOutcomeSaver:
+    save_fn: Callable[[UserContext, Any], None]
     component_name: str | None
 
 
 @dataclass
+class StepDecider:
+    next_step: StepID
+
+    def determine_next_step(self, context: UserContext) -> StepID:
+        return self.next_step
+
+
+@dataclass
+class ConditionalStepDecider(StepDecider):
+    alternative_step: StepID
+    condition: Callable[['UserContext'], bool]
+
+    def determine_next_step(self, context: UserContext) -> StepID:
+        return self.next_step if self.condition(context) else self.alternative_step
+
+
+@dataclass
 class ChatbotStep():
-    initial_message: str
-    next_step: StepID | dict[str, StepID]
+    initial_chatbot_message: str
+    step_decider: StepDecider | dict[str, StepDecider]
     components: list[Block] = field(default_factory=list)
-    save_event_outcome_in_context: EventOutcomeContextSaver | None = None
-    generate_chatbot_messages_fns: GenerateMessageFnsType = field(default_factory=list)
+    save_event_outcome: EventOutcomeSaver | None = None
+    generate_chatbot_messages_fns: GenerateMessageFuncList | dict[str, GenerateMessageFuncList] = field(default_factory=lambda: defaultdict(list))
 
 
-    def determine_next_step(self, trigger: str) -> StepID:
-        return self.next_step if isinstance(self.next_step, StepID) else self.next_step[trigger]
+    def determine_next_step(self, trigger: str, context: UserContext) -> StepID:
+        step_decider = (
+            self.step_decider
+                if isinstance(self.step_decider, StepDecider)
+                else
+            self.step_decider[trigger])
+
+        return step_decider.determine_next_step(context)
 
 
-    def determine_generate_chatbot_messages_fns(self, trigger: str) -> list[GenerateMessageFnType]:
+    def get_generate_chatbot_messages_fns_for_trigger(self, trigger: str) -> list[GenerateMessageFunc]:
         fns = self.generate_chatbot_messages_fns
         return fns if isinstance(fns, list) else fns[trigger]

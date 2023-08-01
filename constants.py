@@ -1,7 +1,7 @@
-from enum import Enum, auto
+from enum import StrEnum, auto
 
 
-class StepID(Enum):
+class StepID(StrEnum):
     START = auto()
     HAVE_YOU_APPLIED_BEFORE = auto()
     UPLOAD_PRIOR_GRANT_APPLICATIONS = auto()

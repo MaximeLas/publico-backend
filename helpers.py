@@ -1,4 +1,5 @@
 import os
+from devtools import debug
 
 import tiktoken
 
@@ -252,20 +253,22 @@ def get_documents_chunks_for_txt_files_in_dir(
 
 def print_summary_of_relevant_documents_and_scored(docs: list[tuple[Document, float]]):
 
-    print(f'Similarities (distance): {[f"{score:.3f}" for _, score in docs]}\n')
+    debug(**{'Similarities (distance)': [f'{score:.3f}' for _, score in docs]})
 
     # print summary of each relevant document and its similarity score (distance) to question
     for i, (doc, score) in enumerate(docs):
         print_pretty_index(i)
-        print(f'Similarity score (distance): {score:.3f}')
-        print(f'Index: {doc.metadata["index"]}')
-        print(f'Character length of chunk: {len(doc.page_content)}')
-        print(f'Token count of chunk: {doc.metadata["current_token_count"]}')
-        print(f'Source: \'{doc.metadata["source"].rsplit("/", 1)[-1]}\'\n')
-        print(f'Content: (Preview of first 100 characters)\n{doc.page_content[:100]}.....\n')
+        debug(**{
+            'Similarity score (distance)': f'{score:.3f}',
+            'Index': doc.metadata['index'],
+            'Character length of chunk': len(doc.page_content),
+            'Token count of chunk': doc.metadata['current_token_count'],
+            'Source': doc.metadata["source"].rsplit("/", 1)[-1],
+            'Content (Preview of first 200 characters)': doc.page_content[:200]
+        })
 
     # print total token count of relevant documents
-    print(f'Total token count of relevant documents: {sum([doc.metadata["current_token_count"] for doc, _ in docs])}\n')
+    debug(**{'Total token count of relevant documents': sum([doc.metadata["current_token_count"] for doc, _ in docs])})
 
 
 def get_most_relevant_docs_in_vector_store_for_answering_question(

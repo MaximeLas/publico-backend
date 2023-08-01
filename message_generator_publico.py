@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from chatbot_step import GenerateMessageFnType
+from chatbot_step import GenerateMessageFunc
 from context import UserContext
 
 
@@ -26,7 +26,7 @@ def create_new_chatbot_messages_from_response(response: str | list[str]) -> list
 
 
 def generate_chatbot_messages(
-    fns: list[GenerateMessageFnType],
+    fns: list[GenerateMessageFunc],
     chat_history: list[tuple[str, None]],
     context: UserContext
 ) -> Iterator[list[tuple[str, None]]]:

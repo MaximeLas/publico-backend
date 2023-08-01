@@ -21,4 +21,4 @@ if sqlite3.sqlite_version_info < (3, 35, 0):
 GPT_MODEL = 'gpt-3.5-turbo' if len(sys.argv) > 1 else 'gpt-4'
 
 # define list of chatbot steps
-CHATBOT_STEPS: dict[StepID, ChatbotStep] = {}
+#CHATBOT_STEPS: dict[StepID, ChatbotStep] = {}

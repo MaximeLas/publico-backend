@@ -3,6 +3,8 @@ from queue import Queue, Empty
 from threading import Thread
 from typing import Literal
 
+from devtools import debug
+
 from langchain.chat_models import ChatOpenAI
 from langchain.chains.llm import LLMChain
 from langchain.chains.question_answering import load_qa_chain
@@ -58,10 +60,7 @@ def stream_from_llm_generation(
 
     print('\n-------------------------------------------------------------')
     print('---------------------- Input variables ----------------------')
-    for i, (key, value) in enumerate(input_variables.items()):
-        print(f'{key} ->\n{value}')
-        if i < len(input_variables) - 1:
-            print('- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -')
+    debug(**input_variables)
     print('-------------------------------------------------------------\n')
 
     # Create a Queue
@@ -85,11 +84,12 @@ def stream_from_llm_generation(
             prompt= prompt,
             verbose=verbose)
 
+        # print out the length of the documents if we're using a qa_chain
         if chain_type == 'qa_chain':
             if docs is not None:
-                print(f'length of document provided: {len(docs[0].page_content)}\n')
+                debug(**{'length of documents provided': sum([len(doc.page_content) for doc in docs])})
             else:
-                print(f'no documents provided, not expected!\n')
+                print(f'No documents were provided, this should never happen!\n')
 
         # add the documents to the kwargs if we're using a qa_chain and run the chain
         kwargs = input_variables if chain_type == 'llm_chain' else {'input_documents': docs, **input_variables}
@@ -115,8 +115,11 @@ def stream_from_llm_generation(
             else:
                 print('\n-------------------------------------------------------------')
                 print('----------------------- End of stream -----------------------')
-                print(f'Generated in total {num_tokens} tokens\n')
-                print(f'Final answer ({len(content.split())} words) from LLM:\n\n{content}')
+                debug(**{
+                    'Number of tokens generated': num_tokens,
+                    'Number of words generated': len(content.split()),
+                    'Final answer from LLM': content
+                })
                 print('-------------------------------------------------------------\n')
                 break
         except Empty:

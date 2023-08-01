@@ -4,14 +4,14 @@ import time
 from typing import Callable, NotRequired, Sequence, TypedDict
 
 from gradio.events import EventListenerMethod, Dependency
-from gradio.components import Component, IOComponent
+from gradio.components import IOComponent
 import gradio as gr
 
 
 class EventParameters(TypedDict):
     fn: Callable
-    inputs: NotRequired[Component | Sequence[Component]]
-    outputs: NotRequired[Component | Sequence[Component]]
+    inputs: NotRequired[IOComponent | Sequence[IOComponent]]
+    outputs: NotRequired[IOComponent | Sequence[IOComponent]]
 
 
 
@@ -31,7 +31,7 @@ class ComponentWrapper(ABC):
     def get_initial_chain_following_trigger(self) -> Dependency:
         def print_trigger_index() -> None:
             ComponentWrapper.trigger_index += 1
-            print(f'-- {ComponentWrapper.trigger_index} -- Triggered \'{self.name}\' {type(self.component).__name__}\n')
+            print(f'\n-- {ComponentWrapper.trigger_index} -- Triggered \'{self.name}\' {type(self.component).__name__}\n')
 
         assert self.user_action is not None, f'Cannot chain first actions after trigger for {self.component} as user_action is None'
 

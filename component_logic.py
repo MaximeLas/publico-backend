@@ -1,4 +1,5 @@
 import tempfile
+from devtools import debug
 
 import gradio as gr
 
@@ -48,7 +49,7 @@ def handle_files_uploaded(
         else:
             print(f'{file.name.rsplit("/", 1)[-1]} already present in uploaded files')
 
-    print(f'Total files uploaded so far: {len(all_files)}\n')
+    debug(**{'Total files uploaded so far': len(all_files)})
 
     return all_files, gr.update(interactive=True), gr.update(interactive=True)
 
@@ -56,6 +57,5 @@ def handle_files_uploaded(
 def handle_files_submitted(
     files: list[tempfile._TemporaryFileWrapper]
 ):
-    # iterate over files and print their names
-    [print(f'File uploaded: {file.name.split("/")[-1]}') for file in files]
-    print()
+    # print file names
+    debug(**{f'File #{i+1} uploaded': file.name.split("/")[-1] for i, file in enumerate(files)})

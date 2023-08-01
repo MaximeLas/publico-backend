@@ -56,7 +56,7 @@ message_to_user_to_move_to_next_implicit_question = (
 )
     
 # Final prompt to model to incorporate all user-approved answers
-def get_prompt_template_for_generating_final_answer() -> ChatPromptTemplate:
+def gget_prompt_template_for_generating_final_answer() -> ChatPromptTemplate | None:
     '''
     Get a prompt template for a chat model to generate a final answer to a grant application question
         Returns:

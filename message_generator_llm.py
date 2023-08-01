@@ -1,4 +1,5 @@
 import time
+from devtools import debug
 
 from langchain.callbacks import get_openai_callback
 from langchain.chains.openai_functions import create_openai_fn_chain, create_structured_output_chain
@@ -6,7 +7,7 @@ from langchain.chat_models import ChatOpenAI
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import Chroma
 
-from chatbot_step import MessageGenerationType
+from chatbot_step import MessageOutputType
 from context import UserContext
 from helpers import get_most_relevant_docs_in_vector_store_for_answering_question, get_documents_chunks_for_files
 from llm_streaming_utils import stream_from_llm_generation
@@ -21,7 +22,7 @@ from prompts import (
 
 
 
-def generate_answer_to_question_stream(context: UserContext) -> MessageGenerationType:
+def generate_answer_to_question_stream(context: UserContext) -> MessageOutputType:
     '''Generate and stream an answer to a grant application question by streaming tokens from the LLM.'''
 
     documents_chunks = get_documents_chunks_for_files(context.prior_grant_applications)
@@ -30,7 +31,7 @@ def generate_answer_to_question_stream(context: UserContext) -> MessageGeneratio
     question_context = context.questions[-1]
     if question_context.question is None:
         message = 'No answer generated due to missing application question.'
-        print(message)
+        debug(message)
         yield message
         return
 
@@ -78,7 +79,7 @@ def check_for_comprehensiveness(context: UserContext, use_json_schema: bool = Fa
         )
         
         response = chain(inputs=dict(question=question_context.question, answer=question_context.answer))['function']
-        print(f'Summary info OpenAI callback:\n{cb}\n')
+        debug(**{'Summary info OpenAI callback': cb})
 
 
     comprehensiveness_context.missing_information = response['missing_information']
@@ -91,12 +92,12 @@ def check_for_comprehensiveness(context: UserContext, use_json_schema: bool = Fa
     else:
         print(f'Unexpected type for implicit questions: {type(questions)}\n')
 
-    [print(f'Implicit question #{i+1}: {q}\n') for i, q in enumerate(comprehensiveness_context.implicit_questions)]
+    debug(**{f'Implicit question #{i+1}': q for i, q in enumerate(comprehensiveness_context.implicit_questions)})
 
     return comprehensiveness_context.missing_information
 
 
-def generate_answers_for_implicit_questions_stream(context: UserContext) -> MessageGenerationType:
+def generate_answers_for_implicit_questions_stream(context: UserContext) -> MessageOutputType:
     '''Generate and stream answers for implicit questions to be answered to make the answer comprehensive.'''
 
     time.sleep(1)
@@ -124,7 +125,7 @@ def generate_answers_for_implicit_questions_stream(context: UserContext) -> Mess
             question_context.comprehensiveness.answers_to_implicit_questions[i] = answers[-1]
 
 
-def generate_final_answer_stream(context: UserContext) -> MessageGenerationType:
+def generate_final_answer_stream(context: UserContext) -> MessageOutputType:
     '''Generate and stream a final answer to a grant application question.'''
 
     question_context = context.questions[-1]
@@ -139,7 +140,7 @@ def generate_final_answer_stream(context: UserContext) -> MessageGenerationType:
         message = f'No final answer generated due to having answered none of the implicit questions.'
 
     if message != '':
-        print(message)
+        debug(message)
         return
 
     num_implicit_questions = len(comprehensiveness_context.answers_to_implicit_questions)
