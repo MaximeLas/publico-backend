@@ -3,6 +3,8 @@ from devtools import debug
 
 import gradio as gr
 
+from chatbot_workflow import WorkflowState
+
 
 
 def handle_text_submitted(
@@ -59,3 +61,32 @@ def handle_files_submitted(
 ):
     # print file names
     debug(**{f'File #{i+1} uploaded': file.name.split("/")[-1] for i, file in enumerate(files)})
+
+
+def handle_good_as_is_clicked(
+    text: str,
+    chat_history: list[list]
+):
+    chat_history[-1][1] = f'**{text}**'
+
+    return chat_history
+
+
+def handle_edit_it_clicked(
+    text: str,
+    chat_history: list[list],
+    workflow_state: WorkflowState
+):
+    chat_history[-1][1] = f'**{text}**'
+
+    generated_answer_to_implicit_question = workflow_state.context.get_answer_of_current_implicit_question_to_be_answered()
+    return chat_history, generated_answer_to_implicit_question
+
+
+def handle_write_one_myself_clicked(
+    text: str,
+    chat_history: list[list]
+):
+    chat_history[-1][1] = f'**{text}**'
+
+    return chat_history

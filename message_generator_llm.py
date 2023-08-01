@@ -1,4 +1,6 @@
+import copy
 import time
+
 from devtools import debug
 
 from langchain.callbacks import get_openai_callback
@@ -8,7 +10,7 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import Chroma
 
 from chatbot_step import MessageOutputType
-from context import UserContext
+from context import ImplicitQuestion, UserContext
 from helpers import get_most_relevant_docs_in_vector_store_for_answering_question, get_documents_chunks_for_files
 from llm_streaming_utils import stream_from_llm_generation
 from settings import GPT_MODEL
@@ -58,14 +60,15 @@ def generate_answer_to_question_stream(context: UserContext) -> MessageOutputTyp
     time.sleep(0.5)
 
 
-def check_for_comprehensiveness(context: UserContext, use_json_schema: bool = False) -> str:
+def check_for_comprehensiveness(context: UserContext, use_json_schema: bool = False) -> MessageOutputType:
     '''Check for comprehensiveness of an answer to a grant application question using OpenAI functions.'''
 
     question_context = context.questions[-1]
     comprehensiveness_context = question_context.comprehensiveness
 
     if not comprehensiveness_context.do_check:
-        return 'Skipping check for comprehensiveness.'
+        yield 'Skipping check for comprehensiveness.'
+        return
 
     chat_openai = ChatOpenAI(client=None, model=GPT_MODEL, temperature=0)
     prompt = get_prompt_template_for_comprehensiveness_check_openai_functions()
@@ -86,15 +89,58 @@ def check_for_comprehensiveness(context: UserContext, use_json_schema: bool = Fa
 
     questions = response['implicit_questions']
     if type(questions) is dict:
-        comprehensiveness_context.implicit_questions = [q for q in questions.values()]
+        comprehensiveness_context.implicit_questions = {
+            i+1: ImplicitQuestion(q) for i, q in enumerate(questions.values())}
     elif type(questions) is list:
-        comprehensiveness_context.implicit_questions = [q if type(q) is str else q['question'] for q in questions]
+        comprehensiveness_context.implicit_questions = {
+            i+1: ImplicitQuestion(q if type(q) is str else q['question']) for i, q in enumerate(questions)}
     else:
-        print(f'Unexpected type for implicit questions: {type(questions)}\n')
+        raise ValueError(f'Unexpected type for implicit questions: {type(questions)}\n')
 
-    debug(**{f'Implicit question #{i+1}': q for i, q in enumerate(comprehensiveness_context.implicit_questions)})
+    debug(**{f'Implicit question #{i}': q.question for i, q in comprehensiveness_context.implicit_questions.items()})
 
-    return comprehensiveness_context.missing_information
+    answers = [comprehensiveness_context.missing_information]
+    yield answers
+    time.sleep(1)
+
+    answers.append('')
+    for i, q in comprehensiveness_context.implicit_questions.items():
+        answers[-1] += (f'(**{i}**) **{q.question}**\n')
+        time.sleep(0.5)
+        yield answers
+
+
+
+def generate_answer_for_implicit_question_stream(context: UserContext) -> MessageOutputType:
+    '''Generate and stream answers for implicit questions to be answered to make the answer comprehensive.'''
+
+    time.sleep(1)
+
+    start_of_chatbot_message = "Here's what I found to answer the question."
+    time.sleep(0.5)
+    yield start_of_chatbot_message
+
+    answer = ''
+
+    for _, response in stream_from_llm_generation(
+        prompt=get_prompt_template_for_generating_answer_to_implicit_question(),
+        chain_type='qa_chain',
+        model='gpt-3.5-turbo',
+        verbose=False,
+        docs=context.questions[-1].most_relevant_documents,
+        question=context.get_current_implicit_question_to_be_answered()
+    ):
+        answer = response
+        yield f'{start_of_chatbot_message}\n\n*{response}*'
+
+    end_of_chatbot_message: str
+    if 'Not enough information' not in answer:
+        context.set_answer_to_current_implicit_question(answer)
+        end_of_chatbot_message = 'Is this helpful?'
+    else:
+        end_of_chatbot_message = 'Would you like to answer it yourself?'
+
+    yield f'{start_of_chatbot_message}\n\n*{answer}*\n\n{end_of_chatbot_message}'
 
 
 def generate_answers_for_implicit_questions_stream(context: UserContext) -> MessageOutputType:
@@ -104,8 +150,8 @@ def generate_answers_for_implicit_questions_stream(context: UserContext) -> Mess
     answers: list[str] = []
 
     question_context = context.questions[-1]
-    for i, question in enumerate(question_context.comprehensiveness.implicit_questions):
-        start_of_sentence_for_answer = f'(**{i+1}**) **{question}**'
+    for i, q in question_context.comprehensiveness.implicit_questions.items():
+        start_of_sentence_for_answer = f'(**{i}**) **{q.question}**'
         answers.append(start_of_sentence_for_answer)
         time.sleep(0.5)
         yield answers
@@ -116,13 +162,13 @@ def generate_answers_for_implicit_questions_stream(context: UserContext) -> Mess
             model='gpt-3.5-turbo',
             verbose=False,
             docs=question_context.most_relevant_documents,
-            question=question
+            question=q.question
         ):
             answers[-1] = f'{start_of_sentence_for_answer}\n\n*{response}*'
             yield answers
 
         if 'Not enough information' not in answers[-1]:
-            question_context.comprehensiveness.answers_to_implicit_questions[i] = answers[-1]
+            q.answer = answers[-1]
 
 
 def generate_final_answer_stream(context: UserContext) -> MessageOutputType:
@@ -136,14 +182,15 @@ def generate_final_answer_stream(context: UserContext) -> MessageOutputType:
         message = f'No final answer generated due to not having checked comprehensiveness.'
     elif len(comprehensiveness_context.implicit_questions) == 0:
         message = f'No final answer generated due to having no implicit questions.'
-    elif len(comprehensiveness_context.answers_to_implicit_questions) == 0:
+    elif sum(q.answer is not None for q in comprehensiveness_context.implicit_questions.values()) == 0:
         message = f'No final answer generated due to having answered none of the implicit questions.'
 
     if message != '':
         debug(message)
         return
 
-    num_implicit_questions = len(comprehensiveness_context.answers_to_implicit_questions)
+    implicit_questions_answered = dict(filter(lambda elem: elem[1].answer is not None, comprehensiveness_context.implicit_questions.items()))
+    num_implicit_questions = len(implicit_questions_answered)
     s = 's' if num_implicit_questions > 1 else ''
 
     start_of_sentence_for_final_answer = (
@@ -158,7 +205,7 @@ def generate_final_answer_stream(context: UserContext) -> MessageOutputType:
         chain_type='llm_chain',
         verbose=True,
         question=question_context.question,
-        answers_to_implicit_questions='\n\n'.join(comprehensiveness_context.answers_to_implicit_questions.values()),
+        answers_to_implicit_questions='\n\n'.join([q.answer for q in implicit_questions_answered.values()]),
         word_limit=question_context.word_limit,
         original_answer=question_context.answer
     ):

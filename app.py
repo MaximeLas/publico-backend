@@ -1,5 +1,7 @@
 from functools import partial
 
+from devtools import debug
+
 import gradio as gr
 from gradio.components import IOComponent
 
@@ -9,18 +11,21 @@ import langchain
 
 langchain.llm_cache = InMemoryCache()
 
-from devtools import debug
 
 from chatbot_step import ChatbotStep
 from chatbot_workflow import WorkflowManager, WorkflowState, show_initial_chatbot_message, find_and_store_event_value, generate_chatbot_messages_from_trigger, update_workflow_step
 from component_logic import (
+    handle_edit_it_clicked,
+    handle_good_as_is_clicked,
     handle_number_submitted,
+    handle_write_one_myself_clicked,
     handle_yes_no_clicked,
     handle_files_uploaded,
     handle_files_submitted,
     handle_text_submitted
 )
 from component_wrapper import (
+    ButtonWrapper,
     ComponentWrapper,
     FilesWrapper,
     NumberWrapper,
@@ -40,6 +45,7 @@ files_component = gr.Files(label='Documents', visible=False, interactive=False, 
 with gr.Blocks() as demo:
     # create a workflow manager which contains all the chatbot steps and keeps track of the current step as well as the user context
     workflow_manager = WorkflowManager()
+    workflow_state = gr.State(WorkflowState(workflow_manager.current_step_id, workflow_manager.context))
 
     with gr.Row():
         # create chatbot component
@@ -61,11 +67,6 @@ with gr.Blocks() as demo:
             # submit number component
             submit_number_btn_component = gr.Button(value='Submit', variant='primary', visible=False)
 
-            # buttons for handling generated answer to implicit question
-            good_as_is_btn_component = gr.Button(value='Good as is!', variant='primary', visible=False)
-            edit_it_btn_component = gr.Button(value='Edit it', variant='primary', visible=False)
-            write_one_myself_btn_component = gr.Button(value='Write one myself', variant='primary', visible=False)
-
         
         with gr.Row(visible=False) as examples_row:
             # examples component (not a true gradio 'Component' techincally)
@@ -86,6 +87,12 @@ with gr.Blocks() as demo:
         clear_btn_component=gr.ClearButton(value='Clear', variant='stop', visible=False, interactive=False)
         # submit button component
         submit_btn_component=gr.Button(value='Submit', variant='primary', visible=False, interactive=False)
+        # buttons for handling generated answer to implicit question
+        good_as_is_btn_component = gr.Button(value='Good as is!', variant='primary', visible=False)
+        edit_it_btn_component = gr.Button(value='Let me edit it', variant='primary', visible=False)
+        write_one_myself_btn_component = gr.Button(value="I'll write one myself", variant='primary', visible=False)
+        # of course button component
+        of_course_btn_component = gr.Button(value='Of course!', variant='primary', visible=False)
 
     with gr.Row() as row:
         # files component
@@ -103,6 +110,10 @@ with gr.Blocks() as demo:
         (StepID.ENTER_QUESTION, [user_text_box_component, submit_text_btn_component, examples_row]),
         (StepID.ENTER_WORD_LIMIT, [number_component, submit_number_btn_component]),
         (StepID.DO_COMPREHENSIVENESS_CHECK, [yes_btn_component, no_btn_component]),
+        (StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION, [yes_btn_component, no_btn_component]),
+        (StepID.SELECT_WHAT_TO_DO_WITH_ANSWER_GENERATED_FROM_CONTEXT, [good_as_is_btn_component, edit_it_btn_component, write_one_myself_btn_component]),
+        (StepID.PROMPT_USER_TO_SUBMIT_ANSWER, [user_text_box_component, submit_text_btn_component]),
+        (StepID.READY_TO_GENERATE_FINAL_ANSWER, [of_course_btn_component]),
         (StepID.DO_ANOTHER_QUESTION, [yes_btn_component, no_btn_component])
     ]
 
@@ -168,17 +179,39 @@ with gr.Blocks() as demo:
         component=submit_number_btn_component,
         handle_user_action=number.handle_user_action)
 
+    good_as_is_btn = ButtonWrapper(
+        component=good_as_is_btn_component,
+        handle_user_action={
+            'fn': handle_good_as_is_clicked,
+            'inputs': [good_as_is_btn_component, chatbot],
+            'outputs': [chatbot]})
+
+    edit_it_btn = ButtonWrapper(
+        component=edit_it_btn_component,
+        handle_user_action={
+            'fn': handle_edit_it_clicked,
+            'inputs': [edit_it_btn_component, chatbot, workflow_state],
+            'outputs': [chatbot, user_text_box_component]})
+
+    write_one_myself_btn = ButtonWrapper(
+        component=write_one_myself_btn_component,
+        handle_user_action={
+            'fn': handle_write_one_myself_clicked,
+            'inputs': [write_one_myself_btn_component, chatbot],
+            'outputs': [chatbot]})
+
+    of_course_btn = ButtonWrapper(component=of_course_btn_component)
 
     components: list[ComponentWrapper] = [
         start_btn, yes_btn, no_btn,
         files, upload_btn, submit_btn, clear_btn,
         user_text_box, submit_text_btn,
-        number, submit_number_btn]
+        number, submit_number_btn,
+        good_as_is_btn, edit_it_btn, write_one_myself_btn,
+        of_course_btn]
 
     internal_components: list[IOComponent] = [component.component for component in components]
     internal_components_with_row: list[IOComponent | gr.Row] = internal_components + [examples_row]
-
-    workflow_state = gr.State(WorkflowState(workflow_manager.current_step_id, workflow_manager.context))
 
 
     def update_component_visibility(
@@ -255,4 +288,4 @@ with gr.Blocks() as demo:
 
 
 if __name__ == '__main__':
-    demo.queue().launch()
+    demo.queue().launch(share=True)

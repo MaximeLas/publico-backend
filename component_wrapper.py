@@ -89,6 +89,12 @@ class SubmitWrapper(ComponentWrapper):
 
 
 @dataclass
+class ButtonWrapper(ComponentWrapper):
+    component: gr.Button
+    user_action = 'click'
+
+
+@dataclass
 class ClearWrapper(ComponentWrapper):
     component: gr.ClearButton
     user_action = 'click'

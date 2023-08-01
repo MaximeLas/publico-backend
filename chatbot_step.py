@@ -3,12 +3,13 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
+from devtools import debug
+
 from gradio.blocks import Block
 
 from constants import StepID
 from context import UserContext
 
-from devtools import debug
 
 
 MessageOutputType = str | Iterator[str] | list[str] | Iterator[list[str]]
@@ -41,12 +42,12 @@ class ConditionalStepDecider(StepDecider):
 
 @dataclass
 class ChatbotStep():
-    initial_chatbot_message: str
+    initial_chatbot_message: str | MessageOutputType
     step_decider: StepDecider | dict[str, StepDecider]
     components: list[Block] = field(default_factory=list)
     save_event_outcome: EventOutcomeSaver | None = None
     generate_chatbot_messages_fns: GenerateMessageFuncList | dict[str, GenerateMessageFuncList] = field(default_factory=lambda: defaultdict(list))
-
+    retrieve_relevant_vars_func: Callable[[UserContext], dict] = lambda _: dict()
 
     def determine_next_step(self, trigger: str, context: UserContext) -> StepID:
         step_decider = (
@@ -54,10 +55,11 @@ class ChatbotStep():
                 if isinstance(self.step_decider, StepDecider)
                 else
             self.step_decider[trigger])
-
+        debug(step_decider.determine_next_step(context))
         return step_decider.determine_next_step(context)
 
 
     def get_generate_chatbot_messages_fns_for_trigger(self, trigger: str) -> list[GenerateMessageFunc]:
         fns = self.generate_chatbot_messages_fns
         return fns if isinstance(fns, list) else fns[trigger]
+    

@@ -8,6 +8,12 @@ class StepID(StrEnum):
     ENTER_QUESTION = auto()
     ENTER_WORD_LIMIT = auto()
     DO_COMPREHENSIVENESS_CHECK = auto()
+    # for each implicit question:
+    DO_PROCEED_WITH_IMPLICIT_QUESTION = auto()
+    SELECT_WHAT_TO_DO_WITH_ANSWER_GENERATED_FROM_CONTEXT = auto()
+    PROMPT_USER_TO_SUBMIT_ANSWER = auto()
+    READY_TO_GENERATE_FINAL_ANSWER = auto() # at the end of the questions
+    # end for
     DO_ANOTHER_QUESTION = auto()
     END = auto()
 
