@@ -1,8 +1,8 @@
 ---
 title: Publico Demo
 emoji: 🚀
-colorFrom: red
-colorTo: yellow
+colorFrom: green
+colorTo: gray
 sdk: gradio
 python_version: 3.11.2
 sdk_version: 3.38.0
