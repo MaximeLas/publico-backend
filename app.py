@@ -13,7 +13,7 @@ langchain.llm_cache = InMemoryCache()
 
 
 from chatbot_step import ChatbotStep
-from chatbot_workflow import WorkflowManager, WorkflowState, show_initial_chatbot_message, find_and_store_event_value, generate_chatbot_messages_from_trigger, update_workflow_step
+from chatbot_workflow import WorkflowManager, WorkflowState, modify_context, show_initial_chatbot_message, find_and_store_event_value, generate_chatbot_messages_from_trigger, update_workflow_step
 from component_logic import (
     handle_edit_it_clicked,
     handle_good_as_is_clicked,
@@ -37,7 +37,7 @@ from component_wrapper import (
     TextWrapper,
     SubmitTextButtonWrapper
 )
-from constants import StepID, GRANT_APPLICATION_QUESTIONS_EXAMPLES
+from constants import ComponentLabel, StepID, GRANT_APPLICATION_QUESTIONS_EXAMPLES
 
 
 
@@ -50,22 +50,22 @@ with gr.Blocks() as demo:
     with gr.Row():
         # create chatbot component
         chatbot = gr.Chatbot(
-            value=[[workflow_manager.get_current_step().initial_chatbot_message, None]],
-            label='AI Grant Writing Coach',
+            value=[[workflow_manager.get_current_step().initial_chatbot_message.message, None]],
+            label=ComponentLabel.CHATBOT,
             show_share_button=True,
             height=650)
 
     with gr.Row():
         with gr.Column():
             # user text box component
-            user_text_box_component = gr.Textbox(label='User', visible=False, interactive=True, lines=3, show_copy_button=True, placeholder='Type your message here')
+            user_text_box_component = gr.Textbox(label=ComponentLabel.USER, visible=False, interactive=True, lines=3, show_copy_button=True, placeholder='Type your message here')
             # submit text button component
-            submit_text_btn_component = gr.Button(value='Submit', variant='primary', visible=False)
+            submit_text_btn_component = gr.Button(value=ComponentLabel.SUBMIT_TEXT, variant='primary', visible=False)
 
             # number component
-            number_component = gr.Number(value=30, precision=0, label='Number', visible=False, interactive=True)
+            number_component = gr.Number(value=30, precision=0, label=ComponentLabel.NUMBER, visible=False, interactive=True)
             # submit number component
-            submit_number_btn_component = gr.Button(value='Submit', variant='primary', visible=False)
+            submit_number_btn_component = gr.Button(value=ComponentLabel.SUBMIT_NUMBER, variant='primary', visible=False)
 
         
         with gr.Row(visible=False) as examples_row:
@@ -73,30 +73,30 @@ with gr.Blocks() as demo:
             examples=gr.Examples(
                 examples=GRANT_APPLICATION_QUESTIONS_EXAMPLES,
                 inputs=user_text_box_component,
-                label='Examples of grant application questions')
+                label=ComponentLabel.EXAMPLES)
 
     with gr.Row():
         # start button component
-        start_btn_component = gr.Button(value='Start', variant='primary', visible=True)
+        start_btn_component = gr.Button(value=ComponentLabel.START, variant='primary', visible=True)
         # yes/no button component
-        yes_btn_component = gr.Button(value='Yes', variant='primary', visible=False)
-        no_btn_component = gr.Button(value='No', variant='stop', visible=False)
+        yes_btn_component = gr.Button(value=ComponentLabel.YES, variant='primary', visible=False)
+        no_btn_component = gr.Button(value=ComponentLabel.NO, variant='stop', visible=False)
         # upload button component
-        upload_btn_component = gr.UploadButton(label='Upload', variant='primary', visible=False, file_types=['.docx', '.txt'], file_count='multiple')
+        upload_btn_component = gr.UploadButton(label=ComponentLabel.UPLOAD, variant='primary', visible=False, file_types=['.docx', '.txt'], file_count='multiple')
         # clear button component
-        clear_btn_component=gr.ClearButton(value='Clear', variant='stop', visible=False, interactive=False)
-        # submit button component
-        submit_btn_component=gr.Button(value='Submit', variant='primary', visible=False, interactive=False)
+        clear_btn_component=gr.ClearButton(value=ComponentLabel.CLEAR, variant='stop', visible=False, interactive=False)
+        # submit files button component
+        submit_files_btn_component=gr.Button(value=ComponentLabel.SUBMIT_FILES, variant='primary', visible=False, interactive=False)
         # buttons for handling generated answer to implicit question
-        good_as_is_btn_component = gr.Button(value='Good as is!', variant='primary', visible=False)
-        edit_it_btn_component = gr.Button(value='Let me edit it', variant='primary', visible=False)
-        write_one_myself_btn_component = gr.Button(value="I'll write one myself", variant='primary', visible=False)
+        good_as_is_btn_component = gr.Button(value=ComponentLabel.GOOD_AS_IS, variant='primary', visible=False)
+        edit_it_btn_component = gr.Button(value=ComponentLabel.EDIT_IT, variant='primary', visible=False)
+        write_one_myself_btn_component = gr.Button(value=ComponentLabel.WRITE_ONE_MYSELF, variant='primary', visible=False)
         # of course button component
-        of_course_btn_component = gr.Button(value='Of course!', variant='primary', visible=False)
+        of_course_btn_component = gr.Button(value=ComponentLabel.OF_COURSE, variant='primary', visible=False)
 
     with gr.Row() as row:
         # files component
-        files_component = gr.Files(label='Documents', visible=False, interactive=False, file_types=['.docx', '.txt'])
+        files_component = gr.Files(label=ComponentLabel.FILES, visible=False, interactive=False, file_types=['.docx', '.txt'])
 
     # specify that the clear button should clear the files component
     clear_btn_component.add(files_component) # make the clear button clear the files
@@ -106,12 +106,12 @@ with gr.Blocks() as demo:
     step_components = [
         (StepID.START, [start_btn_component]),
         (StepID.HAVE_YOU_APPLIED_BEFORE, [yes_btn_component, no_btn_component]),
-        (StepID.UPLOAD_PRIOR_GRANT_APPLICATIONS, [upload_btn_component, files_component, submit_btn_component, clear_btn_component]),
+        (StepID.UPLOAD_FILES, [upload_btn_component, files_component, submit_files_btn_component, clear_btn_component]),
         (StepID.ENTER_QUESTION, [user_text_box_component, submit_text_btn_component, examples_row]),
         (StepID.ENTER_WORD_LIMIT, [number_component, submit_number_btn_component]),
         (StepID.DO_COMPREHENSIVENESS_CHECK, [yes_btn_component, no_btn_component]),
         (StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION, [yes_btn_component, no_btn_component]),
-        (StepID.SELECT_WHAT_TO_DO_WITH_ANSWER_GENERATED_FROM_CONTEXT, [good_as_is_btn_component, edit_it_btn_component, write_one_myself_btn_component]),
+        (StepID.SELECT_WHAT_TO_DO_WITH_ANSWER_GENERATED_FROM_CONTEXT, [yes_btn_component, no_btn_component, good_as_is_btn_component, edit_it_btn_component, write_one_myself_btn_component]),
         (StepID.PROMPT_USER_TO_SUBMIT_ANSWER, [user_text_box_component, submit_text_btn_component]),
         (StepID.READY_TO_GENERATE_FINAL_ANSWER, [of_course_btn_component]),
         (StepID.DO_ANOTHER_QUESTION, [yes_btn_component, no_btn_component])
@@ -141,11 +141,11 @@ with gr.Blocks() as demo:
         handle_user_action={
             'fn': handle_files_uploaded,
             'inputs': [upload_btn_component, files_component],
-            'outputs': [files_component, submit_btn_component, clear_btn_component]
+            'outputs': [files_component, submit_files_btn_component, clear_btn_component]
         })
 
-    submit_btn = SubmitWrapper(
-        component=submit_btn_component,
+    submit_files_btn = SubmitWrapper(
+        component=submit_files_btn_component,
         handle_user_action={
             'fn': handle_files_submitted,
             'inputs': files_component
@@ -155,7 +155,7 @@ with gr.Blocks() as demo:
         component=clear_btn_component,
         handle_user_action={
             'fn': lambda: [gr.update(interactive=False)] * 2,
-            'outputs': [submit_btn_component, clear_btn_component]})
+            'outputs': [submit_files_btn_component, clear_btn_component]})
 
     user_text_box = TextWrapper(
         component=user_text_box_component,
@@ -204,7 +204,7 @@ with gr.Blocks() as demo:
 
     components: list[ComponentWrapper] = [
         start_btn, yes_btn, no_btn,
-        files, upload_btn, submit_btn, clear_btn,
+        files, upload_btn, submit_files_btn, clear_btn,
         user_text_box, submit_text_btn,
         number, submit_number_btn,
         good_as_is_btn, edit_it_btn, write_one_myself_btn,
@@ -223,7 +223,16 @@ with gr.Blocks() as demo:
 
         return [
             gr.update(
-                visible=(component in steps[workflow_state.current_step_id].components)
+                visible=(component in steps[workflow_state.current_step_id].components and (
+                    # current sort-of hard-coded solution to show the correct buttons for that one step
+                    workflow_state.current_step_id is not StepID.SELECT_WHAT_TO_DO_WITH_ANSWER_GENERATED_FROM_CONTEXT or (
+                        component in (yes_btn_component, no_btn_component) and
+                        workflow_state.context.get_answer_of_current_implicit_question_to_be_answered() is None
+                    ) or (
+                        component in (good_as_is_btn_component, edit_it_btn_component, write_one_myself_btn_component) and
+                        workflow_state.context.get_answer_of_current_implicit_question_to_be_answered() is not None
+                    )
+                ))
             )
             for component in internal_components_with_row
         ]
@@ -270,17 +279,22 @@ with gr.Blocks() as demo:
             inputs=[workflow_state, c.component, chatbot],
             outputs=chatbot
         ).then(
-            # update chatbot step according to the next step id determined by the current step and the user action (e.g. click yes/no)
+            # update chatbot step (e.g. move to next step if user has submitted files)
             fn=partial(update_workflow_step, workflow_manager.steps),
             inputs=[workflow_state, c.component],
+            outputs=workflow_state
+        ).then(
+            # modify the context (e.g. add new question to context if we're on the 'enter question' step)
+            fn=partial(modify_context, workflow_manager.steps),
+            inputs=workflow_state,
             outputs=workflow_state
         ).then(
             # show the initial (chatbot) message of the next step
             fn=partial(show_initial_chatbot_message, workflow_manager.steps),
             inputs=[workflow_state, chatbot],
-            outputs= chatbot
+            outputs=[workflow_state, chatbot]
         ).then(
-            # update visibility of components based on whether they are defined for the next step (e.g. show yes/no buttons if defined for next step)
+            # update visibility of components by making visible only those components relevant to the next step
             fn=partial(update_component_visibility, internal_components_with_row, workflow_manager.steps),
             inputs=workflow_state,
             outputs=internal_components_with_row # type: ignore

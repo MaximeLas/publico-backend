@@ -8,82 +8,6 @@ from langchain.schema.messages import (
     SystemMessage
 )
 
-# single comment
-# another comment
-'''
-multiple lines
-of comments
-'''
-
-message_to_user_when_all_iqs_first_presented = (
-    'Here\'s a list of questions that could improve the generated answer.\n'
-    '{implicit_questions}\n'
-    'Let\'s go through them one by one.'
-)
-
-message_to_user_when_presenting_first_iq_for_interaction = (
-    'Let\'s start with the first question:\n'
-    '{implicit_question_1}\n'
-    'Do you want to answer this question in the revised answer?'
-)
-
-# User is presented with option "yes, let's answer it!" and "no, it's not relevant/I will answer it later in the application"
-
-# If user selects no, move to next question
-
-# If yes, then user is presented with three additional options
-
-message_to_user_when_answering_first_relevant_iq = (
-    'Here\'s what I found to answer the question.\n'
-    '{model_answer_to_implicit_question_1}\n'
-    'Is this helpful?\n'
-)
-
-# User selects "yes, that's good as is" or "yes, but I'd like to edit it" or "no, let me write one myself"
-# If good as is, save answer to {approved_answers_to_implicit_questions}; otherwise:
-
-message_to_user_to_revise_implicit_question = (
-    'Okay, let\'s edit the proposed answer.\n'
-    'You can edit the text in the box below, or type over it to replace it \n'
-    'with any information you think better answers the question.'
-)
-
-# Once user has submitted edited/revised answer, save to {approved_answers_to_implicit_questions}; then, move on:
-
-message_to_user_to_move_to_next_implicit_question = (
-    'Great! Now that we\'ve answered that question, \n'
-    'let\'s move on to the next.'
-)
-    
-# Final prompt to model to incorporate all user-approved answers
-def gget_prompt_template_for_generating_final_answer() -> ChatPromptTemplate | None:
-    '''
-    Get a prompt template for a chat model to generate a final answer to a grant application question
-        Returns:
-            ChatPromptTemplate: prompt template for chat model to generate final answer
-    '''
-
-    system_template = (
-        'You will be given a paragraph which is an answer to a grant application question submitted by a nonprofit.\n'
-        'The grant application questions was: "{question} ({word_limit} words)".\n'
-        'Improve the answer by incorporating the potentially valuable information contained in the following lines:\n'
-        '----------------\n'
-        '{approved_answers_to_implicit_questions}.\n'
-        '----------------\n'
-        'Start your message right away with the new answer without any leading words. '
-        'Please make sure to comply with the word limit stated at the end of the grant application question.'
-    )
-
-example_prompt_to_user_for_an_implicit_question = (
-    'This is the start of the prompt '
-    'and it continues on and on and on.\n'
-    'Here is the question:\n'
-    '{implicit_question}\n'
-    'Alright bye!'
-)
-
-# define below prompt in the future for step 3
-prompt_to_use_for_anu_additional_information_in_the_end: str
 
 
 def get_prompt_template_for_generating_original_answer() -> ChatPromptTemplate:
@@ -148,6 +72,7 @@ def get_prompt_template_for_generating_answer_to_implicit_question() -> ChatProm
         Returns:
             ChatPromptTemplate: prompt template for chat model to answer implicit question
     '''
+
     system_template = (
         'You are a grantwriting expert who will be helping a non-profit organization applying for a grant. '
         'Please provide your best answer to the following question using the context provided. '
@@ -180,7 +105,7 @@ def get_prompt_template_for_generating_final_answer() -> ChatPromptTemplate:
         '{answers_to_implicit_questions}.\n'
         '----------------\n'
         'Start your message right away with the new answer without any leading words. '
-        'Please make sure to comply with the word limit stated at the end of the grant application question.'
+        'Please make sure to comply with the word limit stated at the end of the grant application question as this is crucial!'
     )
 
     messages = [

@@ -3,6 +3,9 @@ from dataclasses import dataclass, field
 import tempfile
 
 from langchain.docstore.document import Document
+from langchain.vectorstores import Chroma
+
+from constants import ComponentLabel
 
     
 @dataclass
@@ -17,8 +20,6 @@ class ComprehensivenessCheckerContext:
     missing_information: str | None = None
     implicit_questions: dict[int, ImplicitQuestion] = field(default_factory=dict)
     index_of_implicit_question_being_answered: int | None = None
-    #implicit_questions_to_be_answered: list[ImplicitQuestion] = field(default_factory=list)
-    #implicit_question_being_answered: ImplicitQuestion | None = None
     wish_to_answer_implicit_questions: bool = True
     revised_application_answer: str | None = None
 
@@ -32,23 +33,39 @@ class GrantApplicationQuestionContext:
     comprehensiveness: ComprehensivenessCheckerContext = field(default_factory=ComprehensivenessCheckerContext)
 
 
+@dataclass
+class FilesStorageContext:
+    files: list[str] = field(default_factory=list)
+    vector_store: Chroma = None
 
 @dataclass
 class UserContext:
-    prior_grant_applications: list[str] = field(default_factory=list)
+    uploaded_files: FilesStorageContext = field(default_factory=FilesStorageContext)
     questions: list[GrantApplicationQuestionContext] = field(default_factory=lambda: [GrantApplicationQuestionContext()])
 
-    def set_prior_grant_applications(self, files: list[tempfile._TemporaryFileWrapper]):
-        self.prior_grant_applications = [file.name for file in files]
+
+    def add_new_question(self):
+        self.questions.append(GrantApplicationQuestionContext())
+
+
+    def get_last_question_context(self) -> GrantApplicationQuestionContext:
+        return self.questions[-1]
+
+
+    def set_uploaded_files(self, files: list[tempfile._TemporaryFileWrapper]):
+        self.uploaded_files.files = [file.name for file in files]
+
 
     def set_grant_application_question(self, question: str):
         self.questions[-1].question = question
 
+
     def set_word_limit(self, word_limit: str):
         self.questions[-1].word_limit = word_limit
 
+
     def set_do_check_for_comprehensiveness(self, yes_or_no: str):
-        self.questions[-1].comprehensiveness.do_check = yes_or_no == 'Yes'
+        self.questions[-1].comprehensiveness.do_check = yes_or_no == ComponentLabel.YES
 
 
     def get_index_of_implicit_question_being_answered(self) -> int | None:
@@ -62,12 +79,20 @@ class UserContext:
         else:
             return self.questions[-1].comprehensiveness.implicit_questions[index].question
     
+    
     def get_answer_of_current_implicit_question_to_be_answered(self) -> str | None:
         index = self.get_index_of_implicit_question_being_answered()
         if not index:
             raise Exception('No implicit question currently being answered')
         else:
+            print('In get_answer_of_current_implicit_question_to_be_answered')
+            print(f'index: {index}')
+            if self.questions[-1].comprehensiveness.implicit_questions[index].answer is None:
+                print('answer is None')
+            else:
+                print(f'answer is not None answer: {self.questions[-1].comprehensiveness.implicit_questions[index].answer}')
             return self.questions[-1].comprehensiveness.implicit_questions[index].answer
+
 
     def set_answer_to_current_implicit_question(self, answer: str):
         index = self.get_index_of_implicit_question_being_answered()
@@ -77,6 +102,7 @@ class UserContext:
             raise Exception('Cannot set answer as no implicit question currently being answered')
 
         implicit_questions[index].answer = answer
+
 
     def get_next_implicit_question_to_be_answered(self) -> str:
         comprehensiveness = self.questions[-1].comprehensiveness

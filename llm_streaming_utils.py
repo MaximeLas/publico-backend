@@ -89,7 +89,7 @@ def stream_from_llm_generation(
             if docs is not None:
                 debug(**{'length of documents provided': sum([len(doc.page_content) for doc in docs])})
             else:
-                print(f'No documents were provided, this should never happen!\n')
+                raise ValueError('No documents were provided, this should never happen!')
 
         # add the documents to the kwargs if we're using a qa_chain and run the chain
         kwargs = input_variables if chain_type == 'llm_chain' else {'input_documents': docs, **input_variables}

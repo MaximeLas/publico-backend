@@ -12,7 +12,7 @@ from context import UserContext
 
 
 
-MessageOutputType = str | Iterator[str] | list[str] | Iterator[list[str]]
+MessageOutputType = str | list[str] | Iterator[str | list[str] | None] | None
 GenerateMessageFunc = Callable[[UserContext], MessageOutputType]
 GenerateMessageFuncList = list[GenerateMessageFunc]
 
@@ -24,7 +24,7 @@ class EventOutcomeSaver:
 
 
 @dataclass
-class StepDecider:
+class NextStepDecider:
     next_step: StepID
 
     def determine_next_step(self, context: UserContext) -> StepID:
@@ -32,7 +32,7 @@ class StepDecider:
 
 
 @dataclass
-class ConditionalStepDecider(StepDecider):
+class ConditionalNextStepDecider(NextStepDecider):
     alternative_step: StepID
     condition: Callable[['UserContext'], bool]
 
@@ -41,25 +41,38 @@ class ConditionalStepDecider(StepDecider):
 
 
 @dataclass
+class InitialChatbotMessage:
+    message: str
+    extract_formatting_variables_func: Callable[[UserContext], Iterator] = lambda _: (yield dict())
+
+    def get_formatted_message(self, context: UserContext) -> Iterator[str]:
+        for response in self.extract_formatting_variables_func(context):
+            if isinstance(response, dict):
+                yield self.message.format(**response)
+            else:
+                yield self.message.format(response=response)
+
+
+@dataclass
 class ChatbotStep():
-    initial_chatbot_message: str | MessageOutputType
-    step_decider: StepDecider | dict[str, StepDecider]
+    initial_chatbot_message: InitialChatbotMessage
+    next_step_decider: NextStepDecider | dict[str, NextStepDecider]
     components: list[Block] = field(default_factory=list)
+    initialize_step_func: Callable[[UserContext], None] = lambda _: None
     save_event_outcome: EventOutcomeSaver | None = None
     generate_chatbot_messages_fns: GenerateMessageFuncList | dict[str, GenerateMessageFuncList] = field(default_factory=lambda: defaultdict(list))
     retrieve_relevant_vars_func: Callable[[UserContext], dict] = lambda _: dict()
 
     def determine_next_step(self, trigger: str, context: UserContext) -> StepID:
-        step_decider = (
-            self.step_decider
-                if isinstance(self.step_decider, StepDecider)
+        next_step_decider = (
+            self.next_step_decider
+                if isinstance(self.next_step_decider, NextStepDecider)
                 else
-            self.step_decider[trigger])
-        debug(step_decider.determine_next_step(context))
-        return step_decider.determine_next_step(context)
+            self.next_step_decider[trigger])
+        debug(next_step_decider.determine_next_step(context))
+        return next_step_decider.determine_next_step(context)
 
 
     def get_generate_chatbot_messages_fns_for_trigger(self, trigger: str) -> list[GenerateMessageFunc]:
         fns = self.generate_chatbot_messages_fns
         return fns if isinstance(fns, list) else fns[trigger]
-    

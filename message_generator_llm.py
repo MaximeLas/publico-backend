@@ -27,13 +27,14 @@ from prompts import (
 def generate_answer_to_question_stream(context: UserContext) -> MessageOutputType:
     '''Generate and stream an answer to a grant application question by streaming tokens from the LLM.'''
 
-    documents_chunks = get_documents_chunks_for_files(context.prior_grant_applications)
+    documents_chunks = get_documents_chunks_for_files(context.uploaded_files.files)
     vector_store = Chroma.from_documents(documents=documents_chunks, embedding=OpenAIEmbeddings(client=None))
+    context.uploaded_files.vector_store = vector_store
 
     question_context = context.questions[-1]
     if question_context.question is None:
         message = 'No answer generated due to missing application question.'
-        debug(message)
+        #message)
         yield message
         return
 
@@ -120,6 +121,9 @@ def generate_answer_for_implicit_question_stream(context: UserContext) -> Messag
     time.sleep(0.5)
     yield start_of_chatbot_message
 
+    most_relevant_documents = get_most_relevant_docs_in_vector_store_for_answering_question(
+        vector_store=context.uploaded_files.vector_store, question=context.get_current_implicit_question_to_be_answered(), n_results=1)
+
     answer = ''
 
     for _, response in stream_from_llm_generation(
@@ -127,7 +131,7 @@ def generate_answer_for_implicit_question_stream(context: UserContext) -> Messag
         chain_type='qa_chain',
         model='gpt-3.5-turbo',
         verbose=False,
-        docs=context.questions[-1].most_relevant_documents,
+        docs=most_relevant_documents,
         question=context.get_current_implicit_question_to_be_answered()
     ):
         answer = response

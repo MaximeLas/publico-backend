@@ -7,7 +7,7 @@ from context import UserContext
 def generate_validation_message_following_files_upload(context: UserContext) -> list[str]:
     '''Generate a validation message following a file upload.'''
 
-    files = context.prior_grant_applications
+    files = context.uploaded_files.files
     file_or_files = 'file' if len(files) == 1 else 'files'
 
     return [f'You successfully uploaded **{len(files)}** {file_or_files}! 🎉', 'Now, on to your first grant application question!']

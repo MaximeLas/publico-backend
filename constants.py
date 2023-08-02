@@ -4,7 +4,7 @@ from enum import StrEnum, auto
 class StepID(StrEnum):
     START = auto()
     HAVE_YOU_APPLIED_BEFORE = auto()
-    UPLOAD_PRIOR_GRANT_APPLICATIONS = auto()
+    UPLOAD_FILES = auto()
     ENTER_QUESTION = auto()
     ENTER_WORD_LIMIT = auto()
     DO_COMPREHENSIVENESS_CHECK = auto()
@@ -16,6 +16,26 @@ class StepID(StrEnum):
     # end for
     DO_ANOTHER_QUESTION = auto()
     END = auto()
+
+
+class ComponentLabel(StrEnum):
+    CHATBOT = 'AI Grant Writing Coach'
+    USER = 'User'
+    SUBMIT_TEXT = 'Submit'
+    NUMBER = 'Number'
+    SUBMIT_NUMBER = 'Submit'
+    EXAMPLES = 'Examples of grant application questions'
+    START = 'Start'
+    YES = 'Yes'
+    NO = 'No'
+    FILES = 'Documents'
+    UPLOAD = 'Upload'
+    CLEAR = 'Clear'
+    SUBMIT_FILES = 'Submit'
+    GOOD_AS_IS = 'Good as is!'
+    EDIT_IT = 'Let me edit it'
+    WRITE_ONE_MYSELF = "I'll write one myself"
+    OF_COURSE = 'Of course!'
 
 
 GRANT_APPLICATION_QUESTIONS_EXAMPLES = [
