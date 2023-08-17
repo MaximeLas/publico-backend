@@ -3,8 +3,6 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
-from devtools import debug
-
 from gradio.blocks import Block
 
 from constants import StepID
@@ -69,7 +67,7 @@ class ChatbotStep():
                 if isinstance(self.next_step_decider, NextStepDecider)
                 else
             self.next_step_decider[trigger])
-        debug(next_step_decider.determine_next_step(context))
+
         return next_step_decider.determine_next_step(context)
 
 
