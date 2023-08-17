@@ -85,12 +85,6 @@ class UserContext:
         if not index:
             raise Exception('No implicit question currently being answered')
         else:
-            print('In get_answer_of_current_implicit_question_to_be_answered')
-            print(f'index: {index}')
-            if self.questions[-1].comprehensiveness.implicit_questions[index].answer is None:
-                print('answer is None')
-            else:
-                print(f'answer is not None answer: {self.questions[-1].comprehensiveness.implicit_questions[index].answer}')
             return self.questions[-1].comprehensiveness.implicit_questions[index].answer
 
 
@@ -117,7 +111,7 @@ class UserContext:
             return comprehensiveness.implicit_questions[1].question
         else:
             comprehensiveness.index_of_implicit_question_being_answered += 1
-            return self.questions[-1].comprehensiveness.implicit_questions[index + 1].question
+            return comprehensiveness.implicit_questions[index + 1].question
 
     
     def has_more_implcit_questions_to_answer(self) -> bool:
