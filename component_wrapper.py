@@ -30,7 +30,12 @@ class ComponentWrapper(ABC):
 
     def get_initial_chain_following_trigger(self) -> Dependency:
         def print_trigger_index() -> None:
-            ComponentWrapper.trigger_index += 1
+            if self.name == 'Start':
+                # setting/resetting to 1
+                ComponentWrapper.trigger_index = 1
+            else:
+                ComponentWrapper.trigger_index += 1
+
             print(f'\n-- {ComponentWrapper.trigger_index} -- Triggered \'{self.name}\' {type(self.component).__name__}\n')
 
         assert self.user_action is not None, f'Cannot chain first actions after trigger for {self.component} as user_action is None'
