@@ -53,7 +53,7 @@ with gr.Blocks() as demo:
             value=[[workflow_manager.get_current_step().initial_chatbot_message.message, None]],
             label=ComponentLabel.CHATBOT,
             show_share_button=True,
-            height=650)
+            height=600)
 
     with gr.Row():
         with gr.Column():
@@ -111,7 +111,8 @@ with gr.Blocks() as demo:
         (StepID.ENTER_WORD_LIMIT, [number_component, submit_number_btn_component]),
         (StepID.DO_COMPREHENSIVENESS_CHECK, [yes_btn_component, no_btn_component]),
         (StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION, [yes_btn_component, no_btn_component]),
-        (StepID.SELECT_WHAT_TO_DO_WITH_ANSWER_GENERATED_FROM_CONTEXT, [yes_btn_component, no_btn_component, good_as_is_btn_component, edit_it_btn_component, write_one_myself_btn_component]),
+        (StepID.SELECT_WHAT_TO_DO_WITH_ANSWER_GENERATED_FROM_CONTEXT, [
+            yes_btn_component, no_btn_component, good_as_is_btn_component, edit_it_btn_component, write_one_myself_btn_component]),
         (StepID.PROMPT_USER_TO_SUBMIT_ANSWER, [user_text_box_component, submit_text_btn_component]),
         (StepID.READY_TO_GENERATE_FINAL_ANSWER, [of_course_btn_component]),
         (StepID.DO_ANOTHER_QUESTION, [yes_btn_component, no_btn_component])
@@ -255,6 +256,10 @@ with gr.Blocks() as demo:
             fn=partial(control_components_visibility, len(internal_components_with_row)),
             inputs=gr.State(c.proceed_to_next_step),
             outputs=internal_components_with_row # type: ignore
+        ).then(
+            # print current step id
+            fn=lambda workflow_state: print(f"Current step: '{workflow_state.current_step_id}'\n"),
+            inputs=workflow_state
         )
 
         if c.proceed_to_next_step:
