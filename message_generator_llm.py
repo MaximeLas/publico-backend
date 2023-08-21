@@ -27,7 +27,10 @@ from prompts import (
 def generate_answer_to_question_stream(context: UserContext) -> MessageOutputType:
     '''Generate and stream an answer to a grant application question by streaming tokens from the LLM.'''
 
-    documents_chunks = get_documents_chunks_for_files(context.uploaded_files.files)
+    documents_chunks = get_documents_chunks_for_files(
+        files=context.uploaded_files.files,
+        chunk_size=1000,
+        chunk_overlap=150)
     vector_store = Chroma.from_documents(documents=documents_chunks, embedding=OpenAIEmbeddings(client=None))
     context.uploaded_files.vector_store = vector_store
 
@@ -39,7 +42,7 @@ def generate_answer_to_question_stream(context: UserContext) -> MessageOutputTyp
         return
 
     question_context.most_relevant_documents = get_most_relevant_docs_in_vector_store_for_answering_question(
-        vector_store=vector_store, question=question_context.question, n_results=1)
+        vector_store=vector_store, question=question_context.question, n_results=4)
 
     final_answer = ''
     for _, response in stream_from_llm_generation(
