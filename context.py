@@ -73,19 +73,17 @@ class UserContext:
 
 
     def get_current_implicit_question_to_be_answered(self) -> str:
-        index = self.get_index_of_implicit_question_being_answered()
-        if not index:
-            raise Exception('No implicit question currently being answered')
-        else:
+        if (index := self.get_index_of_implicit_question_being_answered()) is not None:
             return self.questions[-1].comprehensiveness.implicit_questions[index].question
+        else:
+            raise Exception('No implicit question currently being answered')
     
     
     def get_answer_of_current_implicit_question_to_be_answered(self) -> str | None:
-        index = self.get_index_of_implicit_question_being_answered()
-        if not index:
-            raise Exception('No implicit question currently being answered')
-        else:
+        if (index := self.get_index_of_implicit_question_being_answered()) is not None:
             return self.questions[-1].comprehensiveness.implicit_questions[index].answer
+        else:
+            raise Exception('No implicit question currently being answered')
 
 
     def set_answer_to_current_implicit_question(self, answer: str):
@@ -100,20 +98,19 @@ class UserContext:
 
     def get_next_implicit_question_to_be_answered(self) -> str:
         comprehensiveness = self.questions[-1].comprehensiveness
-        if not comprehensiveness.implicit_questions:
-            raise Exception('No implicit questions present')
 
-        index = self.get_index_of_implicit_question_being_answered()
-        if index == len(comprehensiveness.implicit_questions):
-            raise Exception('No more implicit questions to answer')
-        elif not index:
-            comprehensiveness.index_of_implicit_question_being_answered = 1
-            return comprehensiveness.implicit_questions[1].question
-        else:
+        if (index := self.get_index_of_implicit_question_being_answered()) is not None:
+            if index == len(comprehensiveness.implicit_questions):
+                raise Exception('No more implicit questions to answer')
+
             comprehensiveness.index_of_implicit_question_being_answered += 1
             return comprehensiveness.implicit_questions[index + 1].question
+        else:
+            comprehensiveness.index_of_implicit_question_being_answered = 1
+            return comprehensiveness.implicit_questions[1].question
 
     
     def has_more_implcit_questions_to_answer(self) -> bool:
         index = self.get_index_of_implicit_question_being_answered()
+
         return index is None or index < len(self.questions[-1].comprehensiveness.implicit_questions)

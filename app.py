@@ -1,7 +1,5 @@
 from functools import partial
 
-from devtools import debug
-
 import gradio as gr
 from gradio.components import IOComponent
 

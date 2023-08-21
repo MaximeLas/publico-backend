@@ -267,6 +267,6 @@ def find_and_store_event_value(
             *components_values
         )
         outcome_saver.save_fn(workflow_state.context, value_to_save)
-        print(f"Saved user input as value to context: '{value_to_save}'")
+        print(f"Saved value to context on step {workflow_state.current_step_id}: '{value_to_save}'")
 
     return workflow_state

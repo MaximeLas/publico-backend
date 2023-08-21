@@ -125,7 +125,7 @@ def generate_answer_for_implicit_question_stream(context: UserContext) -> Messag
     yield start_of_chatbot_message
 
     most_relevant_documents = get_most_relevant_docs_in_vector_store_for_answering_question(
-        vector_store=context.uploaded_files.vector_store, question=context.get_current_implicit_question_to_be_answered(), n_results=1)
+        vector_store=context.uploaded_files.vector_store, question=context.get_current_implicit_question_to_be_answered(), n_results=3)
 
     answer = ''
 
