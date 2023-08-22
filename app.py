@@ -52,10 +52,10 @@ with gr.Blocks() as demo:
         with gr.Column():
             # user text box component
             user_text_box_component = gr.Textbox(label=ComponentLabel.USER, visible=False, interactive=True, lines=3, show_copy_button=True, placeholder='Type your message here')
-            # submit button component
-            submit_component = gr.Button(value=ComponentLabel.SUBMIT, variant='primary', visible=False)
             # number component
             number_component = gr.Number(value=30, precision=0, label=ComponentLabel.NUMBER, visible=False, interactive=True)
+            # submit button component
+            submit_component = gr.Button(value=ComponentLabel.SUBMIT, variant='primary', visible=False)
 
         
         with gr.Row(visible=False) as examples_row:
