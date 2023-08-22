@@ -15,25 +15,20 @@ from chatbot_workflow import WorkflowManager, WorkflowState, modify_context, sho
 from component_logic import (
     handle_edit_it_clicked,
     handle_good_as_is_clicked,
-    handle_number_submitted,
+    handle_submit,
     handle_write_one_myself_clicked,
     handle_yes_no_clicked,
     handle_files_uploaded,
     handle_files_submitted,
-    handle_text_submitted
 )
 from component_wrapper import (
     ButtonWrapper,
     ComponentWrapper,
     FilesWrapper,
     NumberWrapper,
-    StartWrapper,
-    YesNoWrapper,
-    UploadWrapper,
-    SubmitWrapper,
-    ClearWrapper,
-    TextWrapper,
-    SubmitTextButtonWrapper
+    UploadButtonWrapper,
+    ClearButtonWrapper,
+    TextboxWrapper
 )
 from constants import ComponentLabel, StepID, GRANT_APPLICATION_QUESTIONS_EXAMPLES
 
@@ -57,13 +52,10 @@ with gr.Blocks() as demo:
         with gr.Column():
             # user text box component
             user_text_box_component = gr.Textbox(label=ComponentLabel.USER, visible=False, interactive=True, lines=3, show_copy_button=True, placeholder='Type your message here')
-            # submit text button component
-            submit_text_btn_component = gr.Button(value=ComponentLabel.SUBMIT_TEXT, variant='primary', visible=False)
-
+            # submit button component
+            submit_component = gr.Button(value=ComponentLabel.SUBMIT, variant='primary', visible=False)
             # number component
             number_component = gr.Number(value=30, precision=0, label=ComponentLabel.NUMBER, visible=False, interactive=True)
-            # submit number component
-            submit_number_btn_component = gr.Button(value=ComponentLabel.SUBMIT_NUMBER, variant='primary', visible=False)
 
         
         with gr.Row(visible=False) as examples_row:
@@ -84,13 +76,11 @@ with gr.Blocks() as demo:
         # clear button component
         clear_btn_component=gr.ClearButton(value=ComponentLabel.CLEAR, variant='stop', visible=False, interactive=False)
         # submit files button component
-        submit_files_btn_component=gr.Button(value=ComponentLabel.SUBMIT_FILES, variant='primary', visible=False, interactive=False)
+        submit_files_btn_component=gr.Button(value=ComponentLabel.SUBMIT, variant='primary', visible=False, interactive=False)
         # buttons for handling generated answer to implicit question
         good_as_is_btn_component = gr.Button(value=ComponentLabel.GOOD_AS_IS, variant='primary', visible=False)
         edit_it_btn_component = gr.Button(value=ComponentLabel.EDIT_IT, variant='primary', visible=False)
         write_one_myself_btn_component = gr.Button(value=ComponentLabel.WRITE_ONE_MYSELF, variant='primary', visible=False)
-        # of course button component
-        of_course_btn_component = gr.Button(value=ComponentLabel.OF_COURSE, variant='primary', visible=False)
 
     with gr.Row() as row:
         # files component
@@ -105,14 +95,14 @@ with gr.Blocks() as demo:
         (StepID.START, [start_btn_component]),
         (StepID.HAVE_YOU_APPLIED_BEFORE, [yes_btn_component, no_btn_component]),
         (StepID.UPLOAD_FILES, [upload_btn_component, files_component, submit_files_btn_component, clear_btn_component]),
-        (StepID.ENTER_QUESTION, [user_text_box_component, submit_text_btn_component, examples_row]),
-        (StepID.ENTER_WORD_LIMIT, [number_component, submit_number_btn_component]),
+        (StepID.ENTER_QUESTION, [user_text_box_component, submit_component, examples_row]),
+        (StepID.ENTER_WORD_LIMIT, [number_component, submit_component]),
         (StepID.DO_COMPREHENSIVENESS_CHECK, [yes_btn_component, no_btn_component]),
         (StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION, [yes_btn_component, no_btn_component]),
         (StepID.SELECT_WHAT_TO_DO_WITH_ANSWER_GENERATED_FROM_CONTEXT, [
             yes_btn_component, no_btn_component, good_as_is_btn_component, edit_it_btn_component, write_one_myself_btn_component]),
-        (StepID.PROMPT_USER_TO_SUBMIT_ANSWER, [user_text_box_component, submit_text_btn_component]),
-        (StepID.READY_TO_GENERATE_FINAL_ANSWER, [of_course_btn_component]),
+        (StepID.PROMPT_USER_TO_SUBMIT_ANSWER, [user_text_box_component, submit_component]),
+        (StepID.READY_TO_GENERATE_FINAL_ANSWER, [yes_btn_component]),
         (StepID.DO_ANOTHER_QUESTION, [yes_btn_component, no_btn_component])
     ]
 
@@ -122,9 +112,9 @@ with gr.Blocks() as demo:
 
 
     # create wrappers for each component and define the actions to be executed after being triggered, if any
-    start_btn = StartWrapper(component=start_btn_component)
+    start_btn = ButtonWrapper(component=start_btn_component)
 
-    create_yes_no_btn = lambda yes_no_btn_component: YesNoWrapper(
+    create_yes_no_btn = lambda yes_no_btn_component: ButtonWrapper(
         component=yes_no_btn_component,
         handle_user_action={
             'fn': handle_yes_no_clicked,
@@ -135,7 +125,7 @@ with gr.Blocks() as demo:
 
     files = FilesWrapper(component=files_component)
 
-    upload_btn = UploadWrapper(
+    upload_btn = UploadButtonWrapper(
         component=upload_btn_component,
         handle_user_action={
             'fn': handle_files_uploaded,
@@ -143,40 +133,33 @@ with gr.Blocks() as demo:
             'outputs': [files_component, submit_files_btn_component, clear_btn_component]
         })
 
-    submit_files_btn = SubmitWrapper(
+    submit_files_btn = ButtonWrapper(
         component=submit_files_btn_component,
         handle_user_action={
             'fn': handle_files_submitted,
             'inputs': files_component
         })
 
-    clear_btn = ClearWrapper(
+    clear_btn = ClearButtonWrapper(
         component=clear_btn_component,
         handle_user_action={
             'fn': lambda: [gr.update(interactive=False)] * 2,
             'outputs': [submit_files_btn_component, clear_btn_component]})
 
-    user_text_box = TextWrapper(
-        component=user_text_box_component,
+    submit_btn = ButtonWrapper(
+        component=submit_component,
         handle_user_action={
-            'fn': handle_text_submitted,
-            'inputs': [user_text_box_component, chatbot],
-            'outputs': [user_text_box_component, chatbot]})
+            'fn': handle_submit,
+            'inputs': [user_text_box_component, number_component, chatbot],
+            'outputs': [user_text_box_component, number_component, chatbot]})
 
-    submit_text_btn = SubmitTextButtonWrapper(
-        component=submit_text_btn_component,
-        handle_user_action=user_text_box.handle_user_action)
+    user_text_box = TextboxWrapper(
+        component=user_text_box_component,
+        handle_user_action=submit_btn.handle_user_action)
 
     number = NumberWrapper(
         component=number_component,
-        handle_user_action={
-            'fn': handle_number_submitted,
-            'inputs': [number_component, chatbot],
-            'outputs': [number_component, chatbot]})
-
-    submit_number_btn = SubmitTextButtonWrapper(
-        component=submit_number_btn_component,
-        handle_user_action=number.handle_user_action)
+        handle_user_action=submit_btn.handle_user_action)
 
     good_as_is_btn = ButtonWrapper(
         component=good_as_is_btn_component,
@@ -199,15 +182,12 @@ with gr.Blocks() as demo:
             'inputs': [write_one_myself_btn_component, chatbot],
             'outputs': [chatbot]})
 
-    of_course_btn = ButtonWrapper(component=of_course_btn_component)
-
     components: list[ComponentWrapper] = [
         start_btn, yes_btn, no_btn,
         files, upload_btn, submit_files_btn, clear_btn,
-        user_text_box, submit_text_btn,
-        number, submit_number_btn,
-        good_as_is_btn, edit_it_btn, write_one_myself_btn,
-        of_course_btn]
+        user_text_box, submit_btn,
+        number,
+        good_as_is_btn, edit_it_btn, write_one_myself_btn]
 
     internal_components: list[IOComponent] = [component.component for component in components]
     internal_components_with_row: list[IOComponent | gr.Row] = internal_components + [examples_row]
@@ -306,3 +286,13 @@ with gr.Blocks() as demo:
 
 if __name__ == '__main__':
     demo.queue().launch()
+
+
+# 5 sec load / immediately start - 8 components
+# 5 sec load / immediately start - 10 components
+# 6 sec load / 1.5 sec start - 11 components
+# 8 sec load / 3 sec start - 12 components
+# 8 sec load / 5.5 sec start - 13 components
+# 12 sec load / 10.5 sec start - 14 components
+# 21 sec load / 20 sec start - all 15 components
+# 18 sec load / 18 sec start - all 15 components + only some, around half, of the event

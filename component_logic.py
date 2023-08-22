@@ -7,24 +7,19 @@ from chatbot_workflow import WorkflowState
 
 
 
-def handle_text_submitted(
+def handle_submit(
     user_message: str,
+    number: str,
     chat_history: list[list]
 ):
-    # update chat history with user message
-    chat_history[-1][1] = f'**{user_message}**'
+    if user_message != '':
+        # update chat history with user message
+        chat_history[-1][1] = f'**{user_message}**'
+    else:
+        # update chat history with number submitted
+        chat_history[-1][1] = f'**{str(number)}**'
 
-    return '', chat_history
-
-
-def handle_number_submitted(
-    number: int,
-    chat_history: list[list]
-):
-    # update chat history with number submitted
-    chat_history[-1][1] = f'**{str(number)}**'
-
-    return 30, chat_history
+    return '', 30, chat_history
 
 
 def handle_yes_no_clicked(

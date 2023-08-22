@@ -21,9 +21,8 @@ class StepID(StrEnum):
 class ComponentLabel(StrEnum):
     CHATBOT = 'AI Grant Writing Coach'
     USER = 'User'
-    SUBMIT_TEXT = 'Submit'
+    SUBMIT = 'Submit'
     NUMBER = 'Number'
-    SUBMIT_NUMBER = 'Submit'
     EXAMPLES = 'Examples of grant application questions'
     START = 'Start'
     YES = 'Yes'
@@ -31,11 +30,9 @@ class ComponentLabel(StrEnum):
     FILES = 'Documents'
     UPLOAD = 'Upload'
     CLEAR = 'Clear'
-    SUBMIT_FILES = 'Submit'
     GOOD_AS_IS = 'Good as is!'
     EDIT_IT = 'Let me edit it'
     WRITE_ONE_MYSELF = "I'll write one myself"
-    OF_COURSE = 'Of course!'
 
 
 GRANT_APPLICATION_QUESTIONS_EXAMPLES = [

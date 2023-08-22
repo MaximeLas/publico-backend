@@ -55,17 +55,13 @@ class ComponentWrapper(ABC):
         return trigger
 
 
-@dataclass
-class StartWrapper(ComponentWrapper):
-    component: gr.Button
-    # make user_action valid for dataclass
-    user_action: str = 'click'
 
 
 @dataclass
-class YesNoWrapper(ComponentWrapper):
+class ButtonWrapper(ComponentWrapper):
     component: gr.Button
     user_action = 'click'
+
 
 
 @dataclass
@@ -77,8 +73,10 @@ class FilesWrapper(ComponentWrapper):
         super().__post_init__()
         self.proceed_to_next_step = False
 
+
+
 @dataclass
-class UploadWrapper(ComponentWrapper):
+class UploadButtonWrapper(ComponentWrapper):
     component: gr.UploadButton
     user_action = 'upload'
 
@@ -87,20 +85,9 @@ class UploadWrapper(ComponentWrapper):
         self.proceed_to_next_step = False
 
 
-@dataclass
-class SubmitWrapper(ComponentWrapper):
-    component: gr.Button
-    user_action = 'click'
-
 
 @dataclass
-class ButtonWrapper(ComponentWrapper):
-    component: gr.Button
-    user_action = 'click'
-
-
-@dataclass
-class ClearWrapper(ComponentWrapper):
+class ClearButtonWrapper(ComponentWrapper):
     component: gr.ClearButton
     user_action = 'click'
 
@@ -109,24 +96,15 @@ class ClearWrapper(ComponentWrapper):
         self.proceed_to_next_step = False
 
 
+
 @dataclass
-class TextWrapper(ComponentWrapper):
+class TextboxWrapper(ComponentWrapper):
     component: gr.Textbox
     user_action = 'submit'
 
 
-@dataclass
-class SubmitTextButtonWrapper(ComponentWrapper):
-    component: gr.Button
-    user_action = 'click'
 
 @dataclass
 class NumberWrapper(ComponentWrapper):
     component: gr.Number
     user_action = 'submit'
-
-
-@dataclass
-class SubmitNumberButtonWrapper(ComponentWrapper):
-    component: gr.Button
-    user_action = 'click'
