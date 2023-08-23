@@ -46,6 +46,7 @@ with gr.Blocks() as demo:
             value=[[workflow_manager.get_current_step().initial_chatbot_message.message, None]],
             label=ComponentLabel.CHATBOT,
             show_share_button=True,
+            show_copy_button=True,
             height=600)
 
     with gr.Row():
