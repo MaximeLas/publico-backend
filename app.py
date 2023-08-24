@@ -182,8 +182,7 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as de
     def make_components_invisible_if_proceed_to_next_step(num_of_components: int, proceed: bool) -> list:
         '''Update the visibility of components based on the 'proceed' value.'''
 
-        return [
-            gr.update(visible=False) if proceed else gr.skip() for _ in range(num_of_components)]
+        return [gr.update(visible=False) if proceed else gr.skip() for _ in range(num_of_components)]
 
 
     for c in components:
@@ -198,8 +197,7 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as de
             # make all components invisible if we proceed to the next step
             fn=partial(make_components_invisible_if_proceed_to_next_step, len(internal_components_with_row)),
             inputs=gr.State(c.proceed_to_next_step),
-            outputs=internal_components_with_row # type: ignore
-        )
+            outputs=internal_components_with_row)
 
         if c.proceed_to_next_step:
             # if we proceed then we store the value of the relevant component in the context, if defined
