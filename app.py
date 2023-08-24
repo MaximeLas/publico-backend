@@ -198,7 +198,7 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as de
         '''Update the visibility of components based on the 'proceed' value.'''
 
         return {
-            component: gr.update(visible=False) if proceed else gr.skip() for c in components)}
+            component: gr.update(visible=False) if proceed else gr.skip() for c in components}
 
 
     for c in components:
