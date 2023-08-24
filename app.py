@@ -213,8 +213,7 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as de
             # update visibility of components based on current chatbot step and user interaction type of component
             fn=partial(control_components_visibility, internal_components_with_row,
             inputs=gr.State(c.proceed_to_next_step),
-            outputs=internal_components_with_row # type: ignore
-        )
+            outputs=internal_components_with_row)
 
         if c.proceed_to_next_step:
             # if we proceed then we store the value of the relevant component in the context, if defined
