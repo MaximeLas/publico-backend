@@ -7,6 +7,8 @@ from gradio.events import EventListenerMethod, Dependency
 from gradio.components import IOComponent
 import gradio as gr
 
+from chatbot_workflow import WorkflowState
+
 
 class EventParameters(TypedDict):
     fn: Callable
@@ -28,20 +30,21 @@ class ComponentWrapper(ABC):
         self.name = self.component.label or self.component.value
 
 
-    def get_initial_chain_following_trigger(self) -> Dependency:
-        def print_trigger_index() -> None:
-            if self.name == 'Start':
-                # setting/resetting to 1
-                ComponentWrapper.trigger_index = 1
-            else:
-                ComponentWrapper.trigger_index += 1
+    @staticmethod
+    def print_trigger_info(component_name: str, workflow_state: WorkflowState) -> None:
+        if component_name == 'Start':
+            # setting/resetting to 1
+            ComponentWrapper.trigger_index = 1
+        else:
+            ComponentWrapper.trigger_index += 1
 
-            print(f'\n-- {ComponentWrapper.trigger_index} -- Triggered \'{self.name}\' {type(self.component).__name__}\n')
+        print(f"\n-- {ComponentWrapper.trigger_index} -- Triggered '{component_name}' -- Step '{workflow_state.current_step_id}'\n")
 
+
+    def get_component_trigger(self) -> EventListenerMethod:
         assert self.user_action is not None, f'Cannot chain first actions after trigger for {self.component} as user_action is None'
 
-        event_listener_method: EventListenerMethod = getattr(self.component, self.user_action)
-        return event_listener_method(print_trigger_index)
+        return getattr(self.component, self.user_action)
 
 
     def chain_handle_user_action(self,  trigger: Dependency) -> Dependency:

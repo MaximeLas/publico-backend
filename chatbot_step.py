@@ -3,8 +3,6 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
-from gradio.blocks import Block
-
 from constants import StepID
 from context import UserContext
 
@@ -13,6 +11,7 @@ from context import UserContext
 MessageOutputType = str | list[str] | Iterator[str | list[str] | None] | None
 GenerateMessageFunc = Callable[[UserContext], MessageOutputType]
 GenerateMessageFuncList = list[GenerateMessageFunc]
+ComponentPropertiesType = dict[str, str]
 
 
 @dataclass
@@ -55,7 +54,7 @@ class InitialChatbotMessage:
 class ChatbotStep():
     initial_chatbot_message: InitialChatbotMessage
     next_step_decider: NextStepDecider | dict[str, NextStepDecider]
-    components: list[Block] = field(default_factory=list)
+    components: dict[str, ComponentPropertiesType | Callable[['UserContext'], ComponentPropertiesType]] = field(default_factory=dict)
     initialize_step_func: Callable[[UserContext], None] = lambda _: None
     save_event_outcome: EventOutcomeSaver | None = None
     generate_chatbot_messages_fns: GenerateMessageFuncList | dict[str, GenerateMessageFuncList] = field(default_factory=lambda: defaultdict(list))

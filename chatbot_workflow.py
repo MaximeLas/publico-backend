@@ -1,12 +1,7 @@
-
-
-# define chatbot steps and their properties
 from collections import defaultdict
 from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any
-
-from devtools import debug
 
 from gradio.components import IOComponent
 
@@ -141,7 +136,7 @@ class WorkflowManager:
                         ) if button in [ComponentLabel.GOOD_AS_IS, ComponentLabel.NO] else
                         NextStepDecider(StepID.PROMPT_USER_TO_SUBMIT_ANSWER)
                     ) for button in [
-                        ComponentLabel.GOOD_AS_IS, ComponentLabel.EDIT_IT, ComponentLabel.WRITE_ONE_MYSELF,
+                        ComponentLabel.GOOD_AS_IS, ComponentLabel.EDIT_IT,
                         ComponentLabel.YES, ComponentLabel.NO]},
                 generate_chatbot_messages_fns=defaultdict(list, {
                     ComponentLabel.NO: [lambda _: "Okay, let's skip this one."],

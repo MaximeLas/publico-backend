@@ -32,7 +32,6 @@ class ComponentLabel(StrEnum):
     CLEAR = 'Clear'
     GOOD_AS_IS = 'Good as is!'
     EDIT_IT = 'Let me edit it'
-    WRITE_ONE_MYSELF = "I'll write one myself"
 
 
 GRANT_APPLICATION_QUESTIONS_EXAMPLES = [

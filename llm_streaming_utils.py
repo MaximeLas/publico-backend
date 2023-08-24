@@ -19,13 +19,13 @@ from settings import GPT_MODEL
 class QueueCallback(BaseCallbackHandler):
     '''Callback handler for streaming LLM generated tokens to a queue, used to create a generator.'''
 
-    def __init__(self, q):
+    def __init__(self, q: Queue):
         self.q = q
 
-    def on_llm_new_token(self, token: str, **kwargs) -> None:
+    def on_llm_new_token(self, token: str) -> None:
         self.q.put(token)
 
-    def on_llm_end(self, *args, **kwargs) -> None:
+    def on_llm_end(self) -> None:
         return self.q.empty()
 
 

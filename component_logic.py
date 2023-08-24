@@ -4,7 +4,20 @@ from devtools import debug
 import gradio as gr
 
 from chatbot_workflow import WorkflowState
+from constants import ComponentLabel
 
+
+
+def handle_btn_clicked(
+    btn_label: str,
+    chat_history: list[list],
+    workflow_state: WorkflowState
+):
+    chat_history[-1][1] = f'**{btn_label}**'
+
+    text_box = workflow_state.context.get_answer_of_current_implicit_question_to_be_answered() if btn_label == ComponentLabel.EDIT_IT else ''
+
+    return chat_history, text_box
 
 
 def handle_submit(
@@ -20,16 +33,6 @@ def handle_submit(
         chat_history[-1][1] = f'**{str(number)}**'
 
     return '', 30, chat_history
-
-
-def handle_yes_no_clicked(
-    yes_or_no: str,
-    chat_history: list[list]
-):
-    # update chat history with user selection of yes or no
-    chat_history[-1][1] = f'**{yes_or_no}**'
-    
-    return chat_history
 
 
 def handle_files_uploaded(
@@ -56,32 +59,3 @@ def handle_files_submitted(
 ):
     # print file names
     debug(**{f'File #{i+1} uploaded': file.name.split("/")[-1] for i, file in enumerate(files)})
-
-
-def handle_good_as_is_clicked(
-    text: str,
-    chat_history: list[list]
-):
-    chat_history[-1][1] = f'**{text}**'
-
-    return chat_history
-
-
-def handle_edit_it_clicked(
-    text: str,
-    chat_history: list[list],
-    workflow_state: WorkflowState
-):
-    chat_history[-1][1] = f'**{text}**'
-
-    generated_answer_to_implicit_question = workflow_state.context.get_answer_of_current_implicit_question_to_be_answered()
-    return chat_history, generated_answer_to_implicit_question
-
-
-def handle_write_one_myself_clicked(
-    text: str,
-    chat_history: list[list]
-):
-    chat_history[-1][1] = f'**{text}**'
-
-    return chat_history
