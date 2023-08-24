@@ -35,7 +35,7 @@ from constants import ComponentLabel, StepID, GRANT_APPLICATION_QUESTIONS_EXAMPL
 
 
 files_component = gr.Files(label='Documents', visible=False, interactive=False, file_types=['.docx', '.txt'])
-with gr.Blocks() as demo:
+with gr.Blocks(theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as demo:
     # create a workflow manager which contains all the chatbot steps and keeps track of the current step as well as the user context
     workflow_manager = WorkflowManager()
     workflow_state = gr.State(WorkflowState(workflow_manager.current_step_id, workflow_manager.context))
