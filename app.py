@@ -193,7 +193,7 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as de
 
         chain = c.get_component_trigger()(
             # print info about the component that was triggered and the current step
-            fn=ComponentWrapper.print_trigger_info,
+            fn=c.print_trigger_info,
             inputs=[c.component, workflow_state]
         ).then(
             # update visibility of components based on current chatbot step and user interaction type of component
