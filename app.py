@@ -194,11 +194,11 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as de
             for component, properties in steps[workflow_state.current_step_id].components.items()}
 
 
-    def control_components_visibility(num_of_components: int, proceed: bool) -> list:
+    def control_components_visibility(components: list[Any], proceed: bool) -> list:
         '''Update the visibility of components based on the 'proceed' value.'''
 
-        return [
-            gr.update(visible=False) if proceed else gr.skip() for _ in range(num_of_components)]
+        return {
+            component: gr.update(visible=False) if proceed else gr.skip() for c in components)}
 
 
     for c in components:
@@ -211,7 +211,7 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as de
             inputs=[c.component, workflow_state]
         ).then(
             # update visibility of components based on current chatbot step and user interaction type of component
-            fn=partial(control_components_visibility, len(internal_components_with_row)),
+            fn=partial(control_components_visibility, internal_components_with_row,
             inputs=gr.State(c.proceed_to_next_step),
             outputs=internal_components_with_row # type: ignore
         )
