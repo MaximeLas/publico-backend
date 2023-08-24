@@ -4,7 +4,7 @@ from devtools import debug
 import gradio as gr
 
 from chatbot_workflow import WorkflowState
-from constants import ComponentLabel
+from constants import DEFAULT_NUMBER, ComponentLabel
 
 
 
@@ -15,7 +15,7 @@ def handle_btn_clicked(
 ):
     chat_history[-1][1] = f'**{btn_label}**'
 
-    text_box = workflow_state.context.get_answer_of_current_implicit_question_to_be_answered() if btn_label == ComponentLabel.EDIT_IT else ''
+    text_box = workflow_state.context.get_answer_of_current_implicit_question_to_be_answered() if btn_label == ComponentLabel.EDIT_IT else gr.skip()
 
     return chat_history, text_box
 
@@ -25,20 +25,14 @@ def handle_submit(
     number: str,
     chat_history: list[list]
 ):
-    outputs = {}
-
     if user_message != '':
         # update chat history with user message
         chat_history[-1][1] = f'**{user_message}**'
-        outputs['user_text_box_component'] = user_message
-        outputs['chatbot'] = chat_history
+        return None, gr.skip(), chat_history
     else:
         # update chat history with number submitted
         chat_history[-1][1] = f'**{str(number)}**'
-        outputs['number_component'] = number
-        outputs['chatbot'] = chat_history
-
-    return outputs
+        return gr.skip(), DEFAULT_NUMBER, chat_history
 
 
 def handle_files_uploaded(

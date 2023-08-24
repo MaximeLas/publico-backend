@@ -1,6 +1,7 @@
 from collections import defaultdict
 from collections.abc import Iterator
 from dataclasses import dataclass
+import time
 from typing import Any
 
 from gradio.components import IOComponent
@@ -211,6 +212,8 @@ def show_initial_chatbot_message(
     chat_history: list[list]
 ) -> tuple[WorkflowState, Iterator[list[tuple[str, None]]]]:
     '''Append the initial message of the current step to the chat history'''
+
+    time.sleep(0.5)
 
     current_step = steps[workflow_state.current_step_id]
     

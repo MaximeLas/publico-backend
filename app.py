@@ -28,7 +28,7 @@ from component_wrapper import (
     ClearButtonWrapper,
     TextboxWrapper
 )
-from constants import ComponentLabel, StepID, GRANT_APPLICATION_QUESTIONS_EXAMPLES
+from constants import DEFAULT_NUMBER, ComponentLabel, StepID, GRANT_APPLICATION_QUESTIONS_EXAMPLES
 
 
 
@@ -52,11 +52,10 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as de
             # user text box component
             user_text_box_component = gr.Textbox(label=ComponentLabel.USER, visible=False, interactive=True, lines=3, show_copy_button=True, placeholder='Type your message here')
             # number component
-            number_component = gr.Number(value=30, precision=0, label=ComponentLabel.NUMBER, visible=False, interactive=True)
+            number_component = gr.Number(value=DEFAULT_NUMBER, precision=0, label=ComponentLabel.NUMBER, visible=False, interactive=True)
             # submit button component
             submit_component = gr.Button(value=ComponentLabel.SUBMIT, variant='primary', visible=False)
 
-        
         with gr.Row(visible=False) as examples_row:
             # examples component (not a true gradio 'Component' techincally)
             examples=gr.Examples(
@@ -110,21 +109,7 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as de
     for step_id, components in step_components:
         workflow_manager.get_step(step_id).components = components
 
-    def handle_btn_clicked(
-        btn_label: str,
-        chat_history: list[list],
-        workflow_state: WorkflowState
-    ):
-        chat_history[-1][1] = f'**{btn_label}**'
-        
-        return {
-            chatbot: chat_history,
-            user_text_box_component: workflow_state.context.get_answer_of_current_implicit_question_to_be_answered() if btn_label == ComponentLabel.EDIT_IT else gr.skip()
-        }
-        '''if btn_label == ComponentLabel.EDIT_IT:
-            outputs['user_text_box_component'] = workflow_state.context.get_answer_of_current_implicit_question_to_be_answered()
 
-        return {'chatbot': chat_history} | ({'user_text_box_component': workflow_state.context.get_answer_of_current_implicit_question_to_be_answered()} if btn_label == ComponentLabel.EDIT_IT else {})'''
     # create wrappers for each component and define the actions to be executed after being triggered, if any
     create_btn = lambda btn_component: ButtonWrapper(
         component=btn_component,
@@ -184,7 +169,7 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as de
     internal_components_with_row: list[IOComponent | gr.Row] = internal_components + [examples_row]
 
 
-    def update_component_visibility(
+    def make_components_in_current_step_visible(
         steps: dict[StepID, ChatbotStep],
         workflow_state: WorkflowState
     ) -> list:
@@ -194,7 +179,7 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as de
             for component, properties in steps[workflow_state.current_step_id].components.items()}
 
 
-    def control_components_visibility(num_of_components: int, proceed: bool) -> list:
+    def make_components_invisible_if_proceed_to_next_step(num_of_components: int, proceed: bool) -> list:
         '''Update the visibility of components based on the 'proceed' value.'''
 
         return [
@@ -210,8 +195,8 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as de
             fn=c.print_trigger_info,
             inputs=[c.component, workflow_state]
         ).then(
-            # update visibility of components based on current chatbot step and user interaction type of component
-            fn=partial(control_components_visibility, len(internal_components_with_row)),
+            # make all components invisible if we proceed to the next step
+            fn=partial(make_components_invisible_if_proceed_to_next_step, len(internal_components_with_row)),
             inputs=gr.State(c.proceed_to_next_step),
             outputs=internal_components_with_row # type: ignore
         )
@@ -253,8 +238,8 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as de
             inputs=[workflow_state, chatbot],
             outputs=[workflow_state, chatbot]
         ).then(
-            # update visibility of components by making visible only those components relevant to the next step
-            fn=partial(update_component_visibility, workflow_manager.steps),
+            # make components in the next step visible (e.g. show the 'yes' and 'no' buttons if we're on the 'have you applied before' step)
+            fn=partial(make_components_in_current_step_visible, workflow_manager.steps),
             inputs=workflow_state,
             outputs=internal_components_with_row # type: ignore
         )
@@ -262,13 +247,3 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as de
 
 if __name__ == '__main__':
     demo.queue().launch()
-
-
-# 5 sec load / immediately start - 8 components
-# 5 sec load / immediately start - 10 components
-# 6 sec load / 1.5 sec start - 11 components
-# 8 sec load / 3 sec start - 12 components
-# 8 sec load / 5.5 sec start - 13 components
-# 12 sec load / 10.5 sec start - 14 components
-# 21 sec load / 20 sec start - all 15 components
-# 18 sec load / 18 sec start - all 15 components + only some, around half, of the event

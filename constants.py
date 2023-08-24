@@ -34,6 +34,9 @@ class ComponentLabel(StrEnum):
     EDIT_IT = 'Let me edit it'
 
 
+DEFAULT_NUMBER = 30
+
+
 GRANT_APPLICATION_QUESTIONS_EXAMPLES = [
     'What is your mission?',
     'Give me a background of your organization.',
