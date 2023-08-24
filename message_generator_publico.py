@@ -32,6 +32,9 @@ def generate_chatbot_messages(
 ) -> Iterator[list[tuple[str, None]]]:
     '''Generate chatbot messages from a list of functions, and yield the chat history with the new chatbot messages.'''
 
+    if not fns:
+        yield {}
+
     all_new_chatbot_messages = []
     for fn in fns:
         if (response := fn(context)) is not None:

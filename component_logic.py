@@ -25,14 +25,20 @@ def handle_submit(
     number: str,
     chat_history: list[list]
 ):
+    outputs = {}
+
     if user_message != '':
         # update chat history with user message
         chat_history[-1][1] = f'**{user_message}**'
+        outputs['user_text_box_component'] = user_message
+        outputs['chatbot'] = chat_history
     else:
         # update chat history with number submitted
         chat_history[-1][1] = f'**{str(number)}**'
+        outputs['number_component'] = number
+        outputs['chatbot'] = chat_history
 
-    return '', 30, chat_history
+    return outputs
 
 
 def handle_files_uploaded(

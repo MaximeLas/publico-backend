@@ -22,10 +22,10 @@ class QueueCallback(BaseCallbackHandler):
     def __init__(self, q: Queue):
         self.q = q
 
-    def on_llm_new_token(self, token: str) -> None:
+    def on_llm_new_token(self, token: str, **kwargs) -> None:
         self.q.put(token)
 
-    def on_llm_end(self) -> None:
+    def on_llm_end(self, *args, **kwargs) -> None:
         return self.q.empty()
 
 

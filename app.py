@@ -110,7 +110,21 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as de
     for step_id, components in step_components:
         workflow_manager.get_step(step_id).components = components
 
+    def handle_btn_clicked(
+        btn_label: str,
+        chat_history: list[list],
+        workflow_state: WorkflowState
+    ):
+        chat_history[-1][1] = f'**{btn_label}**'
+        
+        return {
+            chatbot: chat_history,
+            user_text_box_component: workflow_state.context.get_answer_of_current_implicit_question_to_be_answered() if btn_label == ComponentLabel.EDIT_IT else gr.skip()
+        }
+        '''if btn_label == ComponentLabel.EDIT_IT:
+            outputs['user_text_box_component'] = workflow_state.context.get_answer_of_current_implicit_question_to_be_answered()
 
+        return {'chatbot': chat_history} | ({'user_text_box_component': workflow_state.context.get_answer_of_current_implicit_question_to_be_answered()} if btn_label == ComponentLabel.EDIT_IT else {})'''
     # create wrappers for each component and define the actions to be executed after being triggered, if any
     create_btn = lambda btn_component: ButtonWrapper(
         component=btn_component,
