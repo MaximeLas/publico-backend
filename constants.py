@@ -32,7 +32,21 @@ class ComponentLabel(StrEnum):
     CLEAR = 'Clear'
     GOOD_AS_IS = 'Good as is!'
     EDIT_IT = 'Let me edit it'
+    OF_COURSE = 'Of course!'
 
+class ComponentID(StrEnum):
+    CHATBOT = auto()
+    USER_TEXT_BOX = auto()
+    NUMBER = auto()
+    SUBMIT_USER_INPUT_BTN = auto()
+    EXAMPLES = auto()
+    BTN_1 = auto()
+    BTN_2 = auto()
+    BTN_3 = auto()
+    FILES = auto()
+    UPLOAD_FILES_BTN = auto()
+    CLEAR_FILES_BTN = auto()
+    SUBMIT_FILES_BTN = auto()
 
 DEFAULT_NUMBER = 30
 

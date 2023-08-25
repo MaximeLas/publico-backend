@@ -2,6 +2,7 @@ from functools import partial
 from typing import Callable
 
 import gradio as gr
+from gradio.blocks import Block
 from gradio.components import IOComponent
 
 # initialize langchain llm cache
@@ -10,182 +11,91 @@ import langchain
 
 langchain.llm_cache = InMemoryCache()
 
-
-from chatbot_step import ChatbotStep
-from chatbot_workflow import WorkflowManager, WorkflowState, modify_context, show_initial_chatbot_message, find_and_store_event_value, generate_chatbot_messages_from_trigger, update_workflow_step
+from chatbot_workflow import (
+    WorkflowManager,
+    WorkflowState,
+    modify_context,
+    show_initial_chatbot_message,
+    find_and_store_event_value,
+    generate_chatbot_messages_from_trigger,
+    update_workflow_step
+)
 from component_logic import (
-    handle_btn_clicked,
-    handle_submit,
-    handle_files_uploaded,
-    handle_files_submitted,
+    initialize_component_wrappers,
 )
 from component_wrapper import (
-    ButtonWrapper,
     ComponentWrapper,
-    FilesWrapper,
-    NumberWrapper,
-    UploadButtonWrapper,
-    ClearButtonWrapper,
-    TextboxWrapper
 )
-from constants import DEFAULT_NUMBER, ComponentLabel, StepID, GRANT_APPLICATION_QUESTIONS_EXAMPLES
+from constants import ComponentID, ComponentLabel, StepID, GRANT_APPLICATION_QUESTIONS_EXAMPLES
 
 
 
-files_component = gr.Files(label='Documents', visible=False, interactive=False, file_types=['.docx', '.txt'])
+# create a workflow manager which contains all the chatbot steps and keeps track of the current step as well as the user context
+workflow_manager = WorkflowManager()
+
 with gr.Blocks(theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as demo:
-    # create a workflow manager which contains all the chatbot steps and keeps track of the current step as well as the user context
-    workflow_manager = WorkflowManager()
-    workflow_state = gr.State(WorkflowState(workflow_manager.current_step_id, workflow_manager.context))
+    chatbot = workflow_manager.get_component(ComponentID.CHATBOT)
+    user_text_box_component = workflow_manager.get_component(ComponentID.USER_TEXT_BOX)
+    number_component = workflow_manager.get_component(ComponentID.NUMBER)
+    submit_user_input_component = workflow_manager.get_component(ComponentID.SUBMIT_USER_INPUT_BTN)
+    btn_1_component = workflow_manager.get_component(ComponentID.BTN_1)
+    btn_2_component = workflow_manager.get_component(ComponentID.BTN_2)
+    btn_3_component = workflow_manager.get_component(ComponentID.BTN_3)
+    files_component = workflow_manager.get_component(ComponentID.FILES)
+    upload_files_btn_component = workflow_manager.get_component(ComponentID.UPLOAD_FILES_BTN)
+    submit_files_btn_component = workflow_manager.get_component(ComponentID.SUBMIT_FILES_BTN)
+    clear_files_btn_component = workflow_manager.get_component(ComponentID.CLEAR_FILES_BTN)
+    clear_files_btn_component.add(files_component) # make the clear button clear the files
 
     with gr.Row():
-        # create chatbot component
-        chatbot = gr.Chatbot(
-            value=[[workflow_manager.get_current_step().initial_chatbot_message.message, None]],
-            label=ComponentLabel.CHATBOT,
-            show_share_button=True,
-            show_copy_button=True,
-            height=600)
+        chatbot.render()
+
+    with gr.Row():
+        btn_1_component.render()
+        btn_2_component.render()
 
     with gr.Row():
         with gr.Column():
-            # user text box component
-            user_text_box_component = gr.Textbox(label=ComponentLabel.USER, visible=False, interactive=True, lines=3, show_copy_button=True, placeholder='Type your message here')
-            # number component
-            number_component = gr.Number(value=DEFAULT_NUMBER, precision=0, label=ComponentLabel.NUMBER, visible=False, interactive=True)
-            # submit button component
-            submit_component = gr.Button(value=ComponentLabel.SUBMIT, variant='primary', visible=False)
+            user_text_box_component.render()
+            number_component.render()
+            submit_user_input_component.render()
+            upload_files_btn_component.render()
+            clear_files_btn_component.render()
+            submit_files_btn_component.render()
+
+        files_component.render()
 
         with gr.Row(visible=False) as examples_row:
-            # examples component (not a true gradio 'Component' techincally)
             examples=gr.Examples(
                 examples=GRANT_APPLICATION_QUESTIONS_EXAMPLES,
                 inputs=user_text_box_component,
                 label=ComponentLabel.EXAMPLES)
 
-    with gr.Row():
-        # button components
-        btn1_component = gr.Button(value=ComponentLabel.START, variant='primary')
-        btn2_component = gr.Button(visible=False)
-        # upload button component
-        upload_btn_component = gr.UploadButton(label=ComponentLabel.UPLOAD, variant='primary', visible=False, file_types=['.docx', '.txt'], file_count='multiple')
-        # clear button component
-        clear_btn_component=gr.ClearButton(value=ComponentLabel.CLEAR, variant='stop', visible=False, interactive=False)
-        # submit files button component
-        submit_files_btn_component=gr.Button(value=ComponentLabel.SUBMIT, variant='primary', visible=False, interactive=False)
-
-    with gr.Row() as row:
-        # files component
-        files_component = gr.Files(label=ComponentLabel.FILES, visible=False, interactive=False, file_types=['.docx', '.txt'])
-
-    # specify that the clear button should clear the files component
-    clear_btn_component.add(files_component) # make the clear button clear the files
-
-    # specify properties for each button we'll use
-    start_btn_props = dict(value=ComponentLabel.START, variant='primary')
-    yes_btn_props = dict(value=ComponentLabel.YES, variant='primary')
-    no_btn_props = dict(value=ComponentLabel.NO, variant='stop')
-    good_as_is_props = dict(value=ComponentLabel.GOOD_AS_IS, variant='primary')
-    edit_it_props = dict(value=ComponentLabel.EDIT_IT, variant='primary')
-
-    # define a list of tuples of the form (step_id, list of components for that step)
-    step_components = [
-        (StepID.START, {btn1_component: start_btn_props}),
-        (StepID.HAVE_YOU_APPLIED_BEFORE, {btn1_component: yes_btn_props, btn2_component: no_btn_props}),
-        (StepID.UPLOAD_FILES, {upload_btn_component: {}, files_component: {}, submit_files_btn_component: {}, clear_btn_component: {}}),
-        (StepID.ENTER_QUESTION, {user_text_box_component: {}, submit_component: {}, examples_row: {}}),
-        (StepID.ENTER_WORD_LIMIT, {number_component: {}, submit_component: {}}),
-        (StepID.DO_COMPREHENSIVENESS_CHECK, {btn1_component: yes_btn_props, btn2_component: no_btn_props}),
-        (StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION, {btn1_component: yes_btn_props, btn2_component: no_btn_props}),
-        (StepID.SELECT_WHAT_TO_DO_WITH_ANSWER_GENERATED_FROM_CONTEXT, {
-            btn1_component: (lambda context: yes_btn_props if context.get_answer_of_current_implicit_question_to_be_answered() is None else good_as_is_props),
-            btn2_component: (lambda context: no_btn_props if context.get_answer_of_current_implicit_question_to_be_answered() is None else edit_it_props)}),
-        (StepID.PROMPT_USER_TO_SUBMIT_ANSWER, {user_text_box_component: {}, submit_component: {}}),
-        (StepID.READY_TO_GENERATE_FINAL_ANSWER, {btn1_component: yes_btn_props}),
-        (StepID.DO_ANOTHER_QUESTION, {btn1_component: yes_btn_props, btn2_component: no_btn_props})
-    ]
-
-    # set the components for each step
-    for step_id, components in step_components:
-        workflow_manager.get_step(step_id).components = components
+        workflow_manager.components[ComponentID.EXAMPLES] = examples_row
+        workflow_manager.steps[StepID.ENTER_QUESTION].components[ComponentID.EXAMPLES] = {}
 
 
-    # create wrappers for each component and define the actions to be executed after being triggered, if any
-    create_btn = lambda btn_component: ButtonWrapper(
-        component=btn_component,
-        handle_user_action={
-            'fn': handle_btn_clicked,
-            'inputs': [btn_component, chatbot, workflow_state],
-            'outputs': [chatbot, user_text_box_component]})
-    btn1 = create_btn(btn1_component)
-    btn2 = create_btn(btn2_component)
-
-    files = FilesWrapper(component=files_component)
-
-    upload_btn = UploadButtonWrapper(
-        component=upload_btn_component,
-        handle_user_action={
-            'fn': handle_files_uploaded,
-            'inputs': [upload_btn_component, files_component],
-            'outputs': [files_component, submit_files_btn_component, clear_btn_component]
-        })
-
-    submit_files_btn = ButtonWrapper(
-        component=submit_files_btn_component,
-        handle_user_action={
-            'fn': handle_files_submitted,
-            'inputs': files_component
-        })
-
-    clear_btn = ClearButtonWrapper(
-        component=clear_btn_component,
-        handle_user_action={
-            'fn': lambda: [gr.update(interactive=False)] * 2,
-            'outputs': [submit_files_btn_component, clear_btn_component]})
-
-    submit_btn = ButtonWrapper(
-        component=submit_component,
-        handle_user_action={
-            'fn': handle_submit,
-            'inputs': [user_text_box_component, number_component, chatbot],
-            'outputs': [user_text_box_component, number_component, chatbot]})
-
-    user_text_box = TextboxWrapper(
-        component=user_text_box_component,
-        handle_user_action=submit_btn.handle_user_action)
-
-    number = NumberWrapper(
-        component=number_component,
-        handle_user_action=submit_btn.handle_user_action)
-
-
-    components: list[ComponentWrapper] = [
-        btn1, btn2,
-        files, upload_btn, submit_files_btn, clear_btn,
-        user_text_box, submit_btn,
-        number]
-
-    internal_components: list[IOComponent] = [component.component for component in components]
-    internal_components_with_row: list[IOComponent | gr.Row] = internal_components + [examples_row]
-
+    workflow_state = gr.State(WorkflowState(workflow_manager.get_step(StepID.START)))
+    component_wrappers: list[ComponentWrapper] = initialize_component_wrappers(workflow_manager.components, workflow_state)
+    internal_components: list[IOComponent] = [component.component for component in component_wrappers]
+    internal_components_with_row: list[Block] = internal_components + [examples_row]
 
     def make_components_in_current_step_visible(
-        steps: dict[StepID, ChatbotStep],
+        components: dict[ComponentID, Block],
         workflow_state: WorkflowState
     ) -> list:
         '''Update visibility of components based on current step'''
+
         return {
-            component: gr.update(visible=True, **(properties if not isinstance(properties, Callable) else properties(workflow_state.context)))
-            for component, properties in steps[workflow_state.current_step_id].components.items()}
+            components[component_id]: gr.update(visible=True, **(
+                properties
+                    if not isinstance(properties, Callable)
+                    else
+                properties(workflow_state.context))
+            ) for component_id, properties in workflow_state.current_step.components.items()}
 
 
-    def make_components_invisible_if_proceed_to_next_step(num_of_components: int, proceed: bool) -> list:
-        '''Update the visibility of components based on the 'proceed' value.'''
-
-        return [gr.update(visible=False) if proceed else gr.skip() for _ in range(num_of_components)]
-
-
-    for c in components:
+    for c in component_wrappers:
         if c.user_action is None:
             continue
 
@@ -194,19 +104,19 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as de
             fn=c.print_trigger_info,
             inputs=[c.component, workflow_state]
         ).then(
-            # make all components invisible if we proceed to the next step
-            fn=partial(make_components_invisible_if_proceed_to_next_step, len(internal_components_with_row)),
+            # if we proceed to the next step we make all components invisible while we perform the actions defined by the component wrapper
+            fn=lambda proceed: [gr.update(visible=False) if proceed else gr.skip() for _ in range(len(internal_components_with_row))],
             inputs=gr.State(c.proceed_to_next_step),
-            outputs=internal_components_with_row)
+            outputs=internal_components_with_row
+        )
 
         if c.proceed_to_next_step:
             # if we proceed then we store the value of the relevant component in the context, if defined
             # for the current step (e.g. store the user's reply to a question)
             chain = chain.then(
-                fn=partial(find_and_store_event_value, workflow_manager.steps),
+                fn=find_and_store_event_value,
                 inputs=[workflow_state, c.component, gr.State(internal_components), *internal_components],
-                outputs=workflow_state,
-            )
+                outputs=workflow_state)
 
         if c.handle_user_action is not None:
             # handle user action as defined by the component wrapper (e.g. upload files, submit text)
@@ -217,7 +127,7 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as de
 
         chain.then(
             # generate any chatbot messages for current step (e.g. validation message following files upload, llm answer to question)
-            fn=partial(generate_chatbot_messages_from_trigger, workflow_manager.steps),
+            fn=generate_chatbot_messages_from_trigger,
             inputs=[workflow_state, c.component, chatbot],
             outputs=chatbot
         ).then(
@@ -227,19 +137,19 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as de
             outputs=workflow_state
         ).then(
             # modify the context (e.g. add new question to context if we're on the 'enter question' step)
-            fn=partial(modify_context, workflow_manager.steps),
+            fn=modify_context,
             inputs=workflow_state,
             outputs=workflow_state
         ).then(
             # show the initial (chatbot) message of the next step
-            fn=partial(show_initial_chatbot_message, workflow_manager.steps),
+            fn=show_initial_chatbot_message,
             inputs=[workflow_state, chatbot],
             outputs=[workflow_state, chatbot]
         ).then(
             # make components in the next step visible (e.g. show the 'yes' and 'no' buttons if we're on the 'have you applied before' step)
-            fn=partial(make_components_in_current_step_visible, workflow_manager.steps),
+            fn=partial(make_components_in_current_step_visible, workflow_manager.components),
             inputs=workflow_state,
-            outputs=internal_components_with_row # type: ignore
+            outputs=internal_components_with_row
         )
 
 

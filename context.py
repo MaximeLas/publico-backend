@@ -72,16 +72,23 @@ class UserContext:
         return self.questions[-1].comprehensiveness.index_of_implicit_question_being_answered
 
 
-    def get_current_implicit_question_to_be_answered(self) -> str:
+    def get_current_implicit_question(self) -> str:
         if (index := self.get_index_of_implicit_question_being_answered()) is not None:
             return self.questions[-1].comprehensiveness.implicit_questions[index].question
         else:
             raise Exception('No implicit question currently being answered')
     
     
-    def get_answer_of_current_implicit_question_to_be_answered(self) -> str | None:
+    def get_answer_of_current_implicit_question(self) -> str | None:
         if (index := self.get_index_of_implicit_question_being_answered()) is not None:
             return self.questions[-1].comprehensiveness.implicit_questions[index].answer
+        else:
+            raise Exception('No implicit question currently being answered')
+
+
+    def exists_answer_to_current_implicit_question(self) -> bool:
+        if (index := self.get_index_of_implicit_question_being_answered()) is not None:
+            return self.questions[-1].comprehensiveness.implicit_questions[index].answer is not None
         else:
             raise Exception('No implicit question currently being answered')
 
@@ -96,7 +103,7 @@ class UserContext:
         implicit_questions[index].answer = answer
 
 
-    def get_next_implicit_question_to_be_answered(self) -> str:
+    def get_next_implicit_question(self) -> str:
         comprehensiveness = self.questions[-1].comprehensiveness
 
         if (index := self.get_index_of_implicit_question_being_answered()) is not None:
@@ -114,3 +121,7 @@ class UserContext:
         index = self.get_index_of_implicit_question_being_answered()
 
         return index is None or index < len(self.questions[-1].comprehensiveness.implicit_questions)
+
+
+    def exists_answer_to_any_implicit_question(self) -> bool:
+        return any([question.answer for question in self.questions[-1].comprehensiveness.implicit_questions.values()])

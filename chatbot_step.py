@@ -5,6 +5,7 @@ from typing import Any
 
 from constants import StepID
 from context import UserContext
+from step_decider import FixedStepDecider, StepDecider
 
 
 
@@ -20,27 +21,11 @@ class EventOutcomeSaver:
     component_name: str | None
 
 
-@dataclass
-class NextStepDecider:
-    next_step: StepID
-
-    def determine_next_step(self, context: UserContext) -> StepID:
-        return self.next_step
-
-
-@dataclass
-class ConditionalNextStepDecider(NextStepDecider):
-    alternative_step: StepID
-    condition: Callable[['UserContext'], bool]
-
-    def determine_next_step(self, context: UserContext) -> StepID:
-        return self.next_step if self.condition(context) else self.alternative_step
-
 
 @dataclass
 class InitialChatbotMessage:
     message: str
-    extract_formatting_variables_func: Callable[[UserContext], Iterator] = lambda _: (yield dict())
+    extract_formatting_variables_func: Callable[['UserContext'], Iterator] = lambda _: (yield dict())
 
     def get_formatted_message(self, context: UserContext) -> Iterator[str]:
         for response in self.extract_formatting_variables_func(context):
@@ -50,10 +35,11 @@ class InitialChatbotMessage:
                 yield self.message.format(response=response)
 
 
+
 @dataclass
 class ChatbotStep():
     initial_chatbot_message: InitialChatbotMessage
-    next_step_decider: NextStepDecider | dict[str, NextStepDecider]
+    next_step_decider: StepDecider | dict[str, StepDecider]
     components: dict[str, ComponentPropertiesType | Callable[['UserContext'], ComponentPropertiesType]] = field(default_factory=dict)
     initialize_step_func: Callable[[UserContext], None] = lambda _: None
     save_event_outcome: EventOutcomeSaver | None = None
@@ -63,7 +49,7 @@ class ChatbotStep():
     def determine_next_step(self, trigger: str, context: UserContext) -> StepID:
         next_step_decider = (
             self.next_step_decider
-                if isinstance(self.next_step_decider, NextStepDecider)
+                if isinstance(self.next_step_decider, StepDecider)
                 else
             self.next_step_decider[trigger])
 

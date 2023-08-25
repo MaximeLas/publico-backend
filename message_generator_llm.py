@@ -124,7 +124,7 @@ def generate_answer_for_implicit_question_stream(context: UserContext) -> Messag
     yield start_of_chatbot_message
 
     most_relevant_documents = get_most_relevant_docs_in_vector_store_for_answering_question(
-        vector_store=context.uploaded_files.vector_store, question=context.get_current_implicit_question_to_be_answered(), n_results=3)
+        vector_store=context.uploaded_files.vector_store, question=context.get_current_implicit_question(), n_results=3)
 
     answer = ''
 
@@ -134,7 +134,7 @@ def generate_answer_for_implicit_question_stream(context: UserContext) -> Messag
         model='gpt-3.5-turbo',
         verbose=False,
         docs=most_relevant_documents,
-        question=context.get_current_implicit_question_to_be_answered()
+        question=context.get_current_implicit_question()
     ):
         answer = response
         yield f'{start_of_chatbot_message}\n\n*{response}*'
@@ -188,7 +188,7 @@ def generate_final_answer_stream(context: UserContext) -> MessageOutputType:
         message = f'No final answer generated due to not having checked comprehensiveness.'
     elif len(comprehensiveness_context.implicit_questions) == 0:
         message = f'No final answer generated due to having no implicit questions.'
-    elif sum(q.answer is not None for q in comprehensiveness_context.implicit_questions.values()) == 0:
+    elif not context.exists_answer_to_any_implicit_question():
         message = f'No final answer generated due to having answered none of the implicit questions.'
 
     if message != '':

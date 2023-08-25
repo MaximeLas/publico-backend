@@ -2,9 +2,11 @@ import tempfile
 from devtools import debug
 
 import gradio as gr
+from gradio.blocks import Block
 
 from chatbot_workflow import WorkflowState
-from constants import DEFAULT_NUMBER, ComponentLabel
+from component_wrapper import ButtonWrapper, ClearButtonWrapper, ComponentWrapper, FilesWrapper, NumberWrapper, TextboxWrapper, UploadButtonWrapper
+from constants import DEFAULT_NUMBER, ComponentID, ComponentLabel
 
 
 
@@ -15,7 +17,7 @@ def handle_btn_clicked(
 ):
     chat_history[-1][1] = f'**{btn_label}**'
 
-    text_box = workflow_state.context.get_answer_of_current_implicit_question_to_be_answered() if btn_label == ComponentLabel.EDIT_IT else gr.skip()
+    text_box = workflow_state.context.get_answer_of_current_implicit_question() if btn_label == ComponentLabel.EDIT_IT else gr.skip()
 
     return chat_history, text_box
 
@@ -54,8 +56,56 @@ def handle_files_uploaded(
     return all_files, gr.update(interactive=True), gr.update(interactive=True)
 
 
-def handle_files_submitted(
-    files: list[tempfile._TemporaryFileWrapper]
-):
-    # print file names
-    debug(**{f'File #{i+1} uploaded': file.name.split("/")[-1] for i, file in enumerate(files)})
+def initialize_component_wrappers(
+    components: dict[ComponentID, Block],
+    workflow_state: WorkflowState) -> ComponentWrapper:
+    # create wrappers for each component and define the actions to be executed after being triggered, if any
+
+    create_btn = lambda btn_component: ButtonWrapper(
+        component=btn_component,
+        handle_user_action={
+            'fn': handle_btn_clicked,
+            'inputs': [btn_component, components[ComponentID.CHATBOT], workflow_state],
+            'outputs': [components[ComponentID.CHATBOT], components[ComponentID.USER_TEXT_BOX]]})
+    btn1 = create_btn(components[ComponentID.BTN_1])
+    btn2 = create_btn(components[ComponentID.BTN_2])
+
+    files = FilesWrapper(component=components[ComponentID.FILES])
+
+    upload_btn = UploadButtonWrapper(
+        component=components[ComponentID.UPLOAD_FILES_BTN],
+        handle_user_action={
+            'fn': handle_files_uploaded,
+            'inputs': [components[ComponentID.UPLOAD_FILES_BTN], components[ComponentID.FILES]],
+            'outputs': [components[ComponentID.FILES], components[ComponentID.SUBMIT_FILES_BTN], components[ComponentID.CLEAR_FILES_BTN]]
+        })
+
+    submit_files_btn = ButtonWrapper(
+        component=components[ComponentID.SUBMIT_FILES_BTN],
+        handle_user_action={
+            'fn': lambda files: debug(**{f'File #{i+1} uploaded': file.name.split("/")[-1] for i, file in enumerate(files)}),
+            'inputs': components[ComponentID.FILES]
+        })
+
+    clear_btn = ClearButtonWrapper(
+        component=components[ComponentID.CLEAR_FILES_BTN],
+        handle_user_action={
+            'fn': lambda: [gr.update(interactive=False)] * 2,
+            'outputs': [components[ComponentID.SUBMIT_FILES_BTN], components[ComponentID.CLEAR_FILES_BTN]]})
+
+    submit_btn = ButtonWrapper(
+        component=components[ComponentID.SUBMIT_USER_INPUT_BTN],
+        handle_user_action={
+            'fn': handle_submit,
+            'inputs': [components[ComponentID.USER_TEXT_BOX], components[ComponentID.NUMBER], components[ComponentID.CHATBOT]],
+            'outputs': [components[ComponentID.USER_TEXT_BOX], components[ComponentID.NUMBER], components[ComponentID.CHATBOT]]})
+
+    user_text_box = TextboxWrapper(
+        component=components[ComponentID.USER_TEXT_BOX],
+        handle_user_action=submit_btn.handle_user_action)
+
+    number = NumberWrapper(
+        component=components[ComponentID.NUMBER],
+        handle_user_action=submit_btn.handle_user_action)
+
+    return [btn1, btn2, files, upload_btn, submit_files_btn, clear_btn, submit_btn, user_text_box, number]
