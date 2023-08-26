@@ -35,16 +35,14 @@ def generate_answer_to_question_stream(context: UserContext) -> MessageOutputTyp
 
     question_context = context.questions[-1]
     if question_context.question is None:
-        message = 'No answer generated due to missing application question.'
-        #message)
-        yield message
+        yield 'No answer generated due to missing application question.'
         return
 
     question_context.most_relevant_documents = get_most_relevant_docs_in_vector_store_for_answering_question(
         vector_store=vector_store, question=question_context.question, n_results=4)
 
-    final_answer = ''
-    for _, response in stream_from_llm_generation(
+    generated_answer = ''
+    for _, llm_response in stream_from_llm_generation(
         prompt=get_prompt_template_for_generating_original_answer(),
         chain_type='qa_chain',
         verbose=False,
@@ -52,15 +50,16 @@ def generate_answer_to_question_stream(context: UserContext) -> MessageOutputTyp
         question=question_context.question,
         word_limit=question_context.word_limit
     ):
-        final_answer = f'*{response}*'
-        yield final_answer
+        generated_answer = llm_response
+        yield f'*{llm_response}*'
 
-    answer_word_count = len(final_answer.split())
-    question_context.answer = final_answer
+    answer_word_count = len(generated_answer.split())
+    question_context.answer = generated_answer
 
-    time.sleep(0.5)
-    yield [final_answer, f'Generated answer contains **{answer_word_count}** words.']
-    time.sleep(0.5)
+    time.sleep(0.25)
+    info_answer = f'Generated answer contains **{answer_word_count}** words.'
+    yield [f'*{llm_response}*', info_answer]
+
 
 
 def check_for_comprehensiveness(context: UserContext, use_json_schema: bool = False) -> MessageOutputType:
@@ -73,10 +72,12 @@ def check_for_comprehensiveness(context: UserContext, use_json_schema: bool = Fa
         yield 'Skipping check for comprehensiveness.'
         return
 
-    chat_openai = ChatOpenAI(client=None, model=GPT_MODEL, temperature=0)
-    prompt = get_prompt_template_for_comprehensiveness_check_openai_functions()
+    hang_on_message = 'Please hang on, I\'m validating the answer... 🔍'
+    yield hang_on_message
 
     with get_openai_callback() as cb:
+        prompt = get_prompt_template_for_comprehensiveness_check_openai_functions()
+        chat_openai = ChatOpenAI(client=None, model=GPT_MODEL, temperature=0)
         chain = (
             create_structured_output_chain(get_json_schema_for_comprehensiveness_check(), chat_openai, prompt, verbose=True)
                 if use_json_schema
@@ -102,33 +103,29 @@ def check_for_comprehensiveness(context: UserContext, use_json_schema: bool = Fa
 
     debug(**{f'Implicit question #{i}': q.question for i, q in comprehensiveness_context.implicit_questions.items()})
 
-    answers = [comprehensiveness_context.missing_information]
-    yield answers
-    time.sleep(1)
+    yield [hang_on_message, f'*{comprehensiveness_context.missing_information}*']
 
-    answers.append('')
+    time.sleep(0.4)
+    implicit_questions = ''
     for i, q in comprehensiveness_context.implicit_questions.items():
-        answers[-1] += (f'(**{i}**) **{q.question}**\n')
-        time.sleep(0.5)
-        yield answers
+        time.sleep(0.25)
+        implicit_questions += (f'(**{i}**) **{q.question}**\n')
+        yield [hang_on_message, f'*{comprehensiveness_context.missing_information}*', implicit_questions]
 
 
 
 def generate_answer_for_implicit_question_stream(context: UserContext) -> MessageOutputType:
     '''Generate and stream answers for implicit questions to be answered to make the answer comprehensive.'''
 
-    time.sleep(1)
-
-    start_of_chatbot_message = "Here's what I found to answer the question."
-    time.sleep(0.5)
+    start_of_chatbot_message = 'Here\'s what I found in your documents to answer this question:'
     yield start_of_chatbot_message
 
     most_relevant_documents = get_most_relevant_docs_in_vector_store_for_answering_question(
-        vector_store=context.uploaded_files.vector_store, question=context.get_current_implicit_question(), n_results=3)
+        vector_store=context.uploaded_files.vector_store, question=context.get_current_implicit_question(), n_results=4)
 
+    chatbot_message = start_of_chatbot_message
     answer = ''
-
-    for _, response in stream_from_llm_generation(
+    for _, llm_response in stream_from_llm_generation(
         prompt=get_prompt_template_for_generating_answer_to_implicit_question(),
         chain_type='qa_chain',
         model='gpt-3.5-turbo',
@@ -136,45 +133,16 @@ def generate_answer_for_implicit_question_stream(context: UserContext) -> Messag
         docs=most_relevant_documents,
         question=context.get_current_implicit_question()
     ):
-        answer = response
-        yield f'{start_of_chatbot_message}\n\n*{response}*'
+        answer = llm_response
+        chatbot_message = start_of_chatbot_message + f'\n\n*{answer}*'
+        yield chatbot_message
 
-    end_of_chatbot_message: str
     if 'Not enough information' not in answer:
         context.set_answer_to_current_implicit_question(answer)
-        end_of_chatbot_message = 'Is this helpful?'
+        yield chatbot_message + f'\n\nIs this helpful?'
     else:
-        end_of_chatbot_message = 'Would you like to answer it yourself?'
+        yield chatbot_message + f'\n\nWould you like to answer it yourself?'
 
-    yield f'{start_of_chatbot_message}\n\n*{answer}*\n\n{end_of_chatbot_message}'
-
-
-def generate_answers_for_implicit_questions_stream(context: UserContext) -> MessageOutputType:
-    '''Generate and stream answers for implicit questions to be answered to make the answer comprehensive.'''
-
-    time.sleep(1)
-    answers: list[str] = []
-
-    question_context = context.questions[-1]
-    for i, q in question_context.comprehensiveness.implicit_questions.items():
-        start_of_sentence_for_answer = f'(**{i}**) **{q.question}**'
-        answers.append(start_of_sentence_for_answer)
-        time.sleep(0.5)
-        yield answers
-
-        for _, response in stream_from_llm_generation(
-            prompt=get_prompt_template_for_generating_answer_to_implicit_question(),
-            chain_type='qa_chain',
-            model='gpt-3.5-turbo',
-            verbose=False,
-            docs=question_context.most_relevant_documents,
-            question=q.question
-        ):
-            answers[-1] = f'{start_of_sentence_for_answer}\n\n*{response}*'
-            yield answers
-
-        if 'Not enough information' not in answers[-1]:
-            q.answer = answers[-1]
 
 
 def generate_final_answer_stream(context: UserContext) -> MessageOutputType:
@@ -193,19 +161,20 @@ def generate_final_answer_stream(context: UserContext) -> MessageOutputType:
 
     if message != '':
         debug(message)
+        yield 'Something went wrong, please try again.'
         return
 
     implicit_questions_answered = dict(filter(lambda elem: elem[1].answer is not None, comprehensiveness_context.implicit_questions.items()))
     num_implicit_questions = len(implicit_questions_answered)
     s = 's' if num_implicit_questions > 1 else ''
 
-    start_of_sentence_for_final_answer = (
+    intro_to_final_answer = (
         f'Here is the final answer to **"{question_context.question}"** '
-        f'after integrating answer{s} to **{num_implicit_questions}** implicit question{s}')
+        f'after integrating answer{s} to **{num_implicit_questions}** implicit question{s}:')
 
-    final_answer = start_of_sentence_for_final_answer
-    final_llm_response = ''
+    yield intro_to_final_answer
 
+    final_answer = ''
     for _, llm_response in stream_from_llm_generation(
         prompt=get_prompt_template_for_generating_final_answer(),
         chain_type='llm_chain',
@@ -215,18 +184,17 @@ def generate_final_answer_stream(context: UserContext) -> MessageOutputType:
         word_limit=question_context.word_limit,
         original_answer=question_context.answer
     ):
-        final_llm_response = llm_response
-        final_answer = f'{start_of_sentence_for_final_answer}:\n\n*{llm_response}*'
-        yield final_answer
+        final_answer = llm_response
+        yield [intro_to_final_answer, f'*{final_answer}*']
 
-    comprehensiveness_context.revised_application_answer = final_llm_response
+    comprehensiveness_context.revised_application_answer = final_answer
 
-    comparison_answer = (
-        f'The word limit requested was **{question_context.word_limit}** words.\n'
-        f'The new answer contains **{len(final_llm_response.split())}** words.\n'
-        f'For reference, the original answer, which contains **{len(question_context.answer.split())}** words, ' # type: ignore
-        f'is the following:\n\n{question_context.answer}')
+    intro_to_comparison_with_original_answer = (
+        f'The final answer contains **{len(final_answer.split())}** words. The word limit is **{question_context.word_limit}** words.\n\n'
+        f'For reference, the original answer, which contains **{len(question_context.answer.split())}** words, is the following:')
 
-    time.sleep(0.5)
-    yield [final_answer, comparison_answer]
-    time.sleep(0.5)
+    time.sleep(0.25)
+    yield [intro_to_final_answer, f'*{final_answer}*', intro_to_comparison_with_original_answer]
+
+    time.sleep(0.25)
+    yield [intro_to_final_answer, f'*{final_answer}*', intro_to_comparison_with_original_answer, f'*{question_context.answer}*']

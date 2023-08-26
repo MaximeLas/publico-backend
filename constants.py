@@ -32,7 +32,7 @@ class ComponentLabel(StrEnum):
     CLEAR = 'Clear'
     GOOD_AS_IS = 'Good as is!'
     EDIT_IT = 'Let me edit it'
-    OF_COURSE = 'Of course!'
+    OF_COURSE = 'Of course I\'m ready! 🚀'
 
 class ComponentID(StrEnum):
     CHATBOT = auto()
@@ -56,8 +56,9 @@ GRANT_APPLICATION_QUESTIONS_EXAMPLES = [
     'Give me a background of your organization.',
     'What are your achievements to date?',
     'Where does this project fit within your organizational strategy and vision?',
-    'How is your organization building an inclusive workplace culture? What are your diversity, equity, and inclusion goals?',
-    'How does the proposed project contribute to the foundation\'s funding priority of increasing diversity, equity, and inclusion (DEI)?',
     'What is your organization\'s approach to measuring impact?',
-    'What are your organization\'s goals for the next 3-5 years?'
+    'What are your organization\'s goals for the next 3-5 years?',
+    'How is your organization building an inclusive workplace culture?',
+    'What are your diversity, equity, and inclusion goals?',
+    'How does the proposed project contribute to the foundation\'s funding priority of increasing DEI?'
 ]

@@ -63,7 +63,7 @@ class WorkflowManager:
     def initialize_components(self) -> dict[str, Block]:
         return {
             ComponentID.CHATBOT: gr.Chatbot(
-                value=[["Hello there, please hit **Start** when you're ready.", None]],
+                value=[["Hello there, please hit **Start** when you're ready. 👋", None]],
                 label=ComponentLabel.CHATBOT,
                 show_share_button=True,
                 show_copy_button=True,
@@ -132,7 +132,7 @@ class WorkflowManager:
         return {
             StepID.START: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "Hello there, please hit **Start** when you're ready."),
+                    "Hello there, please hit **Start** when you're ready. 👋"),
                 next_step_decider=FixedStepDecider(StepID.HAVE_YOU_APPLIED_BEFORE),
                 components={ComponentID.BTN_1: dict(value=ComponentLabel.START, variant='primary')}
             ),
@@ -146,7 +146,7 @@ class WorkflowManager:
             ),
             StepID.UPLOAD_FILES: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "That's very useful! Please upload your documents.\n" +
+                    "That's very useful! Please upload your documents. 📁\n" +
                     "Supported file types: **.docx** & **.txt**"),
                 next_step_decider=FixedStepDecider(StepID.ENTER_QUESTION),
                 components={
@@ -159,17 +159,15 @@ class WorkflowManager:
             ),
             StepID.ENTER_QUESTION: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "Please type the grant application question."),
+                    "Please type the grant application question. 🖊️"),
                 next_step_decider=FixedStepDecider(StepID.ENTER_WORD_LIMIT),
-                components={
-                    ComponentID.USER_TEXT_BOX: {},
-                    ComponentID.SUBMIT_USER_INPUT_BTN:{}},
+                components={ComponentID.USER_TEXT_BOX: {},ComponentID.SUBMIT_USER_INPUT_BTN:{}},
                 initialize_step_func=UserContext.add_new_question,
                 save_event_outcome=EventOutcomeSaver(UserContext.set_grant_application_question, ComponentLabel.USER)
             ),
             StepID.ENTER_WORD_LIMIT: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "What is the word limit?"),
+                    "What is the word limit? 🛑"),
                 next_step_decider=FixedStepDecider(StepID.DO_COMPREHENSIVENESS_CHECK),
                 components={ComponentID.NUMBER: {}, ComponentID.SUBMIT_USER_INPUT_BTN: {}},
                 save_event_outcome=EventOutcomeSaver(UserContext.set_word_limit, ComponentLabel.NUMBER),
@@ -178,7 +176,7 @@ class WorkflowManager:
             ),
             StepID.DO_COMPREHENSIVENESS_CHECK: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "Would you like me to review the answer to make sure it includes everything needed?"),
+                    "Would you like me to review the answer to make sure it includes everything needed? ✅"),
                 next_step_decider={
                     ComponentLabel.YES: FixedStepDecider(StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION),
                     ComponentLabel.NO: FixedStepDecider(StepID.DO_ANOTHER_QUESTION)},
@@ -190,7 +188,7 @@ class WorkflowManager:
             StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
                     message="(**{index}**) **{question}**\n\n" +
-                        "Does this question address a topic or information that should be included?",
+                        "Does this question address a topic or information that should be included? 🎯",
                     extract_formatting_variables_func=lambda context: (yield {
                         'question': context.get_next_implicit_question(),
                         'index': context.get_index_of_implicit_question_being_answered()})),
@@ -265,8 +263,8 @@ class WorkflowManager:
             ),
             StepID.READY_TO_GENERATE_FINAL_ANSWER: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "We're done with the implicit questions!\n" +
-                    "Are you ready to have your final answer generated?"),
+                    "We're done with the implicit questions!\n\n" +
+                    "Are you ready to have your final answer generated? 🏁"),
                 next_step_decider=FixedStepDecider(StepID.DO_ANOTHER_QUESTION),
                 components={ComponentID.BTN_1: dict(value=ComponentLabel.OF_COURSE, variant='primary')},
                 generate_chatbot_messages_fns=[generate_final_answer_stream]
@@ -315,11 +313,8 @@ def show_initial_chatbot_message(
 ) -> tuple[WorkflowState, Iterator[list[tuple[str, None]]]]:
     '''Append the initial message of the current step to the chat history'''
 
-    time.sleep(0.5)
-
-    current_step = workflow_state.current_step
-    
-    for chatbot_message in current_step.initial_chatbot_message.get_formatted_message(workflow_state.context):
+    time.sleep(0.25)
+    for chatbot_message in workflow_state.current_step.initial_chatbot_message.get_formatted_message(workflow_state.context):
         yield workflow_state, chat_history + [[chatbot_message, None]]
 
 
@@ -330,8 +325,10 @@ def generate_chatbot_messages_from_trigger(
 ) -> Iterator[list[tuple[str, None]]]:
     '''Generate chatbot messages based on component trigger'''
 
-    fns = workflow_state.current_step.get_generate_chatbot_messages_fns_for_trigger(component_name)
-    yield from generate_chatbot_messages(fns=fns, chat_history=chat_history, context=workflow_state.context)
+    if (fns := workflow_state.current_step.get_generate_chatbot_messages_fns_for_trigger(component_name)):
+        yield from generate_chatbot_messages(fns=fns, chat_history=chat_history, context=workflow_state.context)
+    else:
+        yield chat_history + [[None, None]]
 
 
 def find_matching_component_value_or_default(

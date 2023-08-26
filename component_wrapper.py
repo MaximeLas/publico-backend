@@ -52,7 +52,7 @@ class ComponentWrapper(ABC):
             trigger = trigger.then(
                 **self.handle_user_action
             ).then(
-                fn=lambda: time.sleep(0.5)
+                fn=lambda: time.sleep(0.25)
             )
 
         return trigger

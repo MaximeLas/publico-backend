@@ -24,6 +24,8 @@ def get_prompt_template_for_generating_original_answer() -> ChatPromptTemplate:
         'of a nonprofit organization applying for grant funding.\n'
         '----------------\n'
         '{context}'
+        '----------------\n'
+        'Make sure to comply with the word limit stated in parentheses at the end of the grant application question as this is crucial!'
     )
 
     messages = [
@@ -105,7 +107,7 @@ def get_prompt_template_for_generating_final_answer() -> ChatPromptTemplate:
         '{answers_to_implicit_questions}.\n'
         '----------------\n'
         'Start your message right away with the new answer without any leading words. '
-        'Please make sure to comply with the word limit stated at the end of the grant application question as this is crucial!'
+        'Make sure to comply with the word limit stated in parentheses at the end of the grant application question as this is crucial!'
     )
 
     messages = [
