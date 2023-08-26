@@ -20,13 +20,14 @@ from chatbot_workflow import (
     generate_chatbot_messages_from_trigger,
     update_workflow_step
 )
-from component_logic import (
-    initialize_component_wrappers,
+from component_logic import initialize_component_wrappers
+from component_wrapper import ComponentWrapper
+from constants import (
+    ComponentID,
+    ComponentLabel,
+    StepID,
+    GRANT_APPLICATION_QUESTIONS_EXAMPLES
 )
-from component_wrapper import (
-    ComponentWrapper,
-)
-from constants import ComponentID, ComponentLabel, StepID, GRANT_APPLICATION_QUESTIONS_EXAMPLES
 
 
 
@@ -35,7 +36,7 @@ workflow_manager = WorkflowManager()
 
 with gr.Blocks(css="custom.css", theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as demo:
     title = gr.HTML(
-        """<h1><img src="file/publico_logo.JPG"></h1>""",
+        """<h1><img src="file/publico_logo.jpg"></h1>""",
         elem_id="title")
 
     chatbot = workflow_manager.get_component(ComponentID.CHATBOT)
