@@ -33,7 +33,11 @@ from constants import ComponentID, ComponentLabel, StepID, GRANT_APPLICATION_QUE
 # create a workflow manager which contains all the chatbot steps and keeps track of the current step as well as the user context
 workflow_manager = WorkflowManager()
 
-with gr.Blocks(theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as demo:
+with gr.Blocks(css="custom.css", theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as demo:
+    title = gr.HTML(
+        """<h1><img src="file/publico_logo.JPG"></h1>""",
+        elem_id="title")
+
     chatbot = workflow_manager.get_component(ComponentID.CHATBOT)
     user_text_box_component = workflow_manager.get_component(ComponentID.USER_TEXT_BOX)
     number_component = workflow_manager.get_component(ComponentID.NUMBER)
