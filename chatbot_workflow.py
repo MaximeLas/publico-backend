@@ -63,7 +63,7 @@ class WorkflowManager:
     def initialize_components(self) -> dict[str, Block]:
         return {
             ComponentID.CHATBOT: gr.Chatbot(
-                value=[["Hello there, please hit **Start** when you're ready. 👋", None]],
+                value=[["👋 Ready? Hit **Start**!", None]],
                 label=ComponentLabel.CHATBOT,
                 show_share_button=True,
                 show_copy_button=True,
@@ -132,7 +132,7 @@ class WorkflowManager:
         return {
             StepID.START: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "Hello there, please hit **Start** when you're ready. 👋"),
+                    "👋 Ready? Hit **Start**!"),
                 next_step_decider=FixedStepDecider(StepID.HAVE_YOU_APPLIED_BEFORE),
                 components={ComponentID.BTN_1: dict(value=ComponentLabel.START, variant='primary')}
             ),
@@ -146,7 +146,8 @@ class WorkflowManager:
             ),
             StepID.UPLOAD_FILES: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "That's very useful! Please upload your documents. 📁\n" +
+                    "That's very useful!\n" +
+                    "Please upload your documents. 📁\n" +
                     "Supported file types: **.docx** & **.txt**"),
                 next_step_decider=FixedStepDecider(StepID.ENTER_QUESTION),
                 components={
@@ -263,15 +264,15 @@ class WorkflowManager:
             ),
             StepID.READY_TO_GENERATE_FINAL_ANSWER: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "We're done with the implicit questions!\n\n" +
-                    "Are you ready to have your final answer generated? 🏁"),
+                    "We're done with the implicit questions! 🏁\n\n" +
+                    "Are you ready to have your final answer generated?"),
                 next_step_decider=FixedStepDecider(StepID.DO_ANOTHER_QUESTION),
                 components={ComponentID.BTN_1: dict(value=ComponentLabel.OF_COURSE, variant='primary')},
                 generate_chatbot_messages_fns=[generate_final_answer_stream]
             ),
             StepID.DO_ANOTHER_QUESTION: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "Do you want to generate an answer for another question?"),
+                    "Do you want to generate an answer for another question? 🔄"),
                 next_step_decider={
                     ComponentLabel.YES: FixedStepDecider(StepID.ENTER_QUESTION),
                     ComponentLabel.NO: FixedStepDecider(StepID.END)},
@@ -279,7 +280,7 @@ class WorkflowManager:
             ),
             StepID.END: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "End of demo, thanks for participating! 🏆"),
+                    "End of demo, thanks for participating! 👏"),
                 next_step_decider=FixedStepDecider(StepID.END)
             )
         }
