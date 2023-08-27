@@ -36,7 +36,7 @@ workflow_manager = WorkflowManager()
 
 with gr.Blocks(css="custom.css", theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as demo:
     title = gr.HTML(
-        """<h1><img src="file/publico_logo.jpg"></h1>""",
+        """<h1><img src="file/publico_logo_no_circle.jpeg"></h1>""",
         elem_id="title")
 
     chatbot = workflow_manager.get_component(ComponentID.CHATBOT)

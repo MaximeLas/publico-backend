@@ -24,7 +24,7 @@ class ComponentLabel(StrEnum):
     SUBMIT = 'Submit'
     NUMBER = 'Number'
     EXAMPLES = 'Examples of grant application questions'
-    START = 'Start'
+    START = 'I\'m ready!'
     YES = 'Yes'
     NO = 'No'
     FILES = 'Documents'
@@ -48,7 +48,7 @@ class ComponentID(StrEnum):
     CLEAR_FILES_BTN = auto()
     SUBMIT_FILES_BTN = auto()
 
-DEFAULT_NUMBER = 30
+DEFAULT_NUMBER = 150
 
 
 GRANT_APPLICATION_QUESTIONS_EXAMPLES = [

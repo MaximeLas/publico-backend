@@ -63,7 +63,9 @@ class WorkflowManager:
     def initialize_components(self) -> dict[str, Block]:
         return {
             ComponentID.CHATBOT: gr.Chatbot(
-                value=[["👋 Ready? Hit **Start**!", None]],
+                value=[["Welcome! 👋\n" +
+                    "I'm Publico, your personal grant writing coach.\n" +
+                    "Are you ready to start writing together?", None]],
                 label=ComponentLabel.CHATBOT,
                 show_share_button=True,
                 show_copy_button=True,
@@ -132,13 +134,15 @@ class WorkflowManager:
         return {
             StepID.START: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "👋 Ready? Hit **Start**!"),
+                    "Welcome! 👋\n" +
+                    "I'm Publico, your personal grant writing coach.\n" +
+                    "Are you ready to start writing together?"),
                 next_step_decider=FixedStepDecider(StepID.HAVE_YOU_APPLIED_BEFORE),
                 components={ComponentID.BTN_1: dict(value=ComponentLabel.START, variant='primary')}
             ),
             StepID.HAVE_YOU_APPLIED_BEFORE: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "Have you applied for this grant before?"),
+                    "Do you have any existing materials you'd like to share (past grants, reports, etc.)?"),
                 next_step_decider={
                     ComponentLabel.YES: FixedStepDecider(StepID.UPLOAD_FILES),
                     ComponentLabel.NO: FixedStepDecider(StepID.ENTER_QUESTION)},
@@ -146,8 +150,7 @@ class WorkflowManager:
             ),
             StepID.UPLOAD_FILES: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "That's very useful!\n" +
-                    "Please upload your documents. 📁\n" +
+                    "That's very useful! Please upload your documents below.\n" +
                     "Supported file types: **.docx** & **.txt**"),
                 next_step_decider=FixedStepDecider(StepID.ENTER_QUESTION),
                 components={
@@ -160,7 +163,7 @@ class WorkflowManager:
             ),
             StepID.ENTER_QUESTION: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "Please type the grant application question. 🖊️"),
+                    "Please type the grant application question."),
                 next_step_decider=FixedStepDecider(StepID.ENTER_WORD_LIMIT),
                 components={ComponentID.USER_TEXT_BOX: {},ComponentID.SUBMIT_USER_INPUT_BTN:{}},
                 initialize_step_func=UserContext.add_new_question,
@@ -189,7 +192,7 @@ class WorkflowManager:
             StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
                     message="(**{index}**) **{question}**\n\n" +
-                        "Does this question address a topic or information that should be included? 🎯",
+                        "Does this question address a topic or information that should be incorporated into the final answer?",
                     extract_formatting_variables_func=lambda context: (yield {
                         'question': context.get_next_implicit_question(),
                         'index': context.get_index_of_implicit_question_being_answered()})),
