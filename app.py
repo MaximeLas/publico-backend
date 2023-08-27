@@ -88,7 +88,7 @@ with gr.Blocks(css="custom.css", theme=gr.themes.Default(primary_hue=gr.themes.c
     def make_components_in_current_step_visible(
         components: dict[ComponentID, Block],
         workflow_state: WorkflowState
-    ) -> list:
+    ) -> dict:
         '''Update visibility of components based on current step'''
 
         return {
@@ -99,63 +99,63 @@ with gr.Blocks(css="custom.css", theme=gr.themes.Default(primary_hue=gr.themes.c
                 properties(workflow_state.context))
             ) for component_id, properties in workflow_state.current_step.components.items()}
 
+    def handle_proceed_to_next_step(steps, workflow_state, component, chatbot):
+        # 1. Generate chatbot messages
+        for chatbot in generate_chatbot_messages_from_trigger(workflow_state, component, chatbot):
+            yield chatbot, workflow_state
 
+        # 2. Update chatbot step
+        workflow_state = update_workflow_step(steps, workflow_state, component)
+
+        # 3. Modify the context
+        workflow_state = modify_context(workflow_state)
+
+        # 4. Show initial chatbot message
+        for workflow_state, chatbot in show_initial_chatbot_message(workflow_state, chatbot):
+            yield chatbot, workflow_state
+
+
+
+    # Calling unified_handler within the loop
     for c in component_wrappers:
         if c.user_action is None:
             continue
 
         chain = c.get_component_trigger()(
             # print info about the component that was triggered and the current step
-            fn=c.print_trigger_info,
+            fn=ComponentWrapper.print_trigger_info,
             inputs=[c.component, workflow_state]
-        ).then(
-            # if we proceed to the next step we make all components invisible while we perform the actions defined by the component wrapper
-            fn=lambda proceed: [gr.update(visible=False) if proceed else gr.skip() for _ in range(len(internal_components_with_row))],
-            inputs=gr.State(c.proceed_to_next_step),
-            outputs=internal_components_with_row
         )
-
         if c.proceed_to_next_step:
-            # if we proceed then we store the value of the relevant component in the context, if defined
-            # for the current step (e.g. store the user's reply to a question)
-            chain = chain.then(
+            chain.then(
+                # if we proceed to the next step we make all components invisible while we perform the actions defined by the component wrapper
+                fn=lambda: [gr.update(visible=False) for _ in range(len(internal_components_with_row))],
+                outputs=internal_components_with_row
+            ).then(
                 fn=find_and_store_event_value,
                 inputs=[workflow_state, c.component, gr.State(internal_components), *internal_components],
-                outputs=workflow_state)
+                outputs=workflow_state
+            )
 
-        if c.handle_user_action is not None:
-            # handle user action as defined by the component wrapper (e.g. upload files, submit text)
-            chain = chain.then(**c.handle_user_action)
+        # handle user action as defined by the component wrapper (e.g. upload files, submit text)
+        chain = chain.then(**c.handle_user_action)
 
-        if not c.proceed_to_next_step:
-            continue
-
-        chain.then(
-            # generate any chatbot messages for current step (e.g. validation message following files upload, llm answer to question)
-            fn=generate_chatbot_messages_from_trigger,
-            inputs=[workflow_state, c.component, chatbot],
-            outputs=chatbot
-        ).then(
-            # update chatbot step (e.g. move to next step if user has submitted files)
-            fn=partial(update_workflow_step, workflow_manager.steps),
-            inputs=[workflow_state, c.component],
-            outputs=workflow_state
-        ).then(
-            # modify the context (e.g. add new question to context if we're on the 'enter question' step)
-            fn=modify_context,
-            inputs=workflow_state,
-            outputs=workflow_state
-        ).then(
-            # show the initial (chatbot) message of the next step
-            fn=show_initial_chatbot_message,
-            inputs=[workflow_state, chatbot],
-            outputs=[workflow_state, chatbot]
-        ).then(
-            # make components in the next step visible (e.g. show the 'yes' and 'no' buttons if we're on the 'have you applied before' step)
-            fn=partial(make_components_in_current_step_visible, workflow_manager.components),
-            inputs=workflow_state,
-            outputs=internal_components_with_row
-        )
+        if c.proceed_to_next_step:
+            # Chain the new unified function here
+            chain = chain.then(
+                partial(handle_proceed_to_next_step, workflow_manager.steps),
+                inputs=[
+                    workflow_state,
+                    c.component,
+                    chatbot
+                ],
+                outputs=[chatbot, workflow_state]
+            ).then(
+                # make components in the next step visible (e.g. show the 'yes' and 'no' buttons if we're on the 'have you applied before' step)
+                fn=partial(make_components_in_current_step_visible, workflow_manager.components),
+                inputs=workflow_state,
+                outputs=internal_components_with_row
+            )
 
 
 if __name__ == '__main__':

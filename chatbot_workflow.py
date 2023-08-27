@@ -331,8 +331,6 @@ def generate_chatbot_messages_from_trigger(
 
     if (fns := workflow_state.current_step.get_generate_chatbot_messages_fns_for_trigger(component_name)):
         yield from generate_chatbot_messages(fns=fns, chat_history=chat_history, context=workflow_state.context)
-    else:
-        yield chat_history + [[None, None]]
 
 
 def find_matching_component_value_or_default(
