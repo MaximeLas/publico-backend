@@ -8,6 +8,7 @@ from gradio.components import IOComponent
 import gradio as gr
 
 from chatbot_workflow import WorkflowState
+from constants import ComponentLabel
 
 
 class EventParameters(TypedDict):
@@ -32,7 +33,7 @@ class ComponentWrapper(ABC):
 
     @staticmethod
     def print_trigger_info(component_name: str, workflow_state: WorkflowState) -> None:
-        if component_name == 'Start':
+        if component_name == ComponentLabel.START:
             # setting/resetting to 1
             ComponentWrapper.trigger_index = 1
         else:
