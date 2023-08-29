@@ -120,7 +120,7 @@ with gr.Blocks(css='custom.css', theme=gr.themes.Default(primary_hue=gr.themes.c
         update_workflow_step(workflow_manager.steps, workflow, component)
 
         # 6. Modify the context
-        modify_context(workflow_state.current_step)
+        modify_context(workflow)
 
         # 7. Show initial chatbot message
         time.sleep(0.25)
