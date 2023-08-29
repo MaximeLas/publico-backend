@@ -7,14 +7,13 @@ from gradio.events import EventListenerMethod, Dependency
 from gradio.components import IOComponent
 import gradio as gr
 
-from chatbot_workflow import WorkflowState
-from constants import ComponentLabel
+from constants import ComponentLabel, StepID
 
 
 class EventParameters(TypedDict):
     fn: Callable
-    inputs: NotRequired[IOComponent | Sequence[IOComponent]]
-    outputs: NotRequired[IOComponent | Sequence[IOComponent]]
+    inputs: NotRequired[Sequence[IOComponent]]
+    outputs: NotRequired[Sequence[IOComponent]]
 
 
 
@@ -22,8 +21,8 @@ class EventParameters(TypedDict):
 class ComponentWrapper(ABC):
     component: IOComponent
     name: str = field(init=False)
-    user_action: str | None = field(init=False)
-    handle_user_action: EventParameters | None = None
+    user_action: str = field(init=False)
+    handle_user_action: EventParameters
     proceed_to_next_step: bool = True
     trigger_index = 0
 
@@ -32,19 +31,17 @@ class ComponentWrapper(ABC):
 
 
     @staticmethod
-    def print_trigger_info(component_name: str, workflow_state: WorkflowState) -> None:
+    def print_trigger_info(component_name: str, current_step_id: StepID) -> None:
         if component_name == ComponentLabel.START:
             # setting/resetting to 1
             ComponentWrapper.trigger_index = 1
         else:
             ComponentWrapper.trigger_index += 1
 
-        print(f"\n-- {ComponentWrapper.trigger_index} -- Triggered '{component_name}' -- Step '{workflow_state.current_step_id}'\n")
+        print(f"\n-- {ComponentWrapper.trigger_index} -- Triggered '{component_name}' -- Step '{current_step_id}'\n")
 
 
     def get_component_trigger(self) -> EventListenerMethod:
-        assert self.user_action is not None, f'Cannot chain first actions after trigger for {self.component} as user_action is None'
-
         return getattr(self.component, self.user_action)
 
 
@@ -65,17 +62,6 @@ class ComponentWrapper(ABC):
 class ButtonWrapper(ComponentWrapper):
     component: gr.Button
     user_action = 'click'
-
-
-
-@dataclass
-class FilesWrapper(ComponentWrapper):
-    component: gr.Files
-    user_action = None
-
-    def __post_init__(self):
-        super().__post_init__()
-        self.proceed_to_next_step = False
 
 
 

@@ -36,7 +36,6 @@ def create_new_chatbot_messages_from_response(response: str | list[str]) -> list
 
 def generate_chatbot_messages(
     fns: list[GenerateMessageFunc],
-    chat_history: list[tuple[str, None]],
     context: UserContext
 ) -> Iterator[list[tuple[str, None]]]:
     '''Generate chatbot messages from a list of functions, and yield the chat history with the new chatbot messages.'''
@@ -53,11 +52,11 @@ def generate_chatbot_messages(
             if isinstance(response, Iterator):
                 for response_so_far in response:
                     new_chatbot_messages = create_new_chatbot_messages_from_response(response_so_far)
-                    yield chat_history + all_new_chatbot_messages + new_chatbot_messages
+                    yield all_new_chatbot_messages + new_chatbot_messages
             else:
                 new_chatbot_messages = create_new_chatbot_messages_from_response(response)
-                yield chat_history + all_new_chatbot_messages + new_chatbot_messages
+                yield all_new_chatbot_messages + new_chatbot_messages
 
             all_new_chatbot_messages += new_chatbot_messages
 
-    yield chat_history + all_new_chatbot_messages
+    yield all_new_chatbot_messages

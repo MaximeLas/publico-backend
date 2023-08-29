@@ -42,7 +42,6 @@ class ComponentID(StrEnum):
     EXAMPLES = auto()
     BTN_1 = auto()
     BTN_2 = auto()
-    BTN_3 = auto()
     FILES = auto()
     UPLOAD_FILES_BTN = auto()
     CLEAR_FILES_BTN = auto()

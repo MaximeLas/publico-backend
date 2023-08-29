@@ -3,7 +3,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
-from constants import StepID
+from constants import ComponentID, StepID
 from context import UserContext
 from step_decider import StepDecider
 
@@ -15,11 +15,6 @@ GenerateMessageFuncList = list[GenerateMessageFunc]
 ComponentPropertiesType = dict[str, str]
 
 
-@dataclass
-class EventOutcomeSaver:
-    save_fn: Callable[[UserContext, Any], None]
-    component_name: str | None
-
 
 
 @dataclass
@@ -28,11 +23,11 @@ class InitialChatbotMessage:
     extract_formatting_variables_func: Callable[['UserContext'], Iterator] = lambda _: (yield dict())
 
     def get_formatted_message(self, context: UserContext) -> Iterator[str]:
-        for response in self.extract_formatting_variables_func(context):
-            if isinstance(response, dict):
-                yield self.message.format(**response)
+        for response_so_far in self.extract_formatting_variables_func(context):
+            if isinstance(response_so_far, dict):
+                yield self.message.format(**response_so_far)
             else:
-                yield self.message.format(response=response)
+                yield self.message.format(response=response_so_far)
 
 
 
@@ -40,9 +35,9 @@ class InitialChatbotMessage:
 class ChatbotStep():
     initial_chatbot_message: InitialChatbotMessage
     next_step_decider: StepDecider | dict[str, StepDecider]
-    components: dict[str, ComponentPropertiesType | Callable[['UserContext'], ComponentPropertiesType]] = field(default_factory=dict)
+    components: dict[ComponentID, ComponentPropertiesType | Callable[['UserContext'], ComponentPropertiesType]] = field(default_factory=dict)
     initialize_step_func: Callable[[UserContext], None] = lambda _: None
-    save_event_outcome: EventOutcomeSaver | None = None
+    save_event_outcome_fn: Callable[[UserContext, Any], None] | None = None
     generate_chatbot_messages_fns: GenerateMessageFuncList | dict[str, GenerateMessageFuncList] = field(default_factory=lambda: defaultdict(list))
     retrieve_relevant_vars_func: Callable[[UserContext], dict] = lambda _: dict()
 

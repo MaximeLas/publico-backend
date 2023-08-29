@@ -5,7 +5,7 @@ import gradio as gr
 from gradio.blocks import Block
 
 from chatbot_workflow import WorkflowState
-from component_wrapper import ButtonWrapper, ClearButtonWrapper, ComponentWrapper, FilesWrapper, NumberWrapper, TextboxWrapper, UploadButtonWrapper
+from component_wrapper import ButtonWrapper, ClearButtonWrapper, ComponentWrapper, NumberWrapper, TextboxWrapper, UploadButtonWrapper
 from constants import DEFAULT_NUMBER, ComponentID, ComponentLabel
 
 
@@ -19,22 +19,39 @@ def handle_btn_clicked(
 
     text_box = workflow_state.context.get_answer_of_current_implicit_question() if btn_label == ComponentLabel.EDIT_IT else gr.skip()
 
-    return chat_history, text_box
+    if save_fn := workflow_state.current_step.save_event_outcome_fn:
+        save_fn(workflow_state.context, btn_label)
+
+    return chat_history, text_box, workflow_state
 
 
 def handle_submit(
     user_message: str,
     number: str,
-    chat_history: list[list]
+    chat_history: list[list],
+    workflow_state: WorkflowState
 ):
+    # get save function for current step
+    save_fn = workflow_state.current_step.save_event_outcome_fn
+    to_save: str | int = user_message if user_message != '' else number
+
     if user_message != '':
+        # save user message
+        to_save = user_message
         # update chat history with user message
         chat_history[-1][1] = f'**{user_message}**'
-        return None, gr.skip(), chat_history
+        # reset user message
+        user_message = None
     else:
+        # save number
+        save_fn(workflow_state.context, number)
         # update chat history with number submitted
         chat_history[-1][1] = f'**{str(number)}**'
-        return gr.skip(), DEFAULT_NUMBER, chat_history
+        # reset number
+        number = DEFAULT_NUMBER
+
+    save_fn(workflow_state.context, to_save)
+    return user_message, number, chat_history, workflow_state
 
 
 def handle_files_uploaded(
@@ -56,9 +73,21 @@ def handle_files_uploaded(
     return all_files, gr.update(interactive=True), gr.update(interactive=True)
 
 
-def initialize_component_wrappers(
+def handle_files_submitted(
+    files: list[tempfile._TemporaryFileWrapper],
+    workflow_state: WorkflowState
+):
+    debug(**{f'File #{i+1} uploaded': file.name.split("/")[-1] for i, file in enumerate(files)})
+    workflow_state.current_step.save_event_outcome_fn(workflow_state.context, files)
+
+    return workflow_state
+
+
+
+def create_component_wrappers(
     components: dict[ComponentID, Block],
-    workflow_state: WorkflowState) -> ComponentWrapper:
+    workflow_state: WorkflowState
+) -> list[ComponentWrapper]:
     # create wrappers for each component and define the actions to be executed after being triggered, if any
 
     create_btn = lambda btn_component: ButtonWrapper(
@@ -66,11 +95,10 @@ def initialize_component_wrappers(
         handle_user_action={
             'fn': handle_btn_clicked,
             'inputs': [btn_component, components[ComponentID.CHATBOT], workflow_state],
-            'outputs': [components[ComponentID.CHATBOT], components[ComponentID.USER_TEXT_BOX]]})
+            'outputs': [components[ComponentID.CHATBOT], components[ComponentID.USER_TEXT_BOX], workflow_state]})
+
     btn1 = create_btn(components[ComponentID.BTN_1])
     btn2 = create_btn(components[ComponentID.BTN_2])
-
-    files = FilesWrapper(component=components[ComponentID.FILES])
 
     upload_btn = UploadButtonWrapper(
         component=components[ComponentID.UPLOAD_FILES_BTN],
@@ -83,8 +111,9 @@ def initialize_component_wrappers(
     submit_files_btn = ButtonWrapper(
         component=components[ComponentID.SUBMIT_FILES_BTN],
         handle_user_action={
-            'fn': lambda files: debug(**{f'File #{i+1} uploaded': file.name.split("/")[-1] for i, file in enumerate(files)}),
-            'inputs': components[ComponentID.FILES]
+            'fn': handle_files_submitted,
+            'inputs': [components[ComponentID.FILES], workflow_state],
+            'outputs': workflow_state
         })
 
     clear_btn = ClearButtonWrapper(
@@ -97,8 +126,8 @@ def initialize_component_wrappers(
         component=components[ComponentID.SUBMIT_USER_INPUT_BTN],
         handle_user_action={
             'fn': handle_submit,
-            'inputs': [components[ComponentID.USER_TEXT_BOX], components[ComponentID.NUMBER], components[ComponentID.CHATBOT]],
-            'outputs': [components[ComponentID.USER_TEXT_BOX], components[ComponentID.NUMBER], components[ComponentID.CHATBOT]]})
+            'inputs': [components[ComponentID.USER_TEXT_BOX], components[ComponentID.NUMBER], components[ComponentID.CHATBOT], workflow_state],
+            'outputs': [components[ComponentID.USER_TEXT_BOX], components[ComponentID.NUMBER], components[ComponentID.CHATBOT], workflow_state]})
 
     user_text_box = TextboxWrapper(
         component=components[ComponentID.USER_TEXT_BOX],
@@ -108,4 +137,4 @@ def initialize_component_wrappers(
         component=components[ComponentID.NUMBER],
         handle_user_action=submit_btn.handle_user_action)
 
-    return [btn1, btn2, files, upload_btn, submit_files_btn, clear_btn, submit_btn, user_text_box, number]
+    return [btn1, btn2, upload_btn, submit_files_btn, clear_btn, submit_btn, user_text_box, number]

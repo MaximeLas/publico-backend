@@ -1,14 +1,11 @@
 from collections import defaultdict
 from collections.abc import Iterator
-from dataclasses import dataclass
-import time
-from typing import Any
+from typing import Callable
 
 import gradio as gr
 from gradio.blocks import Block
-from gradio.components import IOComponent
 
-from chatbot_step import ChatbotStep, EventOutcomeSaver, InitialChatbotMessage
+from chatbot_step import ChatbotStep, InitialChatbotMessage
 from constants import DEFAULT_NUMBER, ComponentID, ComponentLabel, StepID
 from context import UserContext
 from message_generator_llm import (
@@ -52,7 +49,11 @@ class WorkflowManager:
         self.steps: dict[StepID, ChatbotStep] = self.initialize_steps()
 
 
-    def get_component(self, component_id: ComponentID) -> IOComponent:
+    def get_components_for_step(self, step_id: StepID) ->  dict[ComponentID, Block]:
+        return {component_id: self.components[component_id] for component_id in self.steps[step_id].components.keys()}
+
+
+    def get_component(self, component_id: ComponentID) -> Block:
         return self.components[component_id]
 
 
@@ -96,9 +97,6 @@ class WorkflowManager:
                 variant='primary'
             ),
             ComponentID.BTN_2: gr.Button(
-                visible=False
-            ),
-            ComponentID.BTN_3: gr.Button(
                 visible=False
             ),
             ComponentID.FILES: gr.Files(
@@ -158,7 +156,7 @@ class WorkflowManager:
                     ComponentID.UPLOAD_FILES_BTN: {},
                     ComponentID.CLEAR_FILES_BTN: {},
                     ComponentID.SUBMIT_FILES_BTN: {}},
-                save_event_outcome=EventOutcomeSaver(UserContext.set_uploaded_files, ComponentLabel.FILES),
+                save_event_outcome_fn=UserContext.set_uploaded_files,
                 generate_chatbot_messages_fns=[generate_validation_message_following_files_upload]
             ),
             StepID.ENTER_QUESTION: ChatbotStep(
@@ -167,14 +165,14 @@ class WorkflowManager:
                 next_step_decider=FixedStepDecider(StepID.ENTER_WORD_LIMIT),
                 components={ComponentID.USER_TEXT_BOX: {},ComponentID.SUBMIT_USER_INPUT_BTN:{}},
                 initialize_step_func=UserContext.add_new_question,
-                save_event_outcome=EventOutcomeSaver(UserContext.set_grant_application_question, ComponentLabel.USER)
+                save_event_outcome_fn=UserContext.set_grant_application_question
             ),
             StepID.ENTER_WORD_LIMIT: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
                     "What is the word limit? 🛑"),
                 next_step_decider=FixedStepDecider(StepID.DO_COMPREHENSIVENESS_CHECK),
                 components={ComponentID.NUMBER: {}, ComponentID.SUBMIT_USER_INPUT_BTN: {}},
-                save_event_outcome=EventOutcomeSaver(UserContext.set_word_limit, ComponentLabel.NUMBER),
+                save_event_outcome_fn=UserContext.set_word_limit,
                 generate_chatbot_messages_fns=[
                     generate_answer_to_question_stream]
             ),
@@ -185,7 +183,7 @@ class WorkflowManager:
                     ComponentLabel.YES: FixedStepDecider(StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION),
                     ComponentLabel.NO: FixedStepDecider(StepID.DO_ANOTHER_QUESTION)},
                 components={ComponentID.BTN_1: yes_btn_props, ComponentID.BTN_2: no_btn_props},
-                save_event_outcome=EventOutcomeSaver(UserContext.set_do_check_for_comprehensiveness, None),
+                save_event_outcome_fn=UserContext.set_do_check_for_comprehensiveness,
                 generate_chatbot_messages_fns=defaultdict(list, {
                     ComponentLabel.YES: [check_for_comprehensiveness]})
             ),
@@ -258,7 +256,7 @@ class WorkflowManager:
                     if_true_step=StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION,
                     if_false_step=StepID.READY_TO_GENERATE_FINAL_ANSWER),
                 components={ComponentID.USER_TEXT_BOX: {}, ComponentID.SUBMIT_USER_INPUT_BTN: {}},
-                save_event_outcome=EventOutcomeSaver(UserContext.set_answer_to_current_implicit_question, ComponentLabel.USER),
+                save_event_outcome_fn=UserContext.set_answer_to_current_implicit_question,
                 generate_chatbot_messages_fns=[lambda context: (
                     'Great! Now that we\'ve answered that question, let\'s move on to the next.'
                         if context.has_more_implcit_questions_to_answer()
@@ -289,81 +287,53 @@ class WorkflowManager:
         }
 
 
+def update_visibility_of_components_in_current_step(
+    all_components: dict[ComponentID, Block],
+    workflow_state: WorkflowState,
+    is_visible: bool
+) -> dict[Block, dict]:
+    '''Update visibility of components based on current step'''
 
-def update_workflow_step(steps: dict[StepID, ChatbotStep], workflow_state: WorkflowState, component_name: str) -> WorkflowManager:
+    return {
+        all_components[component_id]: gr.update(visible=is_visible, **(
+            properties
+                if not isinstance(properties, Callable)
+                else
+            properties(workflow_state.context))
+        ) for component_id, properties in workflow_state.current_step.components.items()}
+
+
+def update_workflow_step(
+    steps: dict[StepID, ChatbotStep],
+    workflow_state: WorkflowState,
+    component_name: str
+):
     '''Update the workflow step based on the component that triggered the event'''
 
     next_step_id = workflow_state.current_step.determine_next_step(component_name, workflow_state.context)
     workflow_state.current_step_id = next_step_id
     workflow_state.current_step = steps[next_step_id]
 
-    return workflow_state
 
-
-def modify_context(
-    workflow_state: WorkflowState
-) -> WorkflowState:
+def modify_context(workflow_state: WorkflowState):
     '''Update the workflow context based on the current step'''
 
     current_step = workflow_state.current_step
     current_step.initialize_step_func(workflow_state.context)
 
-    return workflow_state
 
-
-def show_initial_chatbot_message(
-    workflow_state: WorkflowState,
-    chat_history: list[list]
-) -> tuple[WorkflowState, Iterator[list[tuple[str, None]]]]:
+def get_initial_chatbot_message(workflow_state: WorkflowState) -> Iterator[list[tuple[str, None]]]:
     '''Append the initial message of the current step to the chat history'''
 
-    time.sleep(0.25)
     for chatbot_message in workflow_state.current_step.initial_chatbot_message.get_formatted_message(workflow_state.context):
-        yield workflow_state, chat_history + [[chatbot_message, None]]
+        yield [[chatbot_message, None]]
 
 
 def generate_chatbot_messages_from_trigger(
     workflow_state: WorkflowState,
-    component_name: str,
-    chat_history: list[list]
+    component_name: str
 ) -> Iterator[list[tuple[str, None]]]:
     '''Generate chatbot messages based on component trigger'''
 
     if (fns := workflow_state.current_step.get_generate_chatbot_messages_fns_for_trigger(component_name)):
-        yield from generate_chatbot_messages(fns=fns, chat_history=chat_history, context=workflow_state.context)
-
-
-def find_matching_component_value_or_default(
-    components: list[IOComponent], 
-    component_name: str, 
-    default_value: Any, 
-    *components_values: Any
-) -> Any:
-    '''Find the value to save based on component name or use default value'''
-
-    return next(
-        (components_values[i] for i, c in enumerate(components) if (c.label or c.value) == component_name),
-        default_value
-    )
-
-def find_and_store_event_value(
-    workflow_state: WorkflowState, 
-    default_value: Any, 
-    components: list[IOComponent], 
-    *components_values: Any
-) -> WorkflowManager:
-    '''Find the value to save and store it in the context'''
-
-    outcome_saver = workflow_state.current_step.save_event_outcome
-
-    if outcome_saver is not None:
-        value_to_save = find_matching_component_value_or_default(
-            components, 
-            outcome_saver.component_name, 
-            default_value, 
-            *components_values
-        )
-        outcome_saver.save_fn(workflow_state.context, value_to_save)
-        print(f"Saved value to context on step {workflow_state.current_step_id}: '{value_to_save}'")
-
-    return workflow_state
+        yield from generate_chatbot_messages(fns=fns, context=workflow_state.context)
