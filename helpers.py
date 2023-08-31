@@ -265,7 +265,7 @@ def print_summary_of_relevant_documents_and_scored(docs: list[tuple[Document, fl
             'Character length of chunk': len(doc.page_content),
             'Token count of chunk': doc.metadata['current_token_count'],
             'Source': doc.metadata["source"].rsplit("/", 1)[-1],
-            'Content (Preview of first 200 characters)': doc.page_content[:200]
+            'Content (Preview of first and last 50 characters)': doc.page_content[:50] + ' ... ' + doc.page_content[-50:],
         })
 
     # print total token count of relevant documents
