@@ -1,5 +1,6 @@
 from abc import ABC
 from dataclasses import dataclass, field
+from datetime import datetime
 import time
 from typing import Callable, NotRequired, Sequence, TypedDict
 
@@ -38,7 +39,8 @@ class ComponentWrapper(ABC):
         else:
             ComponentWrapper.trigger_index += 1
 
-        print(f"\n-- {ComponentWrapper.trigger_index} -- Triggered '{component_name}' -- Step '{current_step_id}'\n")
+        now = datetime.fromtimestamp(time.time(), tz=None).strftime("%d-%m-%Y %H:%M:%S")
+        print(f"\n-- {now} -- {ComponentWrapper.trigger_index} -- Triggered '{component_name}' -- Step '{current_step_id}'\n")
 
 
     def get_component_trigger(self) -> EventListenerMethod:
