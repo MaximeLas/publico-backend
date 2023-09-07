@@ -30,7 +30,15 @@ def generate_answer_to_question_stream(context: UserContext) -> MessageOutputTyp
         files=context.uploaded_files.files,
         chunk_size=1000,
         chunk_overlap=150)
-    vector_store = Chroma.from_documents(documents=documents_chunks, embedding=OpenAIEmbeddings(client=None))
+
+    vector_store = Chroma(embedding_function=OpenAIEmbeddings(client=None))
+
+    # delete previously added embeddings from the vector store, if any, and add the new ones
+    vector_store.delete()
+    vector_store.add_texts(
+        texts=[doc.page_content for doc in documents_chunks],
+        metadatas=[doc.metadata for doc in documents_chunks])
+
     context.uploaded_files.vector_store = vector_store
 
     question_context = context.questions[-1]
