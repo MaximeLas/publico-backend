@@ -1,6 +1,7 @@
 from functools import partial
 import logging
 import time
+import os
 
 import gradio as gr
 
@@ -146,4 +147,7 @@ with gr.Blocks(css='custom.css', theme=gr.themes.Default(primary_hue=gr.themes.c
 
 
 if __name__ == '__main__':
-    demo.queue().launch()
+    if os.environ.get("CREATE_LINK") == 'true':
+        demo.queue().launch(share=True)
+    else:
+        demo.queue().launch()

@@ -58,6 +58,7 @@ docker image pull registry.hf.space/publicodemo-demo:latest
 
 docker run -it -p 7860:7860 --platform=linux/amd64 \
 	-e OPENAI_API_KEY="YOUR_VALUE_HERE" \
+	-e CREATE_LINK=true
 	registry.hf.space/publicodemo-demo:latest python app.py
 ```
 
