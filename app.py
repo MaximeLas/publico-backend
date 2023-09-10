@@ -26,7 +26,8 @@ from constants import (
     ComponentID,
     ComponentLabel,
     StepID,
-    GRANT_APPLICATION_QUESTIONS_EXAMPLES
+    GRANT_APPLICATION_QUESTIONS_EXAMPLES,
+    PAGE_TITLE
 )
 
 
@@ -34,7 +35,10 @@ from constants import (
 # create a workflow manager which contains all the chatbot steps and keeps track of the current step as well as the user context
 workflow_manager = WorkflowManager()
 
-with gr.Blocks(css='custom.css', theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as demo:
+with gr.Blocks(css='custom.css', theme=gr.themes.Default(primary_hue=gr.themes.colors.lime), title=PAGE_TITLE) as demo:
+    title_value = '''<h1><img src="file/publico_logo_no_circle.jpeg"></h1>'''
+    title = gr.HTML(value=title_value, elem_id='title')
+
     chatbot = workflow_manager.get_component(ComponentID.CHATBOT)
     user_text_box_component = workflow_manager.get_component(ComponentID.USER_TEXT_BOX)
     number_component = workflow_manager.get_component(ComponentID.NUMBER)
@@ -148,6 +152,6 @@ with gr.Blocks(css='custom.css', theme=gr.themes.Default(primary_hue=gr.themes.c
 
 if __name__ == '__main__':
     if os.environ.get("CREATE_LINK") == 'true':
-        demo.queue().launch(share=True)
+        demo.queue().launch(favicon_path='./favicon.ico', share=True)
     else:
-        demo.queue().launch()
+        demo.queue().launch(favicon_path='./favicon.ico')

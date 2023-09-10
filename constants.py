@@ -61,3 +61,5 @@ GRANT_APPLICATION_QUESTIONS_EXAMPLES = [
     'What are your diversity, equity, and inclusion goals?',
     'How does the proposed project contribute to the foundation\'s funding priority of increasing DEI?'
 ]
+
+PAGE_TITLE = "Publico.ai - Demo"
