@@ -34,9 +34,6 @@ from constants import (
 workflow_manager = WorkflowManager()
 
 with gr.Blocks(css='custom.css', theme=gr.themes.Default(primary_hue=gr.themes.colors.lime)) as demo:
-    title_value = '''<h1><img src="file/publico_logo_no_circle.jpeg"></h1>'''
-    title = gr.HTML(value=title_value, elem_id='title')
-
     chatbot = workflow_manager.get_component(ComponentID.CHATBOT)
     user_text_box_component = workflow_manager.get_component(ComponentID.USER_TEXT_BOX)
     number_component = workflow_manager.get_component(ComponentID.NUMBER)
