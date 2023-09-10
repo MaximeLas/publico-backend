@@ -149,4 +149,4 @@ with gr.Blocks(css='custom.css', theme=gr.themes.Default(primary_hue=gr.themes.c
 
 
 if __name__ == '__main__':
-    demo.queue().launch(share=True)
+    demo.queue().launch()
