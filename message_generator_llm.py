@@ -111,7 +111,7 @@ def check_for_comprehensiveness(context: UserContext, use_json_schema: bool = Fa
     implicit_questions = ''
     for i, q in comprehensiveness_context.implicit_questions.items():
         time.sleep(0.25)
-        implicit_questions += (f'(**{i}**) **{q.question}**\n')
+        implicit_questions += f'(**{i}**) **{q.question}**\n\n'
         yield [hang_on_message, f'*{comprehensiveness_context.missing_information}*', implicit_questions]
 
 

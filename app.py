@@ -106,7 +106,7 @@ with gr.Blocks(css='custom.css', theme=gr.themes.Default(primary_hue=gr.themes.c
             return
 
         # update chat history if it was modified in the handle_user_action function
-        new_chat_history = outputs_dict.get(chatbot, chat_history)
+        chat_history = outputs_dict.get(chatbot, chat_history)
 
         # 3. Make current step's components invisible
         if invisible_components := update_visibility_of_components_in_current_step(
@@ -114,6 +114,7 @@ with gr.Blocks(css='custom.css', theme=gr.themes.Default(primary_hue=gr.themes.c
             yield invisible_components
 
         # 4. Generate chatbot messages
+        new_chat_history = chat_history
         for chatbot_messages in generate_chatbot_messages_from_trigger(workflow, component):
             new_chat_history = chat_history + chatbot_messages
             yield {chatbot: new_chat_history}
