@@ -6,7 +6,9 @@ import tiktoken
 
 from langchain.docstore.document import Document
 from langchain.document_loaders import UnstructuredFileLoader
+from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.vectorstores import Chroma
 from langchain.vectorstores.base import VectorStore
 
 from settings import GPT_MODEL
@@ -270,6 +272,44 @@ def print_summary_of_relevant_documents_and_scored(docs: list[tuple[Document, fl
 
     # print total token count of relevant documents
     debug(**{'Total token count of relevant documents': sum([doc.metadata["current_token_count"] for doc, _ in docs])})
+
+
+def get_vector_store_for_files(files: list[str]) -> VectorStore:
+    '''
+    Get vector store for files uploaded by user and return it
+        Parameters:
+            files (list[str]): list of paths to files uploaded by user
+
+        Returns:
+            VectorStore: vector store for files uploaded by user
+    '''
+
+    # create vector store with OpenAIEmbeddings
+    vector_store = Chroma(embedding_function=OpenAIEmbeddings(client=None))
+
+    # get the files in the vector store
+    files_in_vector_store = set(metadata['source'].rsplit('.', 1)[0] for metadata in vector_store._collection.get()['metadatas'])
+    # get the files uploaded by the user
+    files_uploaded = set(file.rsplit('.', 1)[0] for file in files)
+
+    # check if the uploaded files are different from the files in the vector store
+    if files_uploaded != files_in_vector_store:
+        # if so, get the documents chunks for the uploaded files
+        documents_chunks = get_documents_chunks_for_files(
+            files=files,
+            chunk_size=1000,
+            chunk_overlap=150)
+
+        # delete the current embeddings in the vector store
+        if files_in_vector_store:
+            vector_store.delete(ids=vector_store._collection.get()['ids'])
+
+        # add the documents chunks to the vector store as embeddings
+        vector_store.add_texts(
+            texts=[doc.page_content for doc in documents_chunks],
+            metadatas=[doc.metadata for doc in documents_chunks])
+
+    return vector_store
 
 
 def get_most_relevant_docs_in_vector_store_for_answering_question(

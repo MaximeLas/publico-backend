@@ -5,15 +5,19 @@ from devtools import debug
 from langchain.callbacks import get_openai_callback
 from langchain.chains.openai_functions import create_openai_fn_chain, create_structured_output_chain
 from langchain.chat_models import ChatOpenAI
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import Chroma
 
 from chatbot_step import MessageOutputType
 from context import ImplicitQuestion, UserContext
-from helpers import get_most_relevant_docs_in_vector_store_for_answering_question, get_documents_chunks_for_files
+from helpers import (
+    get_most_relevant_docs_in_vector_store_for_answering_question,
+    get_vector_store_for_files
+)
 from llm_streaming_utils import stream_from_llm_generation
 from settings import GPT_MODEL
-from openai_functions_utils import function_for_comprehensiveness_check, get_json_schema_for_comprehensiveness_check
+from openai_functions_utils import (
+    function_for_comprehensiveness_check,
+    get_json_schema_for_comprehensiveness_check
+)
 from prompts import (
     get_prompt_template_for_generating_original_answer,
     get_prompt_template_for_comprehensiveness_check_openai_functions,
@@ -26,20 +30,8 @@ from prompts import (
 def generate_answer_to_question_stream(context: UserContext) -> MessageOutputType:
     '''Generate and stream an answer to a grant application question by streaming tokens from the LLM.'''
 
-    documents_chunks = get_documents_chunks_for_files(
-        files=context.uploaded_files.files,
-        chunk_size=1000,
-        chunk_overlap=150)
-
-    vector_store = Chroma(embedding_function=OpenAIEmbeddings(client=None))
-
-    # delete previously added embeddings from the vector store, if any, and add the new ones
-    vector_store.delete()
-    vector_store.add_texts(
-        texts=[doc.page_content for doc in documents_chunks],
-        metadatas=[doc.metadata for doc in documents_chunks])
-
-    context.uploaded_files.vector_store = vector_store
+    # get the vector store for the uploaded files (will only update if files are not the same as before)
+    context.uploaded_files.vector_store = get_vector_store_for_files(context.uploaded_files.files)
 
     question_context = context.questions[-1]
     if question_context.question is None:
@@ -47,7 +39,9 @@ def generate_answer_to_question_stream(context: UserContext) -> MessageOutputTyp
         return
 
     question_context.most_relevant_documents = get_most_relevant_docs_in_vector_store_for_answering_question(
-        vector_store=vector_store, question=question_context.question, n_results=4)
+        vector_store=context.uploaded_files.vector_store,
+        question=question_context.question,
+        n_results=4)
 
     generated_answer = ''
     for _, llm_response in stream_from_llm_generation(
