@@ -152,7 +152,12 @@ with gr.Blocks(css='custom.css', theme=gr.themes.Default(primary_hue=gr.themes.c
 
 
 if __name__ == '__main__':
-    if os.environ.get("CREATE_LINK") == 'true':
-        demo.queue().launch(favicon_path='./favicon.ico', share=True)
-    else:
-        demo.queue().launch(favicon_path='./favicon.ico')
+    server_port = 7860
+    if os.environ.get("SERVER_PORT") != None:
+        server_port = int(os.environ.get("SERVER_PORT"))
+
+    create_link = False
+    if os.environ.get("CREATE_LINK") != None:
+        create_link = bool(os.environ.get("CREATE_LINK"))
+
+    demo.queue().launch(favicon_path='./favicon.ico', share=create_link, server_port=server_port)
