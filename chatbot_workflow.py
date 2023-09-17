@@ -6,7 +6,15 @@ import gradio as gr
 from gradio.blocks import Block
 
 from chatbot_step import ChatbotStep, InitialChatbotMessage
-from constants import DEFAULT_NUMBER, ComponentID, ComponentLabel, StepID
+from constants import (
+    DEFAULT_NUM_OF_DOC_CHUNKS,
+    DEFAULT_NUM_OF_TOKENS,
+    DEFAULT_WORD_LIMIT,
+    IS_DEV_MODE,
+    ComponentID,
+    ComponentLabel,
+    StepID
+)
 from context import UserContext
 from message_generator_llm import (
     check_for_comprehensiveness,
@@ -80,10 +88,17 @@ class WorkflowManager:
                 show_copy_button=True,
                 placeholder='Type your message here'
             ),
-            ComponentID.NUMBER: gr.Number(
-                value=DEFAULT_NUMBER,
+            ComponentID.NUMBER_1: gr.Number(
+                value=DEFAULT_WORD_LIMIT,
                 precision=0,
-                label=ComponentLabel.NUMBER,
+                label=ComponentLabel.WORD_LIMIT,
+                visible=False,
+                interactive=True
+            ),
+            ComponentID.NUMBER_2: gr.Number(
+                value=0,
+                precision=0,
+                label=ComponentLabel.NUM_OF_DOCS,
                 visible=False,
                 interactive=True
             ),
@@ -170,11 +185,35 @@ class WorkflowManager:
             StepID.ENTER_WORD_LIMIT: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
                     "What is the word limit? 🛑"),
-                next_step_decider=FixedStepDecider(StepID.DO_COMPREHENSIVENESS_CHECK),
-                components={ComponentID.NUMBER: {}, ComponentID.SUBMIT_USER_INPUT_BTN: {}},
+                next_step_decider=FixedStepDecider(
+                    StepID.DO_COMPREHENSIVENESS_CHECK
+                        if not IS_DEV_MODE else
+                    StepID.ENTER_RAG_CONFIG_ORIGINAL_QUESTION),
+                components={ComponentID.NUMBER_1: {}, ComponentID.SUBMIT_USER_INPUT_BTN: {}},
                 save_event_outcome_fn=UserContext.set_word_limit,
                 generate_chatbot_messages_fns=[
+                    generate_answer_to_question_stream] if not IS_DEV_MODE else []
+            ),
+            StepID.ENTER_RAG_CONFIG_ORIGINAL_QUESTION: ChatbotStep(
+                initial_chatbot_message=InitialChatbotMessage(
+                    "How many tokens at most should be included in a single document chunk?\n\n" +
+                    "How many chunks sould be selected in the similarity check step?"),
+                next_step_decider=FixedStepDecider(StepID.GO_BACK_TO_CONFIG_STEP_ORIGINAL_QUESTION),
+                components={
+                    ComponentID.NUMBER_1: dict(value=DEFAULT_NUM_OF_TOKENS, label=ComponentLabel.NUM_OF_TOKENS),
+                    ComponentID.NUMBER_2: dict(value=DEFAULT_NUM_OF_DOC_CHUNKS, label=ComponentLabel.NUM_OF_DOCS),
+                    ComponentID.SUBMIT_USER_INPUT_BTN: {}},
+                save_event_outcome_fn=UserContext.set_num_of_tokens_and_doc_chunks,
+                generate_chatbot_messages_fns=[
                     generate_answer_to_question_stream]
+            ),
+            StepID.GO_BACK_TO_CONFIG_STEP_ORIGINAL_QUESTION: ChatbotStep(
+                initial_chatbot_message=InitialChatbotMessage(
+                    "Do you want to go back to the previous step (RAG Config)?"),
+                next_step_decider={
+                    ComponentLabel.YES: FixedStepDecider(StepID.ENTER_RAG_CONFIG_ORIGINAL_QUESTION),
+                    ComponentLabel.NO: FixedStepDecider(StepID.DO_COMPREHENSIVENESS_CHECK)},
+                components={ComponentID.BTN_1: yes_btn_props, ComponentID.BTN_2: no_btn_props}
             ),
             StepID.DO_COMPREHENSIVENESS_CHECK: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
@@ -195,7 +234,10 @@ class WorkflowManager:
                         'question': context.get_next_implicit_question(),
                         'index': context.get_index_of_implicit_question_being_answered()})),
                 next_step_decider={
-                    ComponentLabel.YES: FixedStepDecider(StepID.SELECT_WHAT_TO_DO_WITH_ANSWER_GENERATED_FROM_CONTEXT),
+                    ComponentLabel.YES: FixedStepDecider(
+                        StepID.SELECT_WHAT_TO_DO_WITH_ANSWER_GENERATED_FROM_CONTEXT
+                            if not IS_DEV_MODE else
+                        StepID.ENTER_RAG_CONFIG_IMPLICIT_QUESTION),
                     ComponentLabel.NO: MultiConditionalStepDecider(
                         conditional_steps=[
                             (UserContext.has_more_implcit_questions_to_answer, StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION),
@@ -204,6 +246,7 @@ class WorkflowManager:
                         default_next_step=StepID.DO_ANOTHER_QUESTION)},
                 components={ComponentID.BTN_1: yes_btn_props, ComponentID.BTN_2: no_btn_props},
                 generate_chatbot_messages_fns=defaultdict(list, {
+                    ComponentLabel.YES: [generate_answer_for_implicit_question_stream] if not IS_DEV_MODE else [],
                     ComponentLabel.NO: [lambda context: (
                         "Okay, let's skip this one."
                             if UserContext.has_more_implcit_questions_to_answer(context) or
@@ -211,10 +254,33 @@ class WorkflowManager:
                             else
                         "None of the implicit questions were answered.")]})
             ),
+            StepID.ENTER_RAG_CONFIG_IMPLICIT_QUESTION: ChatbotStep(
+                initial_chatbot_message=InitialChatbotMessage(
+                    "How many tokens at most should be included in a single document chunk?\n\n" +
+                    "How many chunks sould be selected in the similarity check step?"),
+                next_step_decider=FixedStepDecider(StepID.GO_BACK_TO_CONFIG_STEP_IMPLICIT_QUESTION),
+                components={
+                    ComponentID.NUMBER_1: dict(value=DEFAULT_NUM_OF_TOKENS, label=ComponentLabel.NUM_OF_TOKENS),
+                    ComponentID.NUMBER_2: dict(value=DEFAULT_NUM_OF_DOC_CHUNKS, label=ComponentLabel.NUM_OF_DOCS),
+                    ComponentID.SUBMIT_USER_INPUT_BTN: {}},
+                save_event_outcome_fn=UserContext.set_num_of_tokens_and_doc_chunks,
+                generate_chatbot_messages_fns=[generate_answer_for_implicit_question_stream]
+            ),
+            StepID.GO_BACK_TO_CONFIG_STEP_IMPLICIT_QUESTION: ChatbotStep(
+                initial_chatbot_message=InitialChatbotMessage(
+                    "Do you want to go back to the previous step (RAG Config)?"),
+                next_step_decider={
+                    ComponentLabel.YES: FixedStepDecider(StepID.ENTER_RAG_CONFIG_IMPLICIT_QUESTION),
+                    ComponentLabel.NO: FixedStepDecider(StepID.SELECT_WHAT_TO_DO_WITH_ANSWER_GENERATED_FROM_CONTEXT)},
+                components={ComponentID.BTN_1: yes_btn_props, ComponentID.BTN_2: no_btn_props}
+            ),
             StepID.SELECT_WHAT_TO_DO_WITH_ANSWER_GENERATED_FROM_CONTEXT: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
                     message="{response}",
-                    extract_formatting_variables_func=generate_answer_for_implicit_question_stream),
+                    extract_formatting_variables_func=lambda context: (yield (
+                        'Is this helpful?'
+                            if context.exists_answer_to_current_implicit_question() else
+                        'Would you like to answer it yourself?'))),
                 next_step_decider={
                     ComponentLabel.YES: FixedStepDecider(StepID.PROMPT_USER_TO_SUBMIT_ANSWER),
                     ComponentLabel.EDIT_IT: FixedStepDecider(StepID.PROMPT_USER_TO_SUBMIT_ANSWER),

@@ -6,7 +6,7 @@ from gradio.blocks import Block
 
 from chatbot_workflow import WorkflowState
 from component_wrapper import ButtonWrapper, ClearButtonWrapper, ComponentWrapper, NumberWrapper, TextboxWrapper, UploadButtonWrapper
-from constants import DEFAULT_NUMBER, ComponentID, ComponentLabel
+from constants import DEFAULT_WORD_LIMIT, ComponentID, ComponentLabel
 
 
 
@@ -27,31 +27,30 @@ def handle_btn_clicked(
 
 def handle_submit(
     user_message: str,
-    number: str,
+    number_1: int,
+    number_2: int,
     chat_history: list[list],
     workflow_state: WorkflowState
 ):
-    # get save function for current step
-    save_fn = workflow_state.current_step.save_event_outcome_fn
-    to_save: str | int = user_message if user_message != '' else number
+    values_to_save: list[str | int]
 
+    # check which input was submitted
     if user_message != '':
-        # save user message
-        to_save = user_message
-        # update chat history with user message
+        values_to_save = [user_message]
         chat_history[-1][1] = f'**{user_message}**'
-        # reset user message
         user_message = None
+    elif number_2 == 0:
+        values_to_save = [number_1]
+        chat_history[-1][1] = f'**{str(number_1)}**'
+        number_1 = DEFAULT_WORD_LIMIT
     else:
-        # save number
-        save_fn(workflow_state.context, number)
-        # update chat history with number submitted
-        chat_history[-1][1] = f'**{str(number)}**'
-        # reset number
-        number = DEFAULT_NUMBER
+        values_to_save = [number_1, number_2]
+        chat_history[-1][1] = f'**{str(number_1)}**\n\n**{str(number_2)}**'
+        number_1 = DEFAULT_WORD_LIMIT
+        number_2 = 0
 
-    save_fn(workflow_state.context, to_save)
-    return user_message, number, chat_history, workflow_state
+    workflow_state.current_step.save_event_outcome_fn(workflow_state.context, *values_to_save)
+    return user_message, number_1, number_2, chat_history, workflow_state
 
 
 def handle_files_uploaded(
@@ -126,15 +125,19 @@ def create_component_wrappers(
         component=components[ComponentID.SUBMIT_USER_INPUT_BTN],
         handle_user_action={
             'fn': handle_submit,
-            'inputs': [components[ComponentID.USER_TEXT_BOX], components[ComponentID.NUMBER], components[ComponentID.CHATBOT], workflow_state],
-            'outputs': [components[ComponentID.USER_TEXT_BOX], components[ComponentID.NUMBER], components[ComponentID.CHATBOT], workflow_state]})
+            'inputs': [components[ComponentID.USER_TEXT_BOX], components[ComponentID.NUMBER_1], components[ComponentID.NUMBER_2], components[ComponentID.CHATBOT], workflow_state],
+            'outputs': [components[ComponentID.USER_TEXT_BOX], components[ComponentID.NUMBER_1], components[ComponentID.NUMBER_2], components[ComponentID.CHATBOT], workflow_state]})
 
     user_text_box = TextboxWrapper(
         component=components[ComponentID.USER_TEXT_BOX],
         handle_user_action=submit_btn.handle_user_action)
 
-    number = NumberWrapper(
-        component=components[ComponentID.NUMBER],
+    number_1 = NumberWrapper(
+        component=components[ComponentID.NUMBER_1],
         handle_user_action=submit_btn.handle_user_action)
 
-    return [btn1, btn2, upload_btn, submit_files_btn, clear_btn, submit_btn, user_text_box, number]
+    number_2 = NumberWrapper(
+        component=components[ComponentID.NUMBER_2],
+        handle_user_action=submit_btn.handle_user_action)
+
+    return [btn1, btn2, upload_btn, submit_files_btn, clear_btn, submit_btn, user_text_box, number_1, number_2]

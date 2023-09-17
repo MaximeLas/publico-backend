@@ -5,12 +5,11 @@ import tempfile
 from langchain.docstore.document import Document
 from langchain.vectorstores import Chroma
 
-from constants import ComponentLabel
+from constants import DEFAULT_NUM_OF_DOC_CHUNKS, DEFAULT_NUM_OF_TOKENS, IS_DEV_MODE, ComponentLabel
 
     
 @dataclass
 class ImplicitQuestion:
-    #index: int
     question: str
     answer: str | None = None
 
@@ -38,10 +37,20 @@ class FilesStorageContext:
     files: list[str] = field(default_factory=list)
     vector_store: Chroma = None
 
+
+@dataclass
+class TestConfigContext:
+    num_of_tokens_per_doc_chunk: int = 1000
+    dev_has_changed_num_of_tokens: bool = False
+    num_of_doc_chunks_to_consider: int = 4
+
+
+
 @dataclass
 class UserContext:
     uploaded_files: FilesStorageContext = field(default_factory=FilesStorageContext)
     questions: list[GrantApplicationQuestionContext] = field(default_factory=lambda: [GrantApplicationQuestionContext()])
+    test_config: TestConfigContext = field(default_factory=TestConfigContext) if IS_DEV_MODE else None
 
 
     def add_new_question(self):
@@ -62,6 +71,24 @@ class UserContext:
 
     def set_word_limit(self, word_limit: str):
         self.questions[-1].word_limit = word_limit
+
+
+    def set_num_of_tokens_and_doc_chunks(self, num_of_tokens: str, num_of_doc_chunks: str):
+        self.test_config.dev_has_changed_num_of_tokens = self.test_config.num_of_tokens_per_doc_chunk != num_of_tokens
+        self.test_config.num_of_tokens_per_doc_chunk = num_of_tokens
+        self.test_config.num_of_doc_chunks_to_consider = num_of_doc_chunks
+
+
+    def get_num_of_tokens_per_doc_chunk(self) -> int:
+        return self.test_config.num_of_tokens_per_doc_chunk if IS_DEV_MODE else DEFAULT_NUM_OF_TOKENS
+
+
+    def user_has_changed_num_of_tokens(self) -> bool:
+        return self.test_config.dev_has_changed_num_of_tokens
+
+
+    def get_num_of_doc_chunks_to_consider(self) -> int:
+        return self.test_config.num_of_doc_chunks_to_consider if IS_DEV_MODE else DEFAULT_NUM_OF_DOC_CHUNKS
 
 
     def set_do_check_for_comprehensiveness(self, yes_or_no: str):

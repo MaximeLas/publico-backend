@@ -1,4 +1,5 @@
 from enum import StrEnum, auto
+import os
 
 
 class StepID(StrEnum):
@@ -7,6 +8,10 @@ class StepID(StrEnum):
     UPLOAD_FILES = auto()
     ENTER_QUESTION = auto()
     ENTER_WORD_LIMIT = auto()
+    ENTER_RAG_CONFIG_ORIGINAL_QUESTION = auto()
+    ENTER_RAG_CONFIG_IMPLICIT_QUESTION = auto()
+    GO_BACK_TO_CONFIG_STEP_ORIGINAL_QUESTION = auto()
+    GO_BACK_TO_CONFIG_STEP_IMPLICIT_QUESTION = auto()
     DO_COMPREHENSIVENESS_CHECK = auto()
     # for each implicit question:
     DO_PROCEED_WITH_IMPLICIT_QUESTION = auto()
@@ -19,10 +24,12 @@ class StepID(StrEnum):
 
 
 class ComponentLabel(StrEnum):
-    CHATBOT = 'AI Grant Writing Coach'
+    CHATBOT = 'AI Grant Writing Coach 🚀'
     USER = 'User'
     SUBMIT = 'Submit'
-    NUMBER = 'Number'
+    WORD_LIMIT = 'Word Limit'
+    NUM_OF_TOKENS = '# Tokens'
+    NUM_OF_DOCS = '# Documents'
     EXAMPLES = 'Examples of grant application questions'
     START = 'I\'m ready!'
     YES = 'Yes'
@@ -32,12 +39,13 @@ class ComponentLabel(StrEnum):
     CLEAR = 'Clear'
     GOOD_AS_IS = 'Good as is!'
     EDIT_IT = 'Let me edit it'
-    OF_COURSE = 'Of course I\'m ready! 🚀'
+    OF_COURSE = 'Of course I\'m ready!'
 
 class ComponentID(StrEnum):
     CHATBOT = auto()
     USER_TEXT_BOX = auto()
-    NUMBER = auto()
+    NUMBER_1 = auto()
+    NUMBER_2 = auto()
     SUBMIT_USER_INPUT_BTN = auto()
     EXAMPLES = auto()
     BTN_1 = auto()
@@ -47,7 +55,9 @@ class ComponentID(StrEnum):
     CLEAR_FILES_BTN = auto()
     SUBMIT_FILES_BTN = auto()
 
-DEFAULT_NUMBER = 150
+DEFAULT_WORD_LIMIT = 150
+DEFAULT_NUM_OF_TOKENS = 1000
+DEFAULT_NUM_OF_DOC_CHUNKS = 4
 
 
 GRANT_APPLICATION_QUESTIONS_EXAMPLES = [
@@ -63,3 +73,5 @@ GRANT_APPLICATION_QUESTIONS_EXAMPLES = [
 ]
 
 PAGE_TITLE = "Publico.ai - Demo"
+
+IS_DEV_MODE = os.environ.get("DEV") != None and os.environ.get("DEV") == "1"

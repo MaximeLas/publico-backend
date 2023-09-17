@@ -10,6 +10,7 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import Chroma
 from langchain.vectorstores.base import VectorStore
+from constants import IS_DEV_MODE
 
 from settings import GPT_MODEL
 
@@ -274,7 +275,7 @@ def print_summary_of_relevant_documents_and_scored(docs: list[tuple[Document, fl
     debug(**{'Total token count of relevant documents': sum([doc.metadata["current_token_count"] for doc, _ in docs])})
 
 
-def get_vector_store_for_files(files: list[str]) -> VectorStore:
+def get_vector_store_for_files(files: list[str], tokens_per_doc_chunk=1000) -> VectorStore:
     '''
     Get vector store for files uploaded by user and return it
         Parameters:
@@ -293,11 +294,11 @@ def get_vector_store_for_files(files: list[str]) -> VectorStore:
     files_uploaded = set(file.rsplit('.', 1)[0] for file in files)
 
     # check if the uploaded files are different from the files in the vector store
-    if files_uploaded != files_in_vector_store:
+    if IS_DEV_MODE or files_uploaded != files_in_vector_store:
         # if so, get the documents chunks for the uploaded files
         documents_chunks = get_documents_chunks_for_files(
             files=files,
-            chunk_size=1000,
+            chunk_size=tokens_per_doc_chunk,
             chunk_overlap=150)
 
         # delete the current embeddings in the vector store

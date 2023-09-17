@@ -41,7 +41,8 @@ with gr.Blocks(css='custom.css', theme=gr.themes.Default(primary_hue=gr.themes.c
 
     chatbot = workflow_manager.get_component(ComponentID.CHATBOT)
     user_text_box_component = workflow_manager.get_component(ComponentID.USER_TEXT_BOX)
-    number_component = workflow_manager.get_component(ComponentID.NUMBER)
+    number_1_component = workflow_manager.get_component(ComponentID.NUMBER_1)
+    number_2_component = workflow_manager.get_component(ComponentID.NUMBER_2)
     submit_user_input_component = workflow_manager.get_component(ComponentID.SUBMIT_USER_INPUT_BTN)
     btn_1_component = workflow_manager.get_component(ComponentID.BTN_1)
     btn_2_component = workflow_manager.get_component(ComponentID.BTN_2)
@@ -61,7 +62,8 @@ with gr.Blocks(css='custom.css', theme=gr.themes.Default(primary_hue=gr.themes.c
     with gr.Row():
         with gr.Column():
             user_text_box_component.render()
-            number_component.render()
+            number_1_component.render()
+            number_2_component.render()
             submit_user_input_component.render()
             upload_files_btn_component.render()
             clear_files_btn_component.render()

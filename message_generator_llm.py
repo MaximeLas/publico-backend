@@ -7,6 +7,7 @@ from langchain.chains.openai_functions import create_openai_fn_chain, create_str
 from langchain.chat_models import ChatOpenAI
 
 from chatbot_step import MessageOutputType
+from constants import IS_DEV_MODE
 from context import ImplicitQuestion, UserContext
 from helpers import (
     get_most_relevant_docs_in_vector_store_for_answering_question,
@@ -31,7 +32,9 @@ def generate_answer_to_question_stream(context: UserContext) -> MessageOutputTyp
     '''Generate and stream an answer to a grant application question by streaming tokens from the LLM.'''
 
     # get the vector store for the uploaded files (will only update if files are not the same as before)
-    context.uploaded_files.vector_store = get_vector_store_for_files(context.uploaded_files.files)
+    context.uploaded_files.vector_store = get_vector_store_for_files(
+        files=context.uploaded_files.files,
+        tokens_per_doc_chunk=context.get_num_of_tokens_per_doc_chunk())
 
     question_context = context.questions[-1]
     if question_context.question is None:
@@ -41,7 +44,7 @@ def generate_answer_to_question_stream(context: UserContext) -> MessageOutputTyp
     question_context.most_relevant_documents = get_most_relevant_docs_in_vector_store_for_answering_question(
         vector_store=context.uploaded_files.vector_store,
         question=question_context.question,
-        n_results=4)
+        n_results=context.get_num_of_doc_chunks_to_consider())
 
     generated_answer = ''
     for _, llm_response in stream_from_llm_generation(
@@ -122,6 +125,11 @@ def generate_answer_for_implicit_question_stream(context: UserContext) -> Messag
     start_of_chatbot_message = 'Here\'s what I found in your documents to answer this question:'
     yield start_of_chatbot_message
 
+    if IS_DEV_MODE and context.user_has_changed_num_of_tokens():
+        context.uploaded_files.vector_store = get_vector_store_for_files(
+            files=context.uploaded_files.files,
+            tokens_per_doc_chunk=context.get_num_of_tokens_per_doc_chunk())
+
     most_relevant_documents = get_most_relevant_docs_in_vector_store_for_answering_question(
         vector_store=context.uploaded_files.vector_store, question=context.get_current_implicit_question(), n_results=4)
 
@@ -141,9 +149,6 @@ def generate_answer_for_implicit_question_stream(context: UserContext) -> Messag
 
     if 'Not enough information' not in answer:
         context.set_answer_to_current_implicit_question(answer)
-        yield chatbot_message + f'\n\nIs this helpful?'
-    else:
-        yield chatbot_message + f'\n\nWould you like to answer it yourself?'
 
 
 
