@@ -73,7 +73,7 @@ class WorkflowManager:
         return {
             ComponentID.CHATBOT: gr.Chatbot(
                 value=[["Welcome! 👋\n" +
-                    "I'm Publico, your personal grant writing coach.\n" +
+                    "I'm Publico, your personal grant writing coach.\n\n" +
                     "Are you ready to start writing together?", None]],
                 label=ComponentLabel.CHATBOT,
                 show_share_button=True,
@@ -148,7 +148,7 @@ class WorkflowManager:
             StepID.START: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
                     "Welcome! 👋\n" +
-                    "I'm Publico, your personal grant writing coach.\n" +
+                    "I'm Publico, your personal grant writing coach.\n\n" +
                     "Are you ready to start writing together?"),
                 next_step_decider=FixedStepDecider(StepID.HAVE_YOU_APPLIED_BEFORE),
                 components={ComponentID.BTN_1: dict(value=ComponentLabel.START, variant='primary')}
@@ -163,7 +163,7 @@ class WorkflowManager:
             ),
             StepID.UPLOAD_FILES: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "That's very useful! Please upload your documents below.\n" +
+                    "That's very useful! Please upload your documents below.\n\n" +
                     "Supported file types: **.docx** & **.txt**"),
                 next_step_decider=FixedStepDecider(StepID.ENTER_QUESTION),
                 components={
