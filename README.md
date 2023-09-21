@@ -53,8 +53,9 @@ sudo apt-get install ca-certificates curl gnupg
 sudo install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 sudo chmod a+r /etc/apt/keyrings/docker.gpg
-
-# Add the repository to Apt sources:
+```
+### Add the repository to Apt sources:
+```
 echo \
   "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
   "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
@@ -64,24 +65,30 @@ sudo apt-get update && sudo apt-get install docker-ce docker-ce-cli containerd.i
 
 5. Log in to registry.hf.space, pull the latest publicodemo-demo image, and run the app!
 
+
+#### login:    your username
+#### password: an Access Token you create for your account
+#### https://huggingface.co/docs/hub/spaces-run-with-docker
 ```
-# login:    your username
-# password: an Access Token you create for your account
-# https://huggingface.co/docs/hub/spaces-run-with-docker
 docker login registry.hf.space
+docker image pull registry.hf.space/publicodemo-demo:latest
 
 docker run -it -p 7860:7860 --platform=linux/amd64 \
 	-d \
-	-e OPENAI_API_KEY="YOUR_KEY_HERE" \
+	-e OPENAI_API_KEY=$OPENAI_API_KEY \
 	-e CREATE_LINK=true \
 	registry.hf.space/publicodemo-demo:latest python app.py
+```
 
-# Can also specify a different port
+### Can also specify a different port and/or set other optional environment vars
+```
 docker run -it -p 5050:5050 --platform=linux/amd64 \
 	-d \
-	-e OPENAI_API_KEY="YOUR_KEY_HERE" \
+	-e OPENAI_API_KEY=$OPENAI_API_KEY \
 	-e CREATE_LINK=true \
 	-e SERVER_PORT=5050 \
+	-e EXCLUDE_LOGO=true \
+	-e CHATBOT_HEIGHT=800 \
 	registry.hf.space/publicodemo-demo:latest python app.py
 ```
 
