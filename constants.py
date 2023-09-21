@@ -75,3 +75,5 @@ GRANT_APPLICATION_QUESTIONS_EXAMPLES = [
 PAGE_TITLE = "Publico.ai - Demo"
 
 IS_DEV_MODE = os.environ.get("DEV") != None and os.environ.get("DEV") == "1"
+
+CHATBOT_HEIGHT = int(os.getenv('CHATBOT_HEIGHT', 700))

@@ -36,8 +36,10 @@ from constants import (
 workflow_manager = WorkflowManager()
 
 with gr.Blocks(css='custom.css', theme=gr.themes.Default(primary_hue=gr.themes.colors.lime), title=PAGE_TITLE) as demo:
-    title_value = '''<h1><img src="file/publico_logo_no_circle.jpeg"></h1>'''
-    title = gr.HTML(value=title_value, elem_id='title')
+    if os.getenv("EXCLUDE_LOGO", 'False').lower() in ('false', 'f', '0'):
+        title = gr.HTML(
+            value='''<h1><img src="file/publico_logo_no_circle.jpeg"></h1>''',
+            elem_id='title')
 
     chatbot = workflow_manager.get_component(ComponentID.CHATBOT)
     user_text_box_component = workflow_manager.get_component(ComponentID.USER_TEXT_BOX)
@@ -154,12 +156,8 @@ with gr.Blocks(css='custom.css', theme=gr.themes.Default(primary_hue=gr.themes.c
 
 
 if __name__ == '__main__':
-    server_port = 7860
-    if os.environ.get("SERVER_PORT") != None:
-        server_port = int(os.environ.get("SERVER_PORT"))
-
-    create_link = False
-    if os.environ.get("CREATE_LINK") != None:
-        create_link = bool(os.environ.get("CREATE_LINK"))
-
-    demo.queue().launch(favicon_path='./favicon.ico', share=create_link, server_port=server_port)
+    demo.queue().launch(
+        favicon_path='./favicon.ico',
+        server_port=int(os.getenv('SERVER_PORT', 7860)),
+        share=os.getenv('CREATE_LINK', 'False').lower() in ('true', 't', '1')
+    )

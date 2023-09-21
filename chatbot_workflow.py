@@ -7,6 +7,7 @@ from gradio.blocks import Block
 
 from chatbot_step import ChatbotStep, InitialChatbotMessage
 from constants import (
+    CHATBOT_HEIGHT,
     DEFAULT_NUM_OF_DOC_CHUNKS,
     DEFAULT_NUM_OF_TOKENS,
     DEFAULT_WORD_LIMIT,
@@ -72,13 +73,13 @@ class WorkflowManager:
     def initialize_components(self) -> dict[str, Block]:
         return {
             ComponentID.CHATBOT: gr.Chatbot(
-                value=[["Welcome! 👋\n" +
+                value=[["Welcome! 👋\n\n" +
                     "I'm Publico, your personal grant writing coach.\n\n" +
                     "Are you ready to start writing together?", None]],
                 label=ComponentLabel.CHATBOT,
                 show_share_button=True,
                 show_copy_button=True,
-                height=600
+                height=CHATBOT_HEIGHT
             ),
             ComponentID.USER_TEXT_BOX: gr.Textbox(
                 label=ComponentLabel.USER,
@@ -147,7 +148,7 @@ class WorkflowManager:
         return {
             StepID.START: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "Welcome! 👋\n" +
+                    "Welcome! 👋\n\n" +
                     "I'm Publico, your personal grant writing coach.\n\n" +
                     "Are you ready to start writing together?"),
                 next_step_decider=FixedStepDecider(StepID.HAVE_YOU_APPLIED_BEFORE),
