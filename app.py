@@ -2,6 +2,7 @@ from functools import partial
 import logging
 import time
 import os
+import warnings
 
 import gradio as gr
 
@@ -156,6 +157,7 @@ with gr.Blocks(css='custom.css', theme=gr.themes.Default(primary_hue=gr.themes.c
 
 
 if __name__ == '__main__':
+    warnings.filterwarnings('ignore') # ignore the gr.update deprecated warnings
     demo.queue().launch(
         favicon_path='./favicon.ico',
         server_port=int(os.getenv('SERVER_PORT', 7860)),

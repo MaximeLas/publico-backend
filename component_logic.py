@@ -15,7 +15,7 @@ def handle_btn_clicked(
     chat_history: list[list],
     workflow_state: WorkflowState
 ):
-    chat_history[-1][1] = f'**{btn_label}**'
+    chat_history += [[f'**{btn_label}**', None]]
 
     text_box = workflow_state.context.get_answer_of_current_implicit_question() if btn_label == ComponentLabel.EDIT_IT else gr.skip()
 
@@ -35,21 +35,24 @@ def handle_submit(
     values_to_save: list[str | int]
 
     # check which input was submitted
+    input_submitted: str
     if user_message != '':
         values_to_save = [user_message]
-        chat_history[-1][1] = f'**{user_message}**'
+        input_submitted = f'**{user_message}**'
         user_message = None
     elif number_2 == 0:
         values_to_save = [number_1]
-        chat_history[-1][1] = f'**{str(number_1)}**'
+        input_submitted = f'**{str(number_1)}**'
         number_1 = DEFAULT_WORD_LIMIT
     else:
         values_to_save = [number_1, number_2]
-        chat_history[-1][1] = f'**{str(number_1)}**\n\n**{str(number_2)}**'
+        input_submitted = f'**{str(number_1)}**\n\n**{str(number_2)}**'
         number_1 = DEFAULT_WORD_LIMIT
         number_2 = 0
 
+    chat_history += [[input_submitted, None]]
     workflow_state.current_step.save_event_outcome_fn(workflow_state.context, *values_to_save)
+
     return user_message, number_1, number_2, chat_history, workflow_state
 
 
@@ -69,7 +72,7 @@ def handle_files_uploaded(
 
     debug(**{'Total files uploaded so far': len(all_files)})
 
-    return all_files, gr.update(interactive=True), gr.update(interactive=True)
+    return all_files, gr.Button(interactive=True), gr.ClearButton(interactive=True)
 
 
 def handle_files_submitted(
@@ -118,7 +121,7 @@ def create_component_wrappers(
     clear_btn = ClearButtonWrapper(
         component=components[ComponentID.CLEAR_FILES_BTN],
         handle_user_action={
-            'fn': lambda: [gr.update(interactive=False)] * 2,
+            'fn': lambda: [gr.Button(interactive=False), gr.ClearButton(interactive=False)],
             'outputs': [components[ComponentID.SUBMIT_FILES_BTN], components[ComponentID.CLEAR_FILES_BTN]]})
 
     submit_btn = ButtonWrapper(

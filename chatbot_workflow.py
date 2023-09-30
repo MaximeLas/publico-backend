@@ -73,13 +73,14 @@ class WorkflowManager:
     def initialize_components(self) -> dict[str, Block]:
         return {
             ComponentID.CHATBOT: gr.Chatbot(
-                value=[["Welcome! 👋\n\n" +
+                value=[[None, "Welcome! 👋\n\n" +
                     "I'm Publico, your personal grant writing coach.\n\n" +
-                    "Are you ready to start writing together?", None]],
+                    "Are you ready to start writing together?"]],
                 label=ComponentLabel.CHATBOT,
                 show_share_button=True,
                 show_copy_button=True,
-                height=CHATBOT_HEIGHT
+                height=CHATBOT_HEIGHT,
+                bubble_full_width=False
             ),
             ComponentID.USER_TEXT_BOX: gr.Textbox(
                 label=ComponentLabel.USER,
@@ -393,7 +394,7 @@ def get_initial_chatbot_message(workflow_state: WorkflowState) -> Iterator[list[
     '''Append the initial message of the current step to the chat history'''
 
     for chatbot_message in workflow_state.current_step.initial_chatbot_message.get_formatted_message(workflow_state.context):
-        yield [[chatbot_message, None]]
+        yield [[None, chatbot_message]]
 
 
 def generate_chatbot_messages_from_trigger(

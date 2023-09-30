@@ -25,10 +25,10 @@ def create_new_chatbot_messages_from_response(response: str | list[str]) -> list
     '''Create new chatbot messages from a response.'''
 
     new_chatbot_messages = (
-        [(response, None)]
+        [(None, response)]
             if isinstance(response, str)
             else
-        [(message, None) for message in response]
+        [(None, message) for message in response]
     )
 
     return new_chatbot_messages
