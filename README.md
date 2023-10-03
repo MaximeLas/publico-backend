@@ -15,95 +15,134 @@ Check out the configuration reference at https://huggingface.co/docs/hub/spaces-
 
 # Publico.ai Demo
 
-## To run locally
+🚀 Check out the live demo at [Hugging Face Spaces](https://huggingface.co/spaces/PublicoDemo/Demo)
 
-```
+This project implements an interactive conversational chatbot to guide users through answering grant application questions.
+
+## Description
+
+The chatbot leads users through key stages like:
+
+- Uploading documents
+- Entering questions
+- Checking comprehensiveness
+- Generating final answers
+
+It utilizes a `WorkflowManager` to handle state and progression between steps.
+
+Responses are generated using LLMs like GPT-3.5-Turbo and GPT-4 via LangChain. Answers are constructed by ingesting and searching through the user's uploaded documents.
+
+The system aims to create high quality grant application answers that cover all required aspects.
+
+## Architecture
+
+The app is structured into several key architectural groups:
+
+### Workflow Management
+
+- `chatbot_step.py`
+- `chatbot_workflow.py`
+- `step_decider.py`
+
+These modules handle the definition of workflow steps, managing state and transitions between steps, and deciding the next step.
+
+### Chatbot UI
+
+- `app.py`
+- `component_logic.py`
+- `component_wrapper.py`
+
+Launch the Gradio UI, handle component events and logic, and wrap components for extensibility.
+
+### Context Tracking
+
+- `context.py`
+
+Tracks workflow state like user documents, questions, and answers.
+
+### Response Generation
+
+- `message_generator_*.py`
+- `prompts.py`
+
+Functions that generate chatbot responses via different approaches like LLMs. Also contains prompt engineering.
+
+### LLM Integration
+
+- `llm_streaming_utils.py`
+- `openai_functions_utils.py`
+
+Utilities for streaming text generation from LLMs and using advanced capabilities like OpenAI Functions.
+
+### Document Processing
+
+- `helpers.py`
+
+Helper methods for ingesting, splitting, embedding, and searching user documents to construct answers.
+
+
+## Usage
+
+### Local
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
-python app.py
+python3 app.py
 ```
 
-## To launch in AWS EC2
+### Docker
 
-1. Download the private key in this repo – `01-publico-ai-demo--key-pair.pem` – and change its access permissions:
+1. Download the private key in this repo `01-publico-ai-demo--key-pair.pem` and change its access permissions:
 
-```
+```bash
+cd <directory-where-pem-file-is>
 chmod 400 01-publico-ai-demo--key-pair.pem
 ```
 
-2. Open terminal session locally:
+2. SSH into the EC2 instance:
 
-```
-cd <directory-where-pem-file-is>
-
+```bash
 ssh -i "01-publico-ai-demo--key-pair.pem" ubuntu@ec2-54-219-71-193.us-west-1.compute.amazonaws.com
 ```
 
-3. Once logged in change to superuser:
-
-```
+3. Change to superuser:
+```bash
 sudo su
 ```
 
-4. Make sure docker is installed. If it's not, you can follow [these docs](https://docs.docker.com/engine/install/ubuntu/):
+4. Login to Docker registry:
 
-```
-for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do sudo apt-get remove $pkg; done && # Add Docker's official GPG key:
-sudo apt-get update
-sudo apt-get install ca-certificates curl gnupg
-sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-sudo chmod a+r /etc/apt/keyrings/docker.gpg
-```
-### Add the repository to Apt sources:
-```
-echo \
-  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-sudo apt-get update && sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin && sudo docker run hello-world
-```
-
-5. Log in to registry.hf.space, pull the latest publicodemo-demo image, and run the app!
-
-
-#### login:    your username
-#### password: an Access Token you create for your account
-#### https://huggingface.co/docs/hub/spaces-run-with-docker
-```
+```bash
 docker login registry.hf.space
-docker image pull registry.hf.space/publicodemo-demo:latest
-
-docker run -it -p 7860:7860 --platform=linux/amd64 \
-	-d \
-	-e OPENAI_API_KEY=$OPENAI_API_KEY \
-	-e CREATE_LINK=true \
-	registry.hf.space/publicodemo-demo:latest python app.py
 ```
 
-### Can also specify a different port and/or set other optional environment vars
+5. Pull latest image and run:
+
+```bash
+docker pull registry.hf.space/publicodemo-demo:latest
+
+docker run -it -p 7860:7860 --platform linux/amd64 \
+  -d \
+  -e OPENAI_API_KEY=$OPENAI_API_KEY \
+  -e CREATE_LINK=true \
+  registry.hf.space/publicodemo-demo:latest python app.py
 ```
-docker run -it -p 5050:5050 --platform=linux/amd64 \
-	-d \
-	-e OPENAI_API_KEY=$OPENAI_API_KEY \
-	-e CREATE_LINK=true \
-	-e SERVER_PORT=5050 \
-	-e EXCLUDE_LOGO=true \
-	-e CHATBOT_HEIGHT=800 \
-	registry.hf.space/publicodemo-demo:latest python app.py
-```
 
-## To view container logs in AWS EC2
+6. View logs:
 
-1. SSH into EC2.
-
-2. Check which container is running the image you want by listing all the logs.
-
-```
+```bash
 docker container ls
+docker logs <container_id>
 ```
 
-3. Output the logs
+### Configuration
 
-```
-docker logs d54dfdf72f1d
+Other environment variables can be set:
+
+```bash
+-e SERVER_PORT=5050 \
+-e EXCLUDE_LOGO=true \
+-e CHATBOT_HEIGHT=800
 ```
