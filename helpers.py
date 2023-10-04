@@ -10,9 +10,7 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import Chroma
 from langchain.vectorstores.base import VectorStore
-from constants import IS_DEV_MODE
-
-from settings import GPT_MODEL
+from constants import IS_DEV_MODE, GPT_MODEL
 
 
 def print_pretty_index(index: int):

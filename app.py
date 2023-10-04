@@ -28,9 +28,7 @@ from constants import (
     ComponentLabel,
     StepID,
     GRANT_APPLICATION_QUESTIONS_EXAMPLES,
-    PAGE_TITLE
-)
-from settings import (
+    PAGE_TITLE,
     SERVER_PORT,
     CREATE_LINK,
     EXCLUDE_LOGO

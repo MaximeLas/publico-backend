@@ -1,5 +1,7 @@
 from enum import StrEnum, auto
+import os
 
+from gradio import utils
 
 
 class StepID(StrEnum):
@@ -73,3 +75,13 @@ GRANT_APPLICATION_QUESTIONS_EXAMPLES = [
 ]
 
 PAGE_TITLE = "Publico.ai - Demo"
+
+GPT_MODEL = 'gpt-4' if os.getenv('GPT_MODEL', 'gpt-4') not in ('3.5', 'gpt-3.5', 'gpt-3.5-turbo') else 'gpt-3.5-turbo'
+IS_DEV_MODE = os.getenv('DEV', 'False').lower() in ('true', 't', '1', 'yes')
+
+SERVER_PORT = int(os.getenv('SERVER_PORT', 7860))
+CREATE_LINK = utils.get_space() is None and os.getenv('CREATE_LINK', 'True').lower() in ('true', 't', '1', 'yes')
+EXCLUDE_LOGO = os.getenv("EXCLUDE_LOGO", 'False').lower() in ('true', 't', '1', 'yes')
+
+CHATBOT_HEIGHT = int(os.getenv('CHATBOT_HEIGHT', 700))
+CHATBOT_LAYOUT = 'bubble' if os.getenv('CHATBOT_LAYOUT', 'panel').lower() in ('bubble', 'b') else 'panel'

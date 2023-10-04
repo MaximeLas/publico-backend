@@ -7,14 +7,13 @@ from langchain.chains.openai_functions import create_openai_fn_chain, create_str
 from langchain.chat_models import ChatOpenAI
 
 from chatbot_step import MessageOutputType
-from constants import IS_DEV_MODE
+from constants import IS_DEV_MODE, GPT_MODEL
 from context import ImplicitQuestion, UserContext
 from helpers import (
     get_most_relevant_docs_in_vector_store_for_answering_question,
     get_vector_store_for_files
 )
 from llm_streaming_utils import stream_from_llm_generation
-from settings import GPT_MODEL
 from openai_functions_utils import (
     function_for_comprehensiveness_check,
     get_json_schema_for_comprehensiveness_check
