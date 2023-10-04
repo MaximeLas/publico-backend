@@ -34,6 +34,7 @@ from constants import (
     EXCLUDE_LOGO
 )
 
+from settings import update_sqlite3_if_necessary
 
 
 # create a workflow manager which contains all the chatbot steps and keeps track of the current step as well as the user context
@@ -162,7 +163,9 @@ with gr.Blocks(css='custom.css', theme=gr.themes.Default(primary_hue=gr.themes.c
 
 
 if __name__ == '__main__':
+    update_sqlite3_if_necessary()
     warnings.filterwarnings('ignore') # ignore the gr.update deprecated warnings
+
     demo.queue().launch(
         favicon_path='./favicon.ico',
         server_port=SERVER_PORT,
