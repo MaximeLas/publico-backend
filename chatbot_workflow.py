@@ -82,7 +82,7 @@ class WorkflowManager:
                 show_copy_button=True,
                 height=CHATBOT_HEIGHT,
                 bubble_full_width=False,
-                avatar_images=(None, 'logo192.png'),
+                avatar_images=(None, './logo192.png'),
                 layout=CHATBOT_LAYOUT
             ),
             ComponentID.USER_TEXT_BOX: gr.Textbox(

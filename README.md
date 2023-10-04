@@ -148,4 +148,5 @@ Other environment variables can be set:
 -e EXCLUDE_LOGO=true \
 -e CHATBOT_HEIGHT=800
 -e CHATBOT_LAYOUT="bubble"
+-e GPT_MODEL="gpt-3.5"
 ```
