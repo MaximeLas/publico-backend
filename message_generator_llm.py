@@ -114,7 +114,7 @@ def check_for_comprehensiveness(context: UserContext, use_json_schema: bool = Fa
     implicit_questions = ''
     for i, q in comprehensiveness_context.implicit_questions.items():
         time.sleep(0.25)
-        implicit_questions += f'(**{i}**) **{q.question}**\n\n'
+        implicit_questions += f'(**{i}**) **{q.question}**\n'
         yield [hang_on_message, f'*{comprehensiveness_context.missing_information}*', implicit_questions]
 
 
@@ -187,7 +187,7 @@ def generate_final_answer_stream(context: UserContext) -> MessageOutputType:
         chain_type='llm_chain',
         verbose=True,
         question=question_context.question,
-        answers_to_implicit_questions='\n\n'.join([q.answer for q in implicit_questions_answered.values()]),
+        answers_to_implicit_questions='\n'.join([q.answer for q in implicit_questions_answered.values()]),
         word_limit=question_context.word_limit,
         original_answer=question_context.answer
     ):

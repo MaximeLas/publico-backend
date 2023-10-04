@@ -46,7 +46,7 @@ def handle_submit(
         number_1 = DEFAULT_WORD_LIMIT
     else:
         values_to_save = [number_1, number_2]
-        input_submitted = f'**{str(number_1)}**\n\n**{str(number_2)}**'
+        input_submitted = f'**{str(number_1)}**\n**{str(number_2)}**'
         number_1 = DEFAULT_WORD_LIMIT
         number_2 = 0
 

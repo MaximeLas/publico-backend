@@ -8,6 +8,7 @@ from gradio.blocks import Block
 from chatbot_step import ChatbotStep, InitialChatbotMessage
 from constants import (
     CHATBOT_HEIGHT,
+    CHATBOT_LAYOUT,
     DEFAULT_NUM_OF_DOC_CHUNKS,
     DEFAULT_NUM_OF_TOKENS,
     DEFAULT_WORD_LIMIT,
@@ -73,14 +74,16 @@ class WorkflowManager:
     def initialize_components(self) -> dict[str, Block]:
         return {
             ComponentID.CHATBOT: gr.Chatbot(
-                value=[[None, "Welcome! 👋\n\n" +
-                    "I'm Publico, your personal grant writing coach.\n\n" +
+                value=[[None, "Welcome! 👋\n" +
+                    "I'm Publico, your personal grant writing coach.\n" +
                     "Are you ready to start writing together?"]],
                 label=ComponentLabel.CHATBOT,
                 show_share_button=True,
                 show_copy_button=True,
                 height=CHATBOT_HEIGHT,
-                bubble_full_width=False
+                bubble_full_width=False,
+                avatar_images=(None, 'logo192.png'),
+                layout=CHATBOT_LAYOUT
             ),
             ComponentID.USER_TEXT_BOX: gr.Textbox(
                 label=ComponentLabel.USER,
@@ -149,8 +152,8 @@ class WorkflowManager:
         return {
             StepID.START: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "Welcome! 👋\n\n" +
-                    "I'm Publico, your personal grant writing coach.\n\n" +
+                    "Welcome! 👋\n" +
+                    "I'm Publico, your personal grant writing coach.\n" +
                     "Are you ready to start writing together?"),
                 next_step_decider=FixedStepDecider(StepID.HAVE_YOU_APPLIED_BEFORE),
                 components={ComponentID.BTN_1: dict(value=ComponentLabel.START, variant='primary')}
@@ -165,7 +168,7 @@ class WorkflowManager:
             ),
             StepID.UPLOAD_FILES: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "That's very useful! Please upload your documents below.\n\n" +
+                    "That's very useful! Please upload your documents below.\n" +
                     "Supported file types: **.docx** & **.txt**"),
                 next_step_decider=FixedStepDecider(StepID.ENTER_QUESTION),
                 components={
@@ -198,7 +201,7 @@ class WorkflowManager:
             ),
             StepID.ENTER_RAG_CONFIG_ORIGINAL_QUESTION: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "How many tokens at most should be included in a single document chunk?\n\n" +
+                    "How many tokens at most should be included in a single document chunk?\n" +
                     "How many chunks sould be selected in the similarity check step?"),
                 next_step_decider=FixedStepDecider(StepID.GO_BACK_TO_CONFIG_STEP_ORIGINAL_QUESTION),
                 components={
@@ -230,7 +233,7 @@ class WorkflowManager:
             ),
             StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    message="(**{index}**) **{question}**\n\n" +
+                    message="(**{index}**) **{question}**\n" +
                         "Does this question address a topic or information that should be incorporated into the final answer?",
                     extract_formatting_variables_func=lambda context: (yield {
                         'question': context.get_next_implicit_question(),
@@ -258,7 +261,7 @@ class WorkflowManager:
             ),
             StepID.ENTER_RAG_CONFIG_IMPLICIT_QUESTION: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "How many tokens at most should be included in a single document chunk?\n\n" +
+                    "How many tokens at most should be included in a single document chunk?\n" +
                     "How many chunks sould be selected in the similarity check step?"),
                 next_step_decider=FixedStepDecider(StepID.GO_BACK_TO_CONFIG_STEP_IMPLICIT_QUESTION),
                 components={
@@ -333,7 +336,7 @@ class WorkflowManager:
             ),
             StepID.READY_TO_GENERATE_FINAL_ANSWER: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "We're done with the implicit questions! 🏁\n\n" +
+                    "We're done with the implicit questions! 🏁\n" +
                     "Are you ready to have your final answer generated?"),
                 next_step_decider=FixedStepDecider(StepID.DO_ANOTHER_QUESTION),
                 components={ComponentID.BTN_1: dict(value=ComponentLabel.OF_COURSE, variant='primary')},

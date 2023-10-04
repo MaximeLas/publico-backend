@@ -28,7 +28,10 @@ from constants import (
     ComponentLabel,
     StepID,
     GRANT_APPLICATION_QUESTIONS_EXAMPLES,
-    PAGE_TITLE
+    PAGE_TITLE,
+    SERVER_PORT,
+    CREATE_LINK,
+    EXCLUDE_LOGO
 )
 
 
@@ -37,10 +40,8 @@ from constants import (
 workflow_manager = WorkflowManager()
 
 with gr.Blocks(css='custom.css', theme=gr.themes.Default(primary_hue=gr.themes.colors.lime), title=PAGE_TITLE) as demo:
-    if os.getenv("EXCLUDE_LOGO", 'False').lower() in ('false', 'f', '0'):
-        title = gr.HTML(
-            value='''<h1><img src="file/publico_logo_no_circle.jpeg"></h1>''',
-            elem_id='title')
+    if not EXCLUDE_LOGO:
+        title = gr.HTML( value='<h1><img src="file/publico_logo_no_circle.jpeg"></h1>', elem_id='title')
 
     chatbot = workflow_manager.get_component(ComponentID.CHATBOT)
     user_text_box_component = workflow_manager.get_component(ComponentID.USER_TEXT_BOX)
@@ -155,11 +156,15 @@ with gr.Blocks(css='custom.css', theme=gr.themes.Default(primary_hue=gr.themes.c
             outputs=[workflow_state, *(list(workflow_manager.components.values()))]
         )
 
+    @chatbot.like(inputs=None, outputs=None)
+    def vote(data: gr.LikeData):
+        print(f'You {"upvoted" if data.liked else "downvoted"} this response:\n{data.value}\n')
+
 
 if __name__ == '__main__':
     warnings.filterwarnings('ignore') # ignore the gr.update deprecated warnings
     demo.queue().launch(
         favicon_path='./favicon.ico',
-        server_port=int(os.getenv('SERVER_PORT', 7860)),
-        share=os.getenv('CREATE_LINK', 'False').lower() in ('true', 't', '1')
+        server_port=SERVER_PORT,
+        share=CREATE_LINK
     )

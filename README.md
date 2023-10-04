@@ -5,7 +5,7 @@ colorFrom: green
 colorTo: gray
 sdk: gradio
 python_version: 3.11.2
-sdk_version: 3.45.2
+sdk_version: 3.46.1
 app_file: app.py
 pinned: true
 fullWidth: true
@@ -143,6 +143,9 @@ Other environment variables can be set:
 
 ```bash
 -e SERVER_PORT=5050 \
+-e DEV=true \
+-e CREATE_LINK=false \
 -e EXCLUDE_LOGO=true \
 -e CHATBOT_HEIGHT=800
+-e CHATBOT_LAYOUT="bubble"
 ```
