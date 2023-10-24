@@ -7,29 +7,16 @@ from langchain.schema.messages import (
     HumanMessage,
     SystemMessage
 )
-
-
-
-def get_prompt_template_for_generating_original_answer() -> ChatPromptTemplate:
+    
+def get_prompt_template_for_generating_original_answer(system_prompt:str) -> ChatPromptTemplate:
     '''
     Get a prompt template for a chat model to answer grant application question from documents
         Returns:
             ChatPromptTemplate: prompt template for chat model to answer question
     '''
-    
-    system_template = (
-        'You are going to help a nonprofit organization that is applying for a grant.\n'
-        'Use the following pieces of context to respond to a grant application question '
-        'in a way that provides a compelling and comprehensive answer from the perspective '
-        'of a nonprofit organization applying for grant funding.\n'
-        '----------------\n'
-        '{context}'
-        '----------------\n'
-        'Make sure to comply with the word limit stated in parentheses at the end of the grant application question as this is crucial!'
-    )
 
     messages = [
-        SystemMessagePromptTemplate.from_template(system_template),
+        SystemMessagePromptTemplate.from_template(system_prompt),
         HumanMessagePromptTemplate.from_template('{question} ({word_limit} words)'),
     ]
 
@@ -68,24 +55,15 @@ def get_prompt_template_for_comprehensiveness_check_openai_functions() -> ChatPr
     return ChatPromptTemplate(messages=prompt_msgs, input_variables=["question", "answer"])
 
 
-def get_prompt_template_for_generating_answer_to_implicit_question() -> ChatPromptTemplate:
+def get_prompt_template_for_generating_answer_to_implicit_question(system_prompt:str) -> ChatPromptTemplate:
     '''
     Get a prompt template for a chat model to answer an implicit question
         Returns:
             ChatPromptTemplate: prompt template for chat model to answer implicit question
     '''
 
-    system_template = (
-        'You are a grantwriting expert who will be helping a non-profit organization applying for a grant. '
-        'Please provide your best answer to the following question using the context provided. '
-        'Be as concise as possible, using at most one or two lines. '
-        'If you can\'t answer the question, don\'t make something up and simply answer the words \'Not enough information provided.\'.\n'
-        '----------------\n'
-        '{context}'
-    )
-
     messages = [
-        SystemMessagePromptTemplate.from_template(system_template),
+        SystemMessagePromptTemplate.from_template(system_prompt),
         HumanMessagePromptTemplate.from_template('{question}'),
     ]
 

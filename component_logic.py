@@ -6,7 +6,7 @@ from gradio.blocks import Block
 
 from chatbot_workflow import WorkflowState
 from component_wrapper import ButtonWrapper, ClearButtonWrapper, ComponentWrapper, NumberWrapper, TextboxWrapper, UploadButtonWrapper
-from constants import DEFAULT_WORD_LIMIT, ComponentID, ComponentLabel
+from constants import DEFAULT_WORD_LIMIT, ComponentID, ComponentLabel, StepID
 
 
 
@@ -36,17 +36,19 @@ def handle_submit(
 
     # check which input was submitted
     input_submitted: str
-    if user_message != '':
+
+    if workflow_state.current_step_id == StepID.ENTER_QUESTION:
         values_to_save = [user_message]
         input_submitted = f'**{user_message}**'
         user_message = None
-    elif number_2 == 0:
+    elif workflow_state.current_step_id == StepID.ENTER_WORD_LIMIT:
         values_to_save = [number_1]
         input_submitted = f'**{str(number_1)}**'
         number_1 = DEFAULT_WORD_LIMIT
-    else:
-        values_to_save = [number_1, number_2]
-        input_submitted = f'**{str(number_1)}**\n**{str(number_2)}**'
+    elif workflow_state.current_step_id == StepID.ENTER_RAG_CONFIG_ORIGINAL_QUESTION or workflow_state.current_step_id == StepID.ENTER_RAG_CONFIG_IMPLICIT_QUESTION:
+        values_to_save = [user_message, number_1, number_2]
+        input_submitted = f'**{str(user_message)}**\n**{str(number_1)}**\n**{str(number_2)}**'
+        user_message = None
         number_1 = DEFAULT_WORD_LIMIT
         number_2 = 0
 

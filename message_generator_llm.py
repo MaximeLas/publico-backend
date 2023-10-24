@@ -47,7 +47,7 @@ def generate_answer_to_question_stream(context: UserContext) -> MessageOutputTyp
 
     generated_answer = ''
     for _, llm_response in stream_from_llm_generation(
-        prompt=get_prompt_template_for_generating_original_answer(),
+        prompt=get_prompt_template_for_generating_original_answer(context.get_system_prompt_for_original_question()),
         chain_type='qa_chain',
         verbose=False,
         docs=question_context.most_relevant_documents,
@@ -135,7 +135,7 @@ def generate_answer_for_implicit_question_stream(context: UserContext) -> Messag
     chatbot_message = start_of_chatbot_message
     answer = ''
     for _, llm_response in stream_from_llm_generation(
-        prompt=get_prompt_template_for_generating_answer_to_implicit_question(),
+        prompt=get_prompt_template_for_generating_answer_to_implicit_question(context.get_system_prompt_for_implicit_question()),
         chain_type='qa_chain',
         model='gpt-3.5-turbo',
         verbose=False,
