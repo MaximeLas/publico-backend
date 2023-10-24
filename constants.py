@@ -32,6 +32,7 @@ class ComponentLabel(StrEnum):
     WORD_LIMIT = 'Word Limit'
     NUM_OF_TOKENS = '# Tokens'
     NUM_OF_DOCS = '# Documents'
+    PROMPT = 'Prompt'
     EXAMPLES = 'Examples of grant application questions'
     START = 'I\'m ready!'
     YES = 'Yes'
@@ -85,3 +86,23 @@ EXCLUDE_LOGO = os.getenv("EXCLUDE_LOGO", 'False').lower() in ('true', 't', '1', 
 
 CHATBOT_HEIGHT = int(os.getenv('CHATBOT_HEIGHT', 700))
 CHATBOT_LAYOUT = 'bubble' if os.getenv('CHATBOT_LAYOUT', 'panel').lower() in ('bubble', 'b') else 'panel'
+
+SYSTEM_TEMPLATE_FOR_GENERATING_ANSWER_TO_ORIGINAL_QUESTION = (
+        'You are going to help a nonprofit organization that is applying for a grant.\n'
+        'Use the following pieces of context to respond to a grant application question '
+        'in a way that provides a compelling and comprehensive answer from the perspective '
+        'of a nonprofit organization applying for grant funding.\n'
+        '----------------\n'
+        '{context}\n'
+        '----------------\n'
+        'Make sure to comply with the word limit stated in parentheses at the end of the grant application question as this is crucial!'
+    )
+
+SYSTEM_TEMPLATE_FOR_GENERATING_ANSWER_TO_IMPLICIT_QUESTION = (
+        'You are a grantwriting expert who will be helping a non-profit organization applying for a grant. '
+        'Please provide your best answer to the following question using the context provided. '
+        'Be as concise as possible, using at most one or two lines. '
+        'If you can\'t answer the question, don\'t make something up and simply answer the words \'Not enough information provided.\'.\n'
+        '----------------\n'
+        '{context}'
+    )
