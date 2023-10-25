@@ -15,7 +15,9 @@ from constants import (
     IS_DEV_MODE,
     ComponentID,
     ComponentLabel,
-    StepID
+    StepID,
+    SYSTEM_PROMPT_FOR_ANSWERING_ORIGINAL_QUESTION,
+    SYSTEM_PROMPT_FOR_ANSWERING_IMPLICIT_QUESTION,
 )
 from context import UserContext
 from message_generator_llm import (
@@ -201,14 +203,17 @@ class WorkflowManager:
             ),
             StepID.ENTER_RAG_CONFIG_ORIGINAL_QUESTION: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "How many tokens at most should be included in a single document chunk?\n" +
-                    "How many chunks sould be selected in the similarity check step?"),
+                    "1) What system prompt should be used to generate the answer?\n" +
+                    "2) How many tokens at most should be included in a single document chunk?\n" +
+                    "3) How many chunks sould be selected in the similarity check step?"),
                 next_step_decider=FixedStepDecider(StepID.GO_BACK_TO_CONFIG_STEP_ORIGINAL_QUESTION),
                 components={
+                    ComponentID.USER_TEXT_BOX: dict(
+                        value=SYSTEM_PROMPT_FOR_ANSWERING_ORIGINAL_QUESTION, label=ComponentLabel.SYSTEM_PROMPT),
                     ComponentID.NUMBER_1: dict(value=DEFAULT_NUM_OF_TOKENS, label=ComponentLabel.NUM_OF_TOKENS),
                     ComponentID.NUMBER_2: dict(value=DEFAULT_NUM_OF_DOC_CHUNKS, label=ComponentLabel.NUM_OF_DOCS),
                     ComponentID.SUBMIT_USER_INPUT_BTN: {}},
-                save_event_outcome_fn=UserContext.set_num_of_tokens_and_doc_chunks,
+                save_event_outcome_fn=UserContext.set_test_config_params,
                 generate_chatbot_messages_fns=[
                     generate_answer_to_question_stream]
             ),
@@ -261,14 +266,17 @@ class WorkflowManager:
             ),
             StepID.ENTER_RAG_CONFIG_IMPLICIT_QUESTION: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "How many tokens at most should be included in a single document chunk?\n" +
-                    "How many chunks sould be selected in the similarity check step?"),
+                    "1) What system prompt should be used to generate the answer?\n" +
+                    "2) How many tokens at most should be included in a single document chunk?\n" +
+                    "3) How many chunks sould be selected in the similarity check step?"),
                 next_step_decider=FixedStepDecider(StepID.GO_BACK_TO_CONFIG_STEP_IMPLICIT_QUESTION),
                 components={
+                    ComponentID.USER_TEXT_BOX: dict(
+                        value=SYSTEM_PROMPT_FOR_ANSWERING_IMPLICIT_QUESTION, label=ComponentLabel.SYSTEM_PROMPT),
                     ComponentID.NUMBER_1: dict(value=DEFAULT_NUM_OF_TOKENS, label=ComponentLabel.NUM_OF_TOKENS),
                     ComponentID.NUMBER_2: dict(value=DEFAULT_NUM_OF_DOC_CHUNKS, label=ComponentLabel.NUM_OF_DOCS),
                     ComponentID.SUBMIT_USER_INPUT_BTN: {}},
-                save_event_outcome_fn=UserContext.set_num_of_tokens_and_doc_chunks,
+                save_event_outcome_fn=UserContext.set_test_config_params,
                 generate_chatbot_messages_fns=[generate_answer_for_implicit_question_stream]
             ),
             StepID.GO_BACK_TO_CONFIG_STEP_IMPLICIT_QUESTION: ChatbotStep(

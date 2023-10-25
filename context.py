@@ -5,8 +5,14 @@ import tempfile
 from langchain.docstore.document import Document
 from langchain.vectorstores import Chroma
 
-from constants import DEFAULT_NUM_OF_DOC_CHUNKS, DEFAULT_NUM_OF_TOKENS, IS_DEV_MODE, ComponentLabel
-
+from constants import (
+    ComponentLabel,
+    DEFAULT_NUM_OF_DOC_CHUNKS,
+    DEFAULT_NUM_OF_TOKENS, 
+    IS_DEV_MODE, 
+    SYSTEM_PROMPT_FOR_ANSWERING_ORIGINAL_QUESTION,
+    SYSTEM_PROMPT_FOR_ANSWERING_IMPLICIT_QUESTION
+)
     
 @dataclass
 class ImplicitQuestion:
@@ -40,9 +46,11 @@ class FilesStorageContext:
 
 @dataclass
 class TestConfigContext:
+    system_prompt: str = None
     num_of_tokens_per_doc_chunk: int = 1000
     dev_has_changed_num_of_tokens: bool = False
     num_of_doc_chunks_to_consider: int = 4
+    system_prompt: str = None
 
 
 
@@ -73,10 +81,19 @@ class UserContext:
         self.questions[-1].word_limit = word_limit
 
 
-    def set_num_of_tokens_and_doc_chunks(self, num_of_tokens: str, num_of_doc_chunks: str):
+    def set_test_config_params(self, prompt: str, num_of_tokens: str, num_of_doc_chunks: str):
+        self.test_config.system_prompt = prompt
         self.test_config.dev_has_changed_num_of_tokens = self.test_config.num_of_tokens_per_doc_chunk != num_of_tokens
         self.test_config.num_of_tokens_per_doc_chunk = num_of_tokens
         self.test_config.num_of_doc_chunks_to_consider = num_of_doc_chunks
+
+
+    def get_system_prompt_for_original_question(self) -> str:
+        return self.test_config.system_prompt if IS_DEV_MODE else SYSTEM_PROMPT_FOR_ANSWERING_ORIGINAL_QUESTION
+
+
+    def get_system_prompt_for_implicit_question(self) -> str:
+        return self.test_config.system_prompt if IS_DEV_MODE else SYSTEM_PROMPT_FOR_ANSWERING_IMPLICIT_QUESTION
 
 
     def get_num_of_tokens_per_doc_chunk(self) -> int:

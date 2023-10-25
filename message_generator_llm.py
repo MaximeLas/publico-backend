@@ -35,7 +35,7 @@ def generate_answer_to_question_stream(context: UserContext) -> MessageOutputTyp
         files=context.uploaded_files.files,
         tokens_per_doc_chunk=context.get_num_of_tokens_per_doc_chunk())
 
-    question_context = context.questions[-1]
+    question_context = context.get_last_question_context()
     if question_context.question is None:
         yield 'No answer generated due to missing application question.'
         return
@@ -47,7 +47,8 @@ def generate_answer_to_question_stream(context: UserContext) -> MessageOutputTyp
 
     generated_answer = ''
     for _, llm_response in stream_from_llm_generation(
-        prompt=get_prompt_template_for_generating_original_answer(),
+        prompt=get_prompt_template_for_generating_original_answer(
+            context.get_system_prompt_for_original_question()),
         chain_type='qa_chain',
         verbose=False,
         docs=question_context.most_relevant_documents,
@@ -69,7 +70,7 @@ def generate_answer_to_question_stream(context: UserContext) -> MessageOutputTyp
 def check_for_comprehensiveness(context: UserContext, use_json_schema: bool = False) -> MessageOutputType:
     '''Check for comprehensiveness of an answer to a grant application question using OpenAI functions.'''
 
-    question_context = context.questions[-1]
+    question_context = context.get_last_question_context()
     comprehensiveness_context = question_context.comprehensiveness
 
     if not comprehensiveness_context.do_check:
@@ -135,7 +136,8 @@ def generate_answer_for_implicit_question_stream(context: UserContext) -> Messag
     chatbot_message = start_of_chatbot_message
     answer = ''
     for _, llm_response in stream_from_llm_generation(
-        prompt=get_prompt_template_for_generating_answer_to_implicit_question(),
+        prompt=get_prompt_template_for_generating_answer_to_implicit_question(
+            context.get_system_prompt_for_implicit_question()),
         chain_type='qa_chain',
         model='gpt-3.5-turbo',
         verbose=False,
@@ -154,7 +156,7 @@ def generate_answer_for_implicit_question_stream(context: UserContext) -> Messag
 def generate_final_answer_stream(context: UserContext) -> MessageOutputType:
     '''Generate and stream a final answer to a grant application question.'''
 
-    question_context = context.questions[-1]
+    question_context = context.get_last_question_context()
     comprehensiveness_context = question_context.comprehensiveness
 
     message = ''
