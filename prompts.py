@@ -7,12 +7,16 @@ from langchain.schema.messages import (
     HumanMessage,
     SystemMessage
 )
-    
-def get_prompt_template_for_generating_original_answer(system_prompt:str) -> ChatPromptTemplate:
+
+
+
+def get_prompt_template_for_generating_original_answer(system_prompt: str) -> ChatPromptTemplate:
     '''
     Get a prompt template for a chat model to answer grant application question from documents
+        Parameters:
+            system_prompt: the system prompt to use for the chat model
         Returns:
-            ChatPromptTemplate: prompt template for chat model to answer question
+            a prompt template for a chat model to answer a grant application question
     '''
 
     messages = [
@@ -27,7 +31,7 @@ def get_prompt_template_for_comprehensiveness_check_openai_functions() -> ChatPr
     '''
     Get a prompt template for a chat model to check the comprehensiveness of a grant application answer using OpenAI functions
         Returns:
-            ChatPromptTemplate: prompt template for chat model to check comprehensiveness of answer
+            a prompt template for a chat model to check the comprehensiveness of an answer
     '''
 
     sys_msg = (
@@ -55,11 +59,13 @@ def get_prompt_template_for_comprehensiveness_check_openai_functions() -> ChatPr
     return ChatPromptTemplate(messages=prompt_msgs, input_variables=["question", "answer"])
 
 
-def get_prompt_template_for_generating_answer_to_implicit_question(system_prompt:str) -> ChatPromptTemplate:
+def get_prompt_template_for_generating_answer_to_implicit_question(system_prompt: str) -> ChatPromptTemplate:
     '''
     Get a prompt template for a chat model to answer an implicit question
+        Parameters:
+            system_prompt: the system prompt to use for the chat model
         Returns:
-            ChatPromptTemplate: prompt template for chat model to answer implicit question
+            a prompt template for a chat model to answer an implicit question from documents
     '''
 
     messages = [
@@ -74,7 +80,7 @@ def get_prompt_template_for_generating_final_answer() -> ChatPromptTemplate:
     '''
     Get a prompt template for a chat model to generate a final answer to a grant application question
         Returns:
-            ChatPromptTemplate: prompt template for chat model to generate final answer
+            a prompt template for a chat model to generate a final answer
     '''
 
     system_template = (
