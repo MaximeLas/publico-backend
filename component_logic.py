@@ -38,19 +38,24 @@ def handle_submit(
     input_submitted: str
 
     if workflow_state.current_step_id == StepID.ENTER_QUESTION:
+        debug(**{'Question': user_message})
         values_to_save = [user_message]
         input_submitted = f'**{user_message}**'
         user_message = None
     elif workflow_state.current_step_id == StepID.ENTER_WORD_LIMIT:
+        debug(**{'Word limit': number_1})
         values_to_save = [number_1]
         input_submitted = f'**{str(number_1)}**'
         number_1 = DEFAULT_WORD_LIMIT
-    elif workflow_state.current_step_id == StepID.ENTER_RAG_CONFIG_ORIGINAL_QUESTION or workflow_state.current_step_id == StepID.ENTER_RAG_CONFIG_IMPLICIT_QUESTION:
+    elif workflow_state.current_step_id in (StepID.ENTER_RAG_CONFIG_ORIGINAL_QUESTION, StepID.ENTER_RAG_CONFIG_IMPLICIT_QUESTION):
+        debug(**{'System prompt': user_message, '# Tokens': number_1, '# Documents': number_2})
         values_to_save = [user_message, number_1, number_2]
-        input_submitted = f'**{str(user_message)}**\n**{str(number_1)}**\n**{str(number_2)}**'
+        input_submitted = f'**System prompt**:\n{user_message}\n\n**# Tokens**: {str(number_1)}\n**# Documents**: {str(number_2)}'
         user_message = None
         number_1 = DEFAULT_WORD_LIMIT
         number_2 = 0
+    else:
+        raise ValueError(f'Unexpected step id: {workflow_state.current_step_id}')
 
     chat_history += [[input_submitted, None]]
     workflow_state.current_step.save_event_outcome_fn(workflow_state.context, *values_to_save)
