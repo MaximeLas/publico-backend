@@ -5,7 +5,7 @@ import time
 from typing import Callable, NotRequired, Sequence, TypedDict
 
 from gradio.events import EventListenerMethod, Dependency
-from gradio.components import IOComponent
+from gradio.components import FormComponent
 import gradio as gr
 
 from constants import ComponentLabel, StepID
@@ -13,14 +13,14 @@ from constants import ComponentLabel, StepID
 
 class EventParameters(TypedDict):
     fn: Callable
-    inputs: NotRequired[Sequence[IOComponent]]
-    outputs: NotRequired[Sequence[IOComponent]]
+    inputs: NotRequired[Sequence[FormComponent]]
+    outputs: NotRequired[Sequence[FormComponent]]
 
 
 
 @dataclass
 class ComponentWrapper(ABC):
-    component: IOComponent
+    component: FormComponent
     name: str = field(init=False)
     user_action: str = field(init=False)
     handle_user_action: EventParameters

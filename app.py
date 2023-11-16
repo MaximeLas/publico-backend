@@ -169,5 +169,6 @@ if __name__ == '__main__':
     demo.queue().launch(
         favicon_path='./favicon.ico',
         server_port=SERVER_PORT,
-        share=CREATE_LINK
+        share=CREATE_LINK,
+        allowed_paths=['./favicon.ico', '/logo192.png']
     )
