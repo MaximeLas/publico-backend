@@ -5,7 +5,7 @@ colorFrom: green
 colorTo: gray
 sdk: gradio
 python_version: 3.11.2
-sdk_version: 3.46.1
+sdk_version: 4.3.0
 app_file: app.py
 pinned: true
 fullWidth: true
