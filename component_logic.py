@@ -42,6 +42,11 @@ def handle_submit(
         values_to_save = [user_message]
         input_submitted = f'**{user_message}**'
         user_message = None
+    elif workflow_state.current_step_id == StepID.PROMPT_USER_TO_SUBMIT_ANSWER:
+        debug(**{'User answer': user_message})
+        values_to_save = [user_message]
+        input_submitted = f'**{user_message}**'
+        user_message = None
     elif workflow_state.current_step_id == StepID.ENTER_WORD_LIMIT:
         debug(**{'Word limit': number_1})
         values_to_save = [number_1]
