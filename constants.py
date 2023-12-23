@@ -6,22 +6,29 @@ from gradio import utils
 
 class StepID(StrEnum):
     START = auto()
-    HAVE_YOU_APPLIED_BEFORE = auto()
+
+    HAVE_MATERIALS_TO_SHARE = auto()
     UPLOAD_FILES = auto()
+
     ENTER_QUESTION = auto()
     ENTER_WORD_LIMIT = auto()
+
     ENTER_RAG_CONFIG_ORIGINAL_QUESTION = auto()
     ENTER_RAG_CONFIG_IMPLICIT_QUESTION = auto()
     GO_BACK_TO_CONFIG_STEP_ORIGINAL_QUESTION = auto()
     GO_BACK_TO_CONFIG_STEP_IMPLICIT_QUESTION = auto()
-    DO_COMPREHENSIVENESS_CHECK = auto()
+
+    GO_OVER_IMPLICIT_QUESTIONS = auto()
+
     # for each implicit question:
     DO_PROCEED_WITH_IMPLICIT_QUESTION = auto()
     SELECT_WHAT_TO_DO_WITH_ANSWER_GENERATED_FROM_CONTEXT = auto()
     PROMPT_USER_TO_SUBMIT_ANSWER = auto()
-    READY_TO_GENERATE_FINAL_ANSWER = auto() # at the end of the questions
-    # end for
+
+    READY_TO_GENERATE_FINAL_ANSWER = auto()
+
     DO_ANOTHER_QUESTION = auto()
+
     END = auto()
 
 
@@ -71,13 +78,12 @@ GRANT_APPLICATION_QUESTIONS_EXAMPLES = [
     'What is your organization\'s approach to measuring impact?',
     'What are your organization\'s goals for the next 3-5 years?',
     'How is your organization building an inclusive workplace culture?',
-    'What are your diversity, equity, and inclusion goals?',
-    'How does the proposed project contribute to the foundation\'s funding priority of increasing DEI?'
+    'What are your diversity, equity, and inclusion goals?'
 ]
 
 PAGE_TITLE = "Publico.ai - Demo"
 
-GPT_MODEL = 'gpt-4' if os.getenv('GPT_MODEL', 'gpt-4') not in ('3.5', 'gpt-3.5', 'gpt-3.5-turbo') else 'gpt-3.5-turbo'
+GPT_MODEL = 'gpt-4-1106-preview' if os.getenv('GPT_MODEL', 'gpt-4') not in ('3.5', 'gpt-3.5', 'gpt-3.5-turbo') else 'gpt-3.5-turbo'
 IS_DEV_MODE = os.getenv('DEV', 'False').lower() in ('true', 't', '1', 'yes')
 
 SERVER_PORT = int(os.getenv('SERVER_PORT', 7860))

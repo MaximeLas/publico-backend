@@ -14,5 +14,3 @@ def update_sqlite3_if_necessary():
         __import__("pysqlite3")
         sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
         print(f'\ninstalled sqlite3 version={sys.modules["sqlite3"].sqlite_version_info}\n')
-    else:
-        print(f'sqlite3 version={sqlite3.sqlite_version_info} is ok\n')

@@ -21,7 +21,6 @@ class ImplicitQuestion:
 
 @dataclass
 class ComprehensivenessCheckerContext:
-    do_check: bool = False
     missing_information: str | None = None
     implicit_questions: dict[int, ImplicitQuestion] = field(default_factory=dict)
     index_of_implicit_question_being_answered: int | None = None
@@ -106,10 +105,6 @@ class UserContext:
 
     def get_num_of_doc_chunks_to_consider(self) -> int:
         return self.test_config.num_of_doc_chunks_to_consider if IS_DEV_MODE else DEFAULT_NUM_OF_DOC_CHUNKS
-
-
-    def set_do_check_for_comprehensiveness(self, yes_or_no: str):
-        self.questions[-1].comprehensiveness.do_check = yes_or_no == ComponentLabel.YES
 
 
     def get_index_of_implicit_question_being_answered(self) -> int | None:

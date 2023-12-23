@@ -13,12 +13,10 @@ def generate_validation_message_following_files_upload(context: UserContext) -> 
     files = context.uploaded_files.files
     file_or_files = 'file' if len(files) == 1 else 'files'
 
-    time.sleep(0.3)
-    validation_message = f'You successfully uploaded **{len(files)}** {file_or_files}! 🎉'
-    yield validation_message
-
-    time.sleep(0.3)
-    yield [validation_message, 'Now, on to your first grant application question!']
+    time.sleep(0.25)
+    yield (
+        f'You successfully uploaded **{len(files)}** {file_or_files}! 🎉\n\n' +
+        'Now, on to your first grant application question!')
 
 
 def create_new_chatbot_messages_from_response(response: str | list[str]) -> list[tuple[str, None]]:

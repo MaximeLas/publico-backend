@@ -151,16 +151,20 @@ class WorkflowManager:
     def initialize_steps(self) -> dict[StepID, ChatbotStep]:
         yes_btn_props = dict(value=ComponentLabel.YES, variant='primary')
         no_btn_props = dict(value=ComponentLabel.NO, variant='stop')
+        user_props = dict(value='', label=ComponentLabel.USER)
+        num_tokens_props = dict(value=DEFAULT_NUM_OF_TOKENS, label=ComponentLabel.NUM_OF_TOKENS)
+        num_docs_props = dict(value=DEFAULT_NUM_OF_DOC_CHUNKS, label=ComponentLabel.NUM_OF_DOCS)
+
         return {
             StepID.START: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
                     "Welcome! 👋\n" +
                     "I'm Publico, your personal grant writing coach.\n" +
                     "Are you ready to start writing together?"),
-                next_step_decider=FixedStepDecider(StepID.HAVE_YOU_APPLIED_BEFORE),
+                next_step_decider=FixedStepDecider(StepID.HAVE_MATERIALS_TO_SHARE),
                 components={ComponentID.BTN_1: dict(value=ComponentLabel.START, variant='primary')}
             ),
-            StepID.HAVE_YOU_APPLIED_BEFORE: ChatbotStep(
+            StepID.HAVE_MATERIALS_TO_SHARE: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
                     "Do you have any existing materials you'd like to share (past grants, reports, etc.)?"),
                 next_step_decider={
@@ -185,7 +189,9 @@ class WorkflowManager:
                 initial_chatbot_message=InitialChatbotMessage(
                     "Please type the grant application question."),
                 next_step_decider=FixedStepDecider(StepID.ENTER_WORD_LIMIT),
-                components={ComponentID.USER_TEXT_BOX: {},ComponentID.SUBMIT_USER_INPUT_BTN:{}},
+                components={
+                    ComponentID.USER_TEXT_BOX: user_props,
+                    ComponentID.SUBMIT_USER_INPUT_BTN:{}},
                 initialize_step_func=UserContext.add_new_question,
                 save_event_outcome_fn=UserContext.set_grant_application_question
             ),
@@ -193,13 +199,17 @@ class WorkflowManager:
                 initial_chatbot_message=InitialChatbotMessage(
                     "What is the word limit? 🛑"),
                 next_step_decider=FixedStepDecider(
-                    StepID.DO_COMPREHENSIVENESS_CHECK
+                    StepID.GO_OVER_IMPLICIT_QUESTIONS
                         if not IS_DEV_MODE else
                     StepID.ENTER_RAG_CONFIG_ORIGINAL_QUESTION),
-                components={ComponentID.NUMBER_1: {}, ComponentID.SUBMIT_USER_INPUT_BTN: {}},
+                components={
+                    ComponentID.NUMBER_1: dict(value=DEFAULT_WORD_LIMIT, label=ComponentLabel.WORD_LIMIT),
+                    ComponentID.SUBMIT_USER_INPUT_BTN: {}},
                 save_event_outcome_fn=UserContext.set_word_limit,
                 generate_chatbot_messages_fns=[
-                    generate_answer_to_question_stream] if not IS_DEV_MODE else []
+                    generate_answer_to_question_stream, check_for_comprehensiveness]
+                        if not IS_DEV_MODE else
+                    []
             ),
             StepID.ENTER_RAG_CONFIG_ORIGINAL_QUESTION: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
@@ -210,8 +220,7 @@ class WorkflowManager:
                 components={
                     ComponentID.USER_TEXT_BOX: dict(
                         value=SYSTEM_PROMPT_FOR_ANSWERING_ORIGINAL_QUESTION, label=ComponentLabel.SYSTEM_PROMPT),
-                    ComponentID.NUMBER_1: dict(value=DEFAULT_NUM_OF_TOKENS, label=ComponentLabel.NUM_OF_TOKENS),
-                    ComponentID.NUMBER_2: dict(value=DEFAULT_NUM_OF_DOC_CHUNKS, label=ComponentLabel.NUM_OF_DOCS),
+                    ComponentID.NUMBER_1: num_tokens_props, ComponentID.NUMBER_2: num_docs_props,
                     ComponentID.SUBMIT_USER_INPUT_BTN: {}},
                 save_event_outcome_fn=UserContext.set_test_config_params,
                 generate_chatbot_messages_fns=[
@@ -222,23 +231,22 @@ class WorkflowManager:
                     "Do you want to go back to the previous step (RAG Config)?"),
                 next_step_decider={
                     ComponentLabel.YES: FixedStepDecider(StepID.ENTER_RAG_CONFIG_ORIGINAL_QUESTION),
-                    ComponentLabel.NO: FixedStepDecider(StepID.DO_COMPREHENSIVENESS_CHECK)},
-                components={ComponentID.BTN_1: yes_btn_props, ComponentID.BTN_2: no_btn_props}
+                    ComponentLabel.NO: FixedStepDecider(StepID.GO_OVER_IMPLICIT_QUESTIONS)},
+                components={ComponentID.BTN_1: yes_btn_props, ComponentID.BTN_2: no_btn_props},
+                generate_chatbot_messages_fns={
+                    ComponentLabel.NO: [check_for_comprehensiveness]}
             ),
-            StepID.DO_COMPREHENSIVENESS_CHECK: ChatbotStep(
+            StepID.GO_OVER_IMPLICIT_QUESTIONS: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    "Would you like me to review the answer to make sure it includes everything needed? ✅"),
+                    'Would you like to answer the questions one by one?'),
                 next_step_decider={
                     ComponentLabel.YES: FixedStepDecider(StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION),
                     ComponentLabel.NO: FixedStepDecider(StepID.DO_ANOTHER_QUESTION)},
-                components={ComponentID.BTN_1: yes_btn_props, ComponentID.BTN_2: no_btn_props},
-                save_event_outcome_fn=UserContext.set_do_check_for_comprehensiveness,
-                generate_chatbot_messages_fns=defaultdict(list, {
-                    ComponentLabel.YES: [check_for_comprehensiveness]})
+                components={ComponentID.BTN_1: yes_btn_props, ComponentID.BTN_2: no_btn_props}
             ),
             StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
-                    message="(**{index}**) **{question}**\n" +
+                    message="(**{index}**) **{question}**\n\n" +
                         "Does this question address a topic or information that should be incorporated into the final answer?",
                     extract_formatting_variables_func=lambda context: (yield {
                         'question': context.get_next_implicit_question(),
@@ -273,8 +281,7 @@ class WorkflowManager:
                 components={
                     ComponentID.USER_TEXT_BOX: dict(
                         value=SYSTEM_PROMPT_FOR_ANSWERING_IMPLICIT_QUESTION, label=ComponentLabel.SYSTEM_PROMPT),
-                    ComponentID.NUMBER_1: dict(value=DEFAULT_NUM_OF_TOKENS, label=ComponentLabel.NUM_OF_TOKENS),
-                    ComponentID.NUMBER_2: dict(value=DEFAULT_NUM_OF_DOC_CHUNKS, label=ComponentLabel.NUM_OF_DOCS),
+                    ComponentID.NUMBER_1: num_tokens_props, ComponentID.NUMBER_2: num_docs_props,
                     ComponentID.SUBMIT_USER_INPUT_BTN: {}},
                 save_event_outcome_fn=UserContext.set_test_config_params,
                 generate_chatbot_messages_fns=[generate_answer_for_implicit_question_stream]
@@ -334,7 +341,9 @@ class WorkflowManager:
                     condition=UserContext.has_more_implcit_questions_to_answer,
                     if_true_step=StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION,
                     if_false_step=StepID.READY_TO_GENERATE_FINAL_ANSWER),
-                components={ComponentID.USER_TEXT_BOX: {}, ComponentID.SUBMIT_USER_INPUT_BTN: {}},
+                components={
+                    ComponentID.USER_TEXT_BOX: user_props,
+                    ComponentID.SUBMIT_USER_INPUT_BTN: {}},
                 save_event_outcome_fn=UserContext.set_answer_to_current_implicit_question,
                 generate_chatbot_messages_fns=[lambda context: (
                     'Great! Now that we\'ve answered that question, let\'s move on to the next.'

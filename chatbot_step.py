@@ -53,4 +53,4 @@ class ChatbotStep():
 
     def get_generate_chatbot_messages_fns_for_trigger(self, trigger: str) -> list[GenerateMessageFunc]:
         fns = self.generate_chatbot_messages_fns
-        return fns if isinstance(fns, list) else fns[trigger]
+        return fns if isinstance(fns, list) else fns.get(trigger, [])

@@ -260,13 +260,14 @@ def print_summary_of_relevant_documents_and_scored(docs: list[tuple[Document, fl
     # print summary of each relevant document and its similarity score (distance) to question
     for i, (doc, score) in enumerate(docs):
         print_pretty_index(i)
+        words = doc.page_content.split()
         debug(**{
             'Similarity score (distance)': f'{score:.3f}',
             'Index': doc.metadata['index'],
             'Character length of chunk': len(doc.page_content),
             'Token count of chunk': doc.metadata['current_token_count'],
             'Source': doc.metadata["source"].rsplit("/", 1)[-1],
-            'Content (Preview of first and last 50 characters)': doc.page_content[:50] + ' ... ' + doc.page_content[-50:],
+            'Content (Preview of first and last 15 words)': ' '.join(words[:15]) + ' ... ' + ' '.join(words[-15:]),
         })
 
     # print total token count of relevant documents

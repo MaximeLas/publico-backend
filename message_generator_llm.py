@@ -14,10 +14,7 @@ from helpers import (
     get_vector_store_for_files
 )
 from llm_streaming_utils import stream_from_llm_generation
-from openai_functions_utils import (
-    function_for_comprehensiveness_check,
-    get_json_schema_for_comprehensiveness_check
-)
+from openai_functions_utils import function_for_comprehensiveness_check
 from prompts import (
     get_prompt_template_for_generating_original_answer,
     get_prompt_template_for_comprehensiveness_check_openai_functions,
@@ -45,7 +42,10 @@ def generate_answer_to_question_stream(context: UserContext) -> MessageOutputTyp
         question=question_context.question,
         n_results=context.get_num_of_doc_chunks_to_consider())
 
-    generated_answer = ''
+    intro_to_answer = 'Based on the information you provided, here\'s the best answer I could put together:'
+    yield intro_to_answer
+
+    chatbot_msg = intro_to_answer
     for _, llm_response in stream_from_llm_generation(
         prompt=get_prompt_template_for_generating_original_answer(
             context.get_system_prompt_for_original_question()),
@@ -55,44 +55,34 @@ def generate_answer_to_question_stream(context: UserContext) -> MessageOutputTyp
         question=question_context.question,
         word_limit=question_context.word_limit
     ):
-        generated_answer = llm_response
-        yield f'*{llm_response}*'
+        answer_to_question = llm_response
+        chatbot_msg = f'{intro_to_answer}\n\n*{answer_to_question}*'
+        yield chatbot_msg
 
-    answer_word_count = len(generated_answer.split())
-    question_context.answer = generated_answer
+    question_context.answer = answer_to_question
 
     time.sleep(0.25)
-    info_answer = f'Generated answer contains **{answer_word_count}** words.'
-    yield [f'*{llm_response}*', info_answer]
+    chatbot_msg += f'\n\nGenerated answer contains **{len(answer_to_question.split())}** words.'
+    yield chatbot_msg
 
 
 
-def check_for_comprehensiveness(context: UserContext, use_json_schema: bool = False) -> MessageOutputType:
+
+def check_for_comprehensiveness(context: UserContext) -> MessageOutputType:
     '''Check for comprehensiveness of an answer to a grant application question using OpenAI functions.'''
+
+    chatbot_msg = 'Give me a moment while I think about how to improve it ... 🔍'
+    yield chatbot_msg
 
     question_context = context.get_last_question_context()
     comprehensiveness_context = question_context.comprehensiveness
 
-    if not comprehensiveness_context.do_check:
-        yield 'Skipping check for comprehensiveness.'
-        return
-
-    hang_on_message = 'Please hang on, I\'m validating the answer... 🔍'
-    yield hang_on_message
-
     with get_openai_callback() as cb:
         prompt = get_prompt_template_for_comprehensiveness_check_openai_functions()
         chat_openai = ChatOpenAI(client=None, model=GPT_MODEL, temperature=0)
-        chain = (
-            create_structured_output_chain(get_json_schema_for_comprehensiveness_check(), chat_openai, prompt, verbose=True)
-                if use_json_schema
-                else
-            create_openai_fn_chain([function_for_comprehensiveness_check], chat_openai, prompt, verbose=True)
-        )
-        
+        chain = create_openai_fn_chain([function_for_comprehensiveness_check], chat_openai, prompt, verbose=True)
         response = chain(inputs=dict(question=question_context.question, answer=question_context.answer))['function']
         debug(**{'Summary info OpenAI callback': cb})
-
 
     comprehensiveness_context.missing_information = response['missing_information']
 
@@ -108,14 +98,19 @@ def check_for_comprehensiveness(context: UserContext, use_json_schema: bool = Fa
 
     debug(**{f'Implicit question #{i}': q.question for i, q in comprehensiveness_context.implicit_questions.items()})
 
-    yield [hang_on_message, f'*{comprehensiveness_context.missing_information}*']
+    chatbot_msg = [chatbot_msg, f'*{comprehensiveness_context.missing_information}*']
+    yield chatbot_msg
 
-    time.sleep(0.4)
+    time.sleep(0.25)
+    chatbot_msg[1] += '\n\nTo make the answer as strong as possible, I\'d include answers to the following questions:\n'
+    yield chatbot_msg
+
+    time.sleep(0.25)
     implicit_questions = ''
     for i, q in comprehensiveness_context.implicit_questions.items():
         time.sleep(0.25)
-        implicit_questions += f'(**{i}**) **{q.question}**\n'
-        yield [hang_on_message, f'*{comprehensiveness_context.missing_information}*', implicit_questions]
+        implicit_questions += f'\n(**{i}**) **{q.question}**'
+        yield [chatbot_msg[0], chatbot_msg[1] + implicit_questions]
 
 
 
@@ -133,8 +128,7 @@ def generate_answer_for_implicit_question_stream(context: UserContext) -> Messag
     most_relevant_documents = get_most_relevant_docs_in_vector_store_for_answering_question(
         vector_store=context.uploaded_files.vector_store, question=context.get_current_implicit_question(), n_results=4)
 
-    chatbot_message = start_of_chatbot_message
-    answer = ''
+    answer_to_question = ''
     for _, llm_response in stream_from_llm_generation(
         prompt=get_prompt_template_for_generating_answer_to_implicit_question(
             context.get_system_prompt_for_implicit_question()),
@@ -144,12 +138,11 @@ def generate_answer_for_implicit_question_stream(context: UserContext) -> Messag
         docs=most_relevant_documents,
         question=context.get_current_implicit_question()
     ):
-        answer = llm_response
-        chatbot_message = start_of_chatbot_message + f'\n\n*{answer}*'
-        yield chatbot_message
+        answer_to_question = llm_response
+        yield f'{start_of_chatbot_message}\n\n*{answer_to_question}*'
 
-    if 'Not enough information' not in answer:
-        context.set_answer_to_current_implicit_question(answer)
+    if 'Not enough information' not in answer_to_question:
+        context.set_answer_to_current_implicit_question(answer_to_question)
 
 
 
@@ -159,16 +152,14 @@ def generate_final_answer_stream(context: UserContext) -> MessageOutputType:
     question_context = context.get_last_question_context()
     comprehensiveness_context = question_context.comprehensiveness
 
-    message = ''
-    if not comprehensiveness_context.do_check:
-        message = f'No final answer generated due to not having checked comprehensiveness.'
-    elif len(comprehensiveness_context.implicit_questions) == 0:
-        message = f'No final answer generated due to having no implicit questions.'
+    chatbot_msg = ''
+    if len(comprehensiveness_context.implicit_questions) == 0:
+        chatbot_msg = f'No final answer generated due to having no implicit questions.'
     elif not context.exists_answer_to_any_implicit_question():
-        message = f'No final answer generated due to having answered none of the implicit questions.'
+        chatbot_msg = f'No final answer generated due to having answered none of the implicit questions.'
 
-    if message != '':
-        debug(message)
+    if chatbot_msg != '':
+        debug(chatbot_msg)
         yield 'Something went wrong, please try again.'
         return
 
@@ -193,16 +184,17 @@ def generate_final_answer_stream(context: UserContext) -> MessageOutputType:
         original_answer=question_context.answer
     ):
         final_answer = llm_response
-        yield [intro_to_final_answer, f'*{final_answer}*']
+        chatbot_msg = f'{intro_to_final_answer}\n\n*{final_answer}*'
+        yield chatbot_msg
 
     comprehensiveness_context.revised_application_answer = final_answer
 
-    intro_to_comparison_with_original_answer = (
-        f'The final answer contains **{len(final_answer.split())}** words. The word limit is **{question_context.word_limit}** words.\n\n'
-        f'For reference, the original answer, which contains **{len(question_context.answer.split())}** words, is the following:')
+    chatbot_msg += f'\n\nThe final answer contains **{len(final_answer.split())}** words. The word limit is **{question_context.word_limit}** words.'
+    yield chatbot_msg
 
     time.sleep(0.25)
-    yield [intro_to_final_answer, f'*{final_answer}*', intro_to_comparison_with_original_answer]
+    comparison_msg = (
+        f'For reference, the original answer, which contains **{len(question_context.answer.split())}** words, is the following:\n\n' +
+        f'*{question_context.answer}*')
 
-    time.sleep(0.25)
-    yield [intro_to_final_answer, f'*{final_answer}*', intro_to_comparison_with_original_answer, f'*{question_context.answer}*']
+    yield [chatbot_msg, comparison_msg]
