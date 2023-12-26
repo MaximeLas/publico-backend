@@ -8,7 +8,7 @@ from gradio.events import EventListenerMethod, Dependency
 from gradio.components import FormComponent
 import gradio as gr
 
-from constants import ComponentLabel, StepID
+from configurations.constants import ComponentLabel, StepID
 
 
 class EventParameters(TypedDict):

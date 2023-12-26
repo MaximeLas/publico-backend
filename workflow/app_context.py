@@ -5,14 +5,16 @@ import tempfile
 from langchain.docstore.document import Document
 from langchain.vectorstores import Chroma
 
-from constants import (
+from configurations.constants import (
     DEFAULT_NUM_OF_DOC_CHUNKS,
     DEFAULT_NUM_OF_TOKENS, 
     IS_DEV_MODE, 
     SYSTEM_PROMPT_FOR_ANSWERING_ORIGINAL_QUESTION,
     SYSTEM_PROMPT_FOR_ANSWERING_IMPLICIT_QUESTION
 )
-    
+
+
+
 @dataclass
 class ImplicitQuestion:
     question: str
@@ -64,7 +66,7 @@ class TestConfigContext:
 
 
 @dataclass
-class UserContext:
+class AppContext:
     uploaded_files: FilesStorageContext = field(default_factory=FilesStorageContext)
     questions: list[GrantApplicationQuestionContext] = field(default_factory=lambda: [GrantApplicationQuestionContext()])
     test_config: TestConfigContext = field(default_factory=TestConfigContext) if IS_DEV_MODE else None

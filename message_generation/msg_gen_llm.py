@@ -3,19 +3,19 @@ import time
 from devtools import debug
 
 from langchain.callbacks import get_openai_callback
-from langchain.chains.openai_functions import create_openai_fn_chain, create_structured_output_chain
+from langchain.chains.openai_functions import create_openai_fn_chain
 from langchain.chat_models import ChatOpenAI
 
-from chatbot_step import MessageOutputType
-from constants import IS_DEV_MODE, GPT_MODEL
-from context import ImplicitQuestion, UserContext
-from helpers import (
+from workflow.chatbot_step import MessageOutputType
+from workflow.app_context import ImplicitQuestion, AppContext
+from utilities.llm_streaming_utils import stream_from_llm_generation
+from utilities.openai_functions_utils import function_for_comprehensiveness_check
+from utilities.document_helpers import (
     get_most_relevant_docs_in_vector_store_for_answering_question,
     get_vector_store_for_files
 )
-from llm_streaming_utils import stream_from_llm_generation
-from openai_functions_utils import function_for_comprehensiveness_check
-from prompts import (
+from configurations.constants import IS_DEV_MODE, GPT_MODEL
+from configurations.prompts import (
     get_prompt_template_for_generating_original_answer,
     get_prompt_template_for_comprehensiveness_check_openai_functions,
     get_prompt_template_for_generating_answer_to_implicit_question,
@@ -25,7 +25,7 @@ from prompts import (
 
 
 
-def generate_answer_to_question_stream(context: UserContext) -> MessageOutputType:
+def generate_answer_to_question_stream(context: AppContext) -> MessageOutputType:
     '''Generate and stream an answer to a grant application question by streaming tokens from the LLM.'''
 
     # get the vector store for the uploaded files (will only update if files are not the same as before)
@@ -69,7 +69,7 @@ def generate_answer_to_question_stream(context: UserContext) -> MessageOutputTyp
 
 
 
-def check_for_comprehensiveness(context: UserContext) -> MessageOutputType:
+def check_for_comprehensiveness(context: AppContext) -> MessageOutputType:
     '''Check for comprehensiveness of an answer to a grant application question using OpenAI functions.'''
 
     chatbot_msg = 'Give me a moment while I think about how to improve it ... 🔍'
@@ -115,7 +115,7 @@ def check_for_comprehensiveness(context: UserContext) -> MessageOutputType:
 
 
 
-def generate_answer_for_implicit_question_stream(context: UserContext) -> MessageOutputType:
+def generate_answer_for_implicit_question_stream(context: AppContext) -> MessageOutputType:
     '''Generate and stream answers for implicit questions to be answered to make the answer comprehensive.'''
 
     start_of_chatbot_message = 'Here\'s what I found in your documents to answer this question:'
@@ -147,7 +147,7 @@ def generate_answer_for_implicit_question_stream(context: UserContext) -> Messag
 
 
 
-def generate_final_answer_stream(context: UserContext) -> MessageOutputType:
+def generate_final_answer_stream(context: AppContext) -> MessageOutputType:
     '''Generate and stream a final answer to a grant application question.'''
 
     question_context = context.get_last_question_context()
@@ -201,7 +201,7 @@ def generate_final_answer_stream(context: UserContext) -> MessageOutputType:
     yield [chatbot_msg, comparison_msg]
 
 
-def generate_improved_answer_following_user_guidance_prompt(context: UserContext) -> MessageOutputType:
+def generate_improved_answer_following_user_guidance_prompt(context: AppContext) -> MessageOutputType:
     '''Generate and stream an improved answer to a grant application question following user guidance.'''
 
     question_context = context.get_last_question_context()

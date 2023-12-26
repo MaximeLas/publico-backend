@@ -12,7 +12,7 @@ from langchain.callbacks.base import BaseCallbackHandler
 from langchain.docstore.document import Document
 from langchain.prompts.chat import ChatPromptTemplate
 
-from constants import GPT_MODEL
+from configurations.constants import GPT_MODEL
 
 
 

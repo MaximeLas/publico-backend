@@ -1,13 +1,13 @@
 from collections.abc import Iterator
 import time
-from chatbot_step import GenerateMessageFunc
-from context import UserContext
 
 import gradio as gr
 
+from workflow.chatbot_step import GenerateMessageFunc
+from workflow.app_context import AppContext
 
 
-def generate_validation_message_following_files_upload(context: UserContext) -> list[str]:
+def generate_validation_message_following_files_upload(context: AppContext) -> list[str]:
     '''Generate a validation message following a file upload.'''
 
     files = context.uploaded_files.files
@@ -34,7 +34,7 @@ def create_new_chatbot_messages_from_response(response: str | list[str]) -> list
 
 def generate_chatbot_messages(
     fns: list[GenerateMessageFunc],
-    context: UserContext
+    context: AppContext
 ) -> Iterator[list[tuple[str, None]]]:
     '''Generate chatbot messages from a list of functions, and yield the chat history with the new chatbot messages.'''
 

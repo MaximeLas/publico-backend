@@ -4,9 +4,16 @@ from devtools import debug
 import gradio as gr
 from gradio.blocks import Block
 
-from chatbot_workflow import WorkflowState
-from component_wrapper import ButtonWrapper, ClearButtonWrapper, ComponentWrapper, NumberWrapper, TextboxWrapper, UploadButtonWrapper
-from constants import DEFAULT_WORD_LIMIT, ComponentID, ComponentLabel, StepID
+from workflow.chatbot_workflow import WorkflowState
+from configurations.constants import DEFAULT_WORD_LIMIT, ComponentID, ComponentLabel, StepID
+from components.component_wrapper import (
+    ButtonWrapper,
+    ClearButtonWrapper,
+    ComponentWrapper,
+    NumberWrapper,
+    TextboxWrapper,
+    UploadButtonWrapper
+)
 
 
 

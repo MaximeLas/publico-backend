@@ -5,8 +5,21 @@ from typing import Callable
 import gradio as gr
 from gradio.blocks import Block
 
-from chatbot_step import ChatbotStep, InitialChatbotMessage
-from constants import (
+from workflow.app_context import AppContext
+from workflow.chatbot_step import ChatbotStep, InitialChatbotMessage
+from workflow.step_decider import FixedStepDecider, ConditionalStepDecider, MultiConditionalStepDecider
+from message_generation.msg_gen_llm import (
+    check_for_comprehensiveness,
+    generate_answer_for_implicit_question_stream,
+    generate_answer_to_question_stream,
+    generate_final_answer_stream,
+    generate_improved_answer_following_user_guidance_prompt
+)
+from message_generation.msg_gen_publico import (
+    generate_chatbot_messages,
+    generate_validation_message_following_files_upload
+)
+from configurations.constants import (
     CHATBOT_HEIGHT,
     CHATBOT_LAYOUT,
     DEFAULT_NUM_OF_DOC_CHUNKS,
@@ -19,19 +32,6 @@ from constants import (
     SYSTEM_PROMPT_FOR_ANSWERING_ORIGINAL_QUESTION,
     SYSTEM_PROMPT_FOR_ANSWERING_IMPLICIT_QUESTION,
 )
-from context import UserContext
-from message_generator_llm import (
-    check_for_comprehensiveness,
-    generate_answer_for_implicit_question_stream,
-    generate_answer_to_question_stream,
-    generate_final_answer_stream,
-    generate_improved_answer_following_user_guidance_prompt
-)
-from message_generator_publico import (
-    generate_chatbot_messages,
-    generate_validation_message_following_files_upload
-)
-from step_decider import FixedStepDecider, ConditionalStepDecider, MultiConditionalStepDecider
 
 
 
@@ -47,11 +47,11 @@ class WorkflowState():
     Attributes:
         current_step_id (StepID): The ID of the current step of the chatbot workflow
         current_step (ChatbotStep): The current step of the chatbot workflow
-        context (UserContext): The context of the user interacting with the chatbot
+        context (AppContext): The context of the user interacting with the chatbot
     '''
 
     def __init__(self, start_step: ChatbotStep):
-        self.context = UserContext()
+        self.context = AppContext()
         self.current_step_id = StepID.START
         self.current_step = start_step
 
@@ -85,7 +85,7 @@ class WorkflowManager:
                 show_copy_button=True,
                 height=CHATBOT_HEIGHT,
                 bubble_full_width=False,
-                avatar_images=(None, './logo192.png'),
+                avatar_images=(None, 'assets/logo192.png'),
                 layout=CHATBOT_LAYOUT
             ),
             ComponentID.USER_TEXT_BOX: gr.Textbox(
@@ -183,7 +183,7 @@ class WorkflowManager:
                     ComponentID.UPLOAD_FILES_BTN: {},
                     ComponentID.CLEAR_FILES_BTN: {},
                     ComponentID.SUBMIT_FILES_BTN: {}},
-                save_event_outcome_fn=UserContext.set_uploaded_files,
+                save_event_outcome_fn=AppContext.set_uploaded_files,
                 generate_chatbot_messages_fns=[generate_validation_message_following_files_upload]
             ),
             StepID.ENTER_QUESTION: ChatbotStep(
@@ -193,8 +193,8 @@ class WorkflowManager:
                 components={
                     ComponentID.USER_TEXT_BOX: user_props,
                     ComponentID.SUBMIT_USER_INPUT_BTN:{}},
-                initialize_step_func=UserContext.add_new_question,
-                save_event_outcome_fn=UserContext.set_grant_application_question
+                initialize_step_func=AppContext.add_new_question,
+                save_event_outcome_fn=AppContext.set_grant_application_question
             ),
             StepID.ENTER_WORD_LIMIT: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(
@@ -206,7 +206,7 @@ class WorkflowManager:
                 components={
                     ComponentID.NUMBER_1: dict(value=DEFAULT_WORD_LIMIT, label=ComponentLabel.WORD_LIMIT),
                     ComponentID.SUBMIT_USER_INPUT_BTN: {}},
-                save_event_outcome_fn=UserContext.set_word_limit,
+                save_event_outcome_fn=AppContext.set_word_limit,
                 generate_chatbot_messages_fns=[
                     generate_answer_to_question_stream, check_for_comprehensiveness]
                         if not IS_DEV_MODE else
@@ -223,7 +223,7 @@ class WorkflowManager:
                         value=SYSTEM_PROMPT_FOR_ANSWERING_ORIGINAL_QUESTION, label=ComponentLabel.SYSTEM_PROMPT),
                     ComponentID.NUMBER_1: num_tokens_props, ComponentID.NUMBER_2: num_docs_props,
                     ComponentID.SUBMIT_USER_INPUT_BTN: {}},
-                save_event_outcome_fn=UserContext.set_test_config_params,
+                save_event_outcome_fn=AppContext.set_test_config_params,
                 generate_chatbot_messages_fns=[
                     generate_answer_to_question_stream]
             ),
@@ -259,8 +259,8 @@ class WorkflowManager:
                         StepID.ENTER_RAG_CONFIG_IMPLICIT_QUESTION),
                     ComponentLabel.NO: MultiConditionalStepDecider(
                         conditional_steps=[
-                            (UserContext.has_more_implcit_questions_to_answer, StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION),
-                            (UserContext.exists_answer_to_any_implicit_question, StepID.READY_TO_GENERATE_FINAL_ANSWER)
+                            (AppContext.has_more_implcit_questions_to_answer, StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION),
+                            (AppContext.exists_answer_to_any_implicit_question, StepID.READY_TO_GENERATE_FINAL_ANSWER)
                         ],
                         default_next_step=StepID.DO_ANOTHER_QUESTION)},
                 components={ComponentID.BTN_1: yes_btn_props, ComponentID.BTN_2: no_btn_props},
@@ -268,8 +268,8 @@ class WorkflowManager:
                     ComponentLabel.YES: [generate_answer_for_implicit_question_stream] if not IS_DEV_MODE else [],
                     ComponentLabel.NO: [lambda context: (
                         "Okay, let's skip this one."
-                            if UserContext.has_more_implcit_questions_to_answer(context) or
-                                UserContext.exists_answer_to_any_implicit_question(context)
+                            if AppContext.has_more_implcit_questions_to_answer(context) or
+                                AppContext.exists_answer_to_any_implicit_question(context)
                             else
                         "None of the implicit questions were answered.")]})
             ),
@@ -284,7 +284,7 @@ class WorkflowManager:
                         value=SYSTEM_PROMPT_FOR_ANSWERING_IMPLICIT_QUESTION, label=ComponentLabel.SYSTEM_PROMPT),
                     ComponentID.NUMBER_1: num_tokens_props, ComponentID.NUMBER_2: num_docs_props,
                     ComponentID.SUBMIT_USER_INPUT_BTN: {}},
-                save_event_outcome_fn=UserContext.set_test_config_params,
+                save_event_outcome_fn=AppContext.set_test_config_params,
                 generate_chatbot_messages_fns=[generate_answer_for_implicit_question_stream]
             ),
             StepID.GO_BACK_TO_CONFIG_STEP_IMPLICIT_QUESTION: ChatbotStep(
@@ -307,30 +307,30 @@ class WorkflowManager:
                     ComponentLabel.EDIT_IT: FixedStepDecider(StepID.PROMPT_USER_TO_SUBMIT_ANSWER),
                     ComponentLabel.NO: MultiConditionalStepDecider(
                         conditional_steps=[
-                            (UserContext.has_more_implcit_questions_to_answer, StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION),
-                            (UserContext.exists_answer_to_any_implicit_question, StepID.READY_TO_GENERATE_FINAL_ANSWER)
+                            (AppContext.has_more_implcit_questions_to_answer, StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION),
+                            (AppContext.exists_answer_to_any_implicit_question, StepID.READY_TO_GENERATE_FINAL_ANSWER)
                         ],
                         default_next_step=StepID.DO_ANOTHER_QUESTION),
                     ComponentLabel.GOOD_AS_IS: ConditionalStepDecider(
-                            condition=UserContext.has_more_implcit_questions_to_answer,
+                            condition=AppContext.has_more_implcit_questions_to_answer,
                             if_true_step=StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION,
                             if_false_step=StepID.READY_TO_GENERATE_FINAL_ANSWER)},
                 components={
                     ComponentID.BTN_1: (lambda context:
                         yes_btn_props
-                            if not UserContext.exists_answer_to_current_implicit_question(context)
+                            if not AppContext.exists_answer_to_current_implicit_question(context)
                             else
                         dict(value=ComponentLabel.GOOD_AS_IS, variant='primary')),
                     ComponentID.BTN_2: (lambda context:
                         no_btn_props
-                            if not UserContext.exists_answer_to_current_implicit_question(context)
+                            if not AppContext.exists_answer_to_current_implicit_question(context)
                             else
                         dict(value=ComponentLabel.EDIT_IT, variant='secondary'))},
                 generate_chatbot_messages_fns=defaultdict(list, {
                     ComponentLabel.NO: [lambda context: (
                         "Okay, let's skip this one."
-                            if UserContext.has_more_implcit_questions_to_answer(context) or
-                                UserContext.exists_answer_to_any_implicit_question(context)
+                            if AppContext.has_more_implcit_questions_to_answer(context) or
+                                AppContext.exists_answer_to_any_implicit_question(context)
                             else
                         "None of the implicit questions were answered.")],
                     ComponentLabel.GOOD_AS_IS: [lambda _: "Great! We'll use this answer."]})
@@ -339,13 +339,13 @@ class WorkflowManager:
                 initial_chatbot_message=InitialChatbotMessage(
                     "Okay, go ahead and write an answer to the question."),
                 next_step_decider=ConditionalStepDecider(
-                    condition=UserContext.has_more_implcit_questions_to_answer,
+                    condition=AppContext.has_more_implcit_questions_to_answer,
                     if_true_step=StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION,
                     if_false_step=StepID.READY_TO_GENERATE_FINAL_ANSWER),
                 components={
                     ComponentID.USER_TEXT_BOX: user_props,
                     ComponentID.SUBMIT_USER_INPUT_BTN: {}},
-                save_event_outcome_fn=UserContext.set_answer_to_current_implicit_question,
+                save_event_outcome_fn=AppContext.set_answer_to_current_implicit_question,
                 generate_chatbot_messages_fns=[lambda context: (
                     'Great! Now that we\'ve answered that question, let\'s move on to the next.'
                         if context.has_more_implcit_questions_to_answer()
@@ -375,13 +375,13 @@ class WorkflowManager:
                     "What guidance do you want to provide to improve the answer? " +
                     "(ie. *Make it more formal* or *Mention that we helped 150 clients last year*)"),
                 next_step_decider=ConditionalStepDecider(
-                    condition=UserContext.is_allowed_to_add_more_guidance,
+                    condition=AppContext.is_allowed_to_add_more_guidance,
                     if_true_step=StepID.ASK_USER_IF_GUIDANCE_NEEDED,
                     if_false_step=StepID.DO_ANOTHER_QUESTION),
                 components={
                     ComponentID.USER_TEXT_BOX: user_props,
                     ComponentID.SUBMIT_USER_INPUT_BTN: {}},
-                save_event_outcome_fn=UserContext.set_user_guidance_prompt,
+                save_event_outcome_fn=AppContext.set_user_guidance_prompt,
                 generate_chatbot_messages_fns=[generate_improved_answer_following_user_guidance_prompt]
             ),
             StepID.DO_ANOTHER_QUESTION: ChatbotStep(

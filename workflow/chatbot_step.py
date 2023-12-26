@@ -3,26 +3,25 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
-from constants import ComponentID, StepID
-from context import UserContext
-from step_decider import StepDecider
+from configurations.constants import ComponentID, StepID
+from workflow.app_context import AppContext
+from workflow.step_decider import StepDecider
 
 
 
 MessageOutputType = str | list[str] | Iterator[str | list[str] | None] | None
-GenerateMessageFunc = Callable[[UserContext], MessageOutputType]
+GenerateMessageFunc = Callable[[AppContext], MessageOutputType]
 GenerateMessageFuncList = list[GenerateMessageFunc]
 ComponentPropertiesType = dict[str, str]
-
 
 
 
 @dataclass
 class InitialChatbotMessage:
     message: str
-    extract_formatting_variables_func: Callable[['UserContext'], Iterator] = lambda _: (yield dict())
+    extract_formatting_variables_func: Callable[['AppContext'], Iterator] = lambda _: (yield dict())
 
-    def get_formatted_message(self, context: UserContext) -> Iterator[str]:
+    def get_formatted_message(self, context: AppContext) -> Iterator[str]:
         for response_so_far in self.extract_formatting_variables_func(context):
             if isinstance(response_so_far, dict):
                 yield self.message.format(**response_so_far)
@@ -30,18 +29,17 @@ class InitialChatbotMessage:
                 yield self.message.format(response=response_so_far)
 
 
-
 @dataclass
 class ChatbotStep():
     initial_chatbot_message: InitialChatbotMessage
     next_step_decider: StepDecider | dict[str, StepDecider]
-    components: dict[ComponentID, ComponentPropertiesType | Callable[['UserContext'], ComponentPropertiesType]] = field(default_factory=dict)
-    initialize_step_func: Callable[[UserContext], None] = lambda _: None
-    save_event_outcome_fn: Callable[[UserContext, Any], None] | None = None
+    components: dict[ComponentID, ComponentPropertiesType | Callable[['AppContext'], ComponentPropertiesType]] = field(default_factory=dict)
+    initialize_step_func: Callable[[AppContext], None] = lambda _: None
+    save_event_outcome_fn: Callable[[AppContext, Any], None] | None = None
     generate_chatbot_messages_fns: GenerateMessageFuncList | dict[str, GenerateMessageFuncList] = field(default_factory=lambda: defaultdict(list))
-    retrieve_relevant_vars_func: Callable[[UserContext], dict] = lambda _: dict()
+    retrieve_relevant_vars_func: Callable[[AppContext], dict] = lambda _: dict()
 
-    def determine_next_step(self, trigger: str, context: UserContext) -> StepID:
+    def determine_next_step(self, trigger: str, context: AppContext) -> StepID:
         next_step_decider = (
             self.next_step_decider
                 if isinstance(self.next_step_decider, StepDecider)

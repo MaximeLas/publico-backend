@@ -12,7 +12,7 @@ import langchain
 
 langchain.llm_cache = InMemoryCache()
 
-from chatbot_workflow import (
+from workflow.chatbot_workflow import (
     WorkflowManager,
     WorkflowState,
     modify_context,
@@ -21,9 +21,9 @@ from chatbot_workflow import (
     update_visibility_of_components_in_current_step,
     update_workflow_step
 )
-from component_logic import create_component_wrappers
-from component_wrapper import ComponentWrapper, EventParameters
-from constants import (
+from components.component_logic import create_component_wrappers
+from components.component_wrapper import ComponentWrapper, EventParameters
+from configurations.constants import (
     ComponentID,
     ComponentLabel,
     StepID,
@@ -34,15 +34,16 @@ from constants import (
     EXCLUDE_LOGO
 )
 
-from settings import update_sqlite3_if_necessary
+from configurations.settings import update_sqlite3_if_necessary
 
 
 # create a workflow manager which contains all the chatbot steps and keeps track of the current step as well as the user context
 workflow_manager = WorkflowManager()
 
-with gr.Blocks(css='custom.css', theme=gr.themes.Default(primary_hue=gr.themes.colors.lime), title=PAGE_TITLE) as demo:
-    if not EXCLUDE_LOGO:
-        title = gr.HTML( value='<h1><img src="file/publico_logo_no_circle.jpeg"></h1>', elem_id='title')
+with gr.Blocks(css='css/custom.css', theme=gr.themes.Default(primary_hue=gr.themes.colors.lime), title=PAGE_TITLE) as demo:
+    # TODO: Fix logo not showing up or remove it
+    #if not EXCLUDE_LOGO:
+    #    title = gr.HTML(value='<h1><img src="file/publico_logo_no_circle.jpeg"></h1>', elem_id='title')
 
     chatbot = workflow_manager.get_component(ComponentID.CHATBOT)
     user_text_box_component = workflow_manager.get_component(ComponentID.USER_TEXT_BOX)
@@ -167,8 +168,8 @@ if __name__ == '__main__':
     warnings.filterwarnings('ignore') # ignore the gr.update deprecated warnings
 
     demo.queue().launch(
-        favicon_path='./favicon.ico',
+        favicon_path='assets/favicon.ico',
         server_port=SERVER_PORT,
         share=CREATE_LINK,
-        allowed_paths=['./favicon.ico', '/logo192.png']
+        allowed_paths=['assets/*']
     )

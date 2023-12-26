@@ -9,7 +9,7 @@ from langchain.schema.messages import (
     SystemMessage
 )
 
-from context import Improvement
+from workflow.app_context import Improvement
 
 
 

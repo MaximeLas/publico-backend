@@ -2,4 +2,5 @@ env
 .chroma
 __pycache__
 draft.py
+secrets
 env*

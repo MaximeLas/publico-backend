@@ -1,7 +1,6 @@
 import sys
 
 
-
 # check if sqlite3 version is too old and install newer version if necessary in order to avoid error:
 # Error: Your system has an unsupported version of sqlite3. Chroma requires sqlite3 >= 3.35.0
 def update_sqlite3_if_necessary():
