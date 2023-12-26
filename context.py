@@ -6,7 +6,6 @@ from langchain.docstore.document import Document
 from langchain.vectorstores import Chroma
 
 from constants import (
-    ComponentLabel,
     DEFAULT_NUM_OF_DOC_CHUNKS,
     DEFAULT_NUM_OF_TOKENS, 
     IS_DEV_MODE, 
@@ -29,12 +28,23 @@ class ComprehensivenessCheckerContext:
 
 
 @dataclass
+class Improvement:
+    user_prompt: str
+    improved_answer: str
+
+@dataclass
+class PolishContext:
+    improvements: list[Improvement] = field(default_factory=list)
+
+
+@dataclass
 class GrantApplicationQuestionContext:
     question: str | None = None
     word_limit: str | None = None
     most_relevant_documents: list[Document] = field(default_factory=list)
     answer: str | None = None
     comprehensiveness: ComprehensivenessCheckerContext = field(default_factory=ComprehensivenessCheckerContext)
+    polish: PolishContext = field(default_factory=PolishContext)
 
 
 @dataclass
@@ -164,3 +174,23 @@ class UserContext:
 
     def exists_answer_to_any_implicit_question(self) -> bool:
         return any([question.answer for question in self.questions[-1].comprehensiveness.implicit_questions.values()])
+
+
+    def get_current_user_guidance_prompt(self) -> str:
+        return self.questions[-1].polish.improvements[-1].user_prompt
+
+
+    def set_user_guidance_prompt(self, prompt: str):
+        self.questions[-1].polish.improvements.append(Improvement(user_prompt=prompt, improved_answer=None))
+
+
+    def get_current_improvements(self) -> list[Improvement]:
+        return self.questions[-1].polish.improvements
+
+
+    def set_improved_answer(self, answer: str):
+        self.questions[-1].polish.improvements[-1].improved_answer = answer
+
+
+    def is_allowed_to_add_more_guidance(self) -> bool:
+        return len(self.questions[-1].polish.improvements) < 3

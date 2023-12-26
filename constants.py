@@ -26,6 +26,8 @@ class StepID(StrEnum):
     PROMPT_USER_TO_SUBMIT_ANSWER = auto()
 
     READY_TO_GENERATE_FINAL_ANSWER = auto()
+    ASK_USER_IF_GUIDANCE_NEEDED = auto()
+    USER_GUIDANCE_PROMPT = auto()
 
     DO_ANOTHER_QUESTION = auto()
 
@@ -49,6 +51,7 @@ class ComponentLabel(StrEnum):
     CLEAR = 'Clear'
     GOOD_AS_IS = 'Good as is!'
     EDIT_IT = 'Let me edit it'
+    ADD_GUIDANCE = 'Let me add some guidance'
     OF_COURSE = 'Of course I\'m ready!'
 
 class ComponentID(StrEnum):
@@ -101,7 +104,7 @@ SYSTEM_PROMPT_FOR_ANSWERING_ORIGINAL_QUESTION = (
     '----------------\n'
     '{context}\n'
     '----------------\n'
-    'Make sure to comply with the word limit stated in parentheses at the end of the grant application question as this is crucial!'
+    'Make sure to comply with the word limit stated in parentheses at the end of the grant application question as this is crucial! (but do not write the word count itself in the generated answer)'
 )
 
 SYSTEM_PROMPT_FOR_ANSWERING_IMPLICIT_QUESTION = (

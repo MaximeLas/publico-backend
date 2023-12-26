@@ -19,7 +19,8 @@ from prompts import (
     get_prompt_template_for_generating_original_answer,
     get_prompt_template_for_comprehensiveness_check_openai_functions,
     get_prompt_template_for_generating_answer_to_implicit_question,
-    get_prompt_template_for_generating_final_answer
+    get_prompt_template_for_generating_final_answer,
+    get_prompt_template_for_user_guidance_post_answer
 )
 
 
@@ -198,3 +199,35 @@ def generate_final_answer_stream(context: UserContext) -> MessageOutputType:
         f'*{question_context.answer}*')
 
     yield [chatbot_msg, comparison_msg]
+
+
+def generate_improved_answer_following_user_guidance_prompt(context: UserContext) -> MessageOutputType:
+    '''Generate and stream an improved answer to a grant application question following user guidance.'''
+
+    question_context = context.get_last_question_context()
+    comprehensiveness_context = question_context.comprehensiveness
+    implicit_questions_answered = dict(filter(lambda elem: elem[1].answer is not None, question_context.comprehensiveness.implicit_questions.items()))
+
+    intro_to_improved_answer = f'Here is the improved answer to **"{question_context.question}"**:'
+    chatbot_msg = intro_to_improved_answer
+    yield intro_to_improved_answer
+
+    final_answer = ''
+    for _, llm_response in stream_from_llm_generation(
+        prompt=get_prompt_template_for_user_guidance_post_answer(context.get_current_improvements()),
+        chain_type='llm_chain',
+        verbose=True,
+        question=question_context.question,
+        answers_to_implicit_questions='\n'.join([q.answer for q in implicit_questions_answered.values()]),
+        word_limit=question_context.word_limit,
+        original_answer=question_context.answer,
+        answer=comprehensiveness_context.revised_application_answer,
+    ):
+        final_answer = llm_response
+        chatbot_msg = f'{intro_to_improved_answer}\n\n*{final_answer}*'
+        yield chatbot_msg
+
+    context.set_improved_answer(final_answer)
+
+    chatbot_msg += f'\n\nThe improved answer contains **{len(final_answer.split())}** words. The word limit is **{question_context.word_limit}** words.'
+    yield chatbot_msg

@@ -24,7 +24,8 @@ from message_generator_llm import (
     check_for_comprehensiveness,
     generate_answer_for_implicit_question_stream,
     generate_answer_to_question_stream,
-    generate_final_answer_stream
+    generate_final_answer_stream,
+    generate_improved_answer_following_user_guidance_prompt
 )
 from message_generator_publico import (
     generate_chatbot_messages,
@@ -324,7 +325,7 @@ class WorkflowManager:
                         no_btn_props
                             if not UserContext.exists_answer_to_current_implicit_question(context)
                             else
-                        dict(value=ComponentLabel.EDIT_IT, variant='primary'))},
+                        dict(value=ComponentLabel.EDIT_IT, variant='secondary'))},
                 generate_chatbot_messages_fns=defaultdict(list, {
                     ComponentLabel.NO: [lambda context: (
                         "Okay, let's skip this one."
@@ -355,9 +356,33 @@ class WorkflowManager:
                 initial_chatbot_message=InitialChatbotMessage(
                     "We're done with the implicit questions! 🏁\n" +
                     "Are you ready to have your final answer generated?"),
-                next_step_decider=FixedStepDecider(StepID.DO_ANOTHER_QUESTION),
+                next_step_decider=FixedStepDecider(StepID.ASK_USER_IF_GUIDANCE_NEEDED),
                 components={ComponentID.BTN_1: dict(value=ComponentLabel.OF_COURSE, variant='primary')},
                 generate_chatbot_messages_fns=[generate_final_answer_stream]
+            ),
+            StepID.ASK_USER_IF_GUIDANCE_NEEDED: ChatbotStep(
+                initial_chatbot_message=InitialChatbotMessage(
+                    "If you'd like, you can give me guidance to improve the answer."),
+                next_step_decider={
+                    ComponentLabel.GOOD_AS_IS: FixedStepDecider(StepID.DO_ANOTHER_QUESTION),
+                    ComponentLabel.ADD_GUIDANCE: FixedStepDecider(StepID.USER_GUIDANCE_PROMPT)},
+                components={
+                    ComponentID.BTN_1: dict(value=ComponentLabel.GOOD_AS_IS, variant='primary'),
+                    ComponentID.BTN_2: dict(value=ComponentLabel.ADD_GUIDANCE, variant='secondary')}
+            ),
+            StepID.USER_GUIDANCE_PROMPT: ChatbotStep(
+                initial_chatbot_message=InitialChatbotMessage(
+                    "What guidance do you want to provide to improve the answer? " +
+                    "(ie. *Make it more formal* or *Mention that we helped 150 clients last year*)"),
+                next_step_decider=ConditionalStepDecider(
+                    condition=UserContext.is_allowed_to_add_more_guidance,
+                    if_true_step=StepID.ASK_USER_IF_GUIDANCE_NEEDED,
+                    if_false_step=StepID.DO_ANOTHER_QUESTION),
+                components={
+                    ComponentID.USER_TEXT_BOX: user_props,
+                    ComponentID.SUBMIT_USER_INPUT_BTN: {}},
+                save_event_outcome_fn=UserContext.set_user_guidance_prompt,
+                generate_chatbot_messages_fns=[generate_improved_answer_following_user_guidance_prompt]
             ),
             StepID.DO_ANOTHER_QUESTION: ChatbotStep(
                 initial_chatbot_message=InitialChatbotMessage(

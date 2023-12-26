@@ -1,12 +1,15 @@
 from langchain.prompts.chat import (
     ChatPromptTemplate,
     HumanMessagePromptTemplate,
-    SystemMessagePromptTemplate
+    SystemMessagePromptTemplate,
+    AIMessagePromptTemplate
 )
 from langchain.schema.messages import (
     HumanMessage,
     SystemMessage
 )
+
+from context import Improvement
 
 
 
@@ -91,12 +94,32 @@ def get_prompt_template_for_generating_final_answer() -> ChatPromptTemplate:
         '{answers_to_implicit_questions}.\n'
         '----------------\n'
         'Start your message right away with the new answer without any leading words. '
-        'Make sure to comply with the word limit stated in parentheses at the end of the grant application question as this is crucial!'
+        'Make sure to comply with the word limit stated in parentheses at the end of the grant application question as this is crucial! (but do not write the word count itself in the generated answer)'
     )
 
     messages = [
         SystemMessagePromptTemplate.from_template(system_template),
         HumanMessagePromptTemplate.from_template('{original_answer}'),
     ]
+
+    return ChatPromptTemplate.from_messages(messages)
+
+
+def get_prompt_template_for_user_guidance_post_answer(improvements: list[Improvement]) -> ChatPromptTemplate:
+    '''
+    Get a prompt template for a chat model to modify an answer according to user guidance
+        Returns:
+            a prompt template for a chat model to modify an answer according to user guidance
+    '''
+
+    messages = get_prompt_template_for_generating_final_answer().messages
+    messages.append(AIMessagePromptTemplate.from_template('{answer}'))
+
+    for improvement in improvements[:-1]:
+        messages.append(HumanMessagePromptTemplate.from_template(improvement.user_prompt))
+        messages.append(AIMessagePromptTemplate.from_template(improvement.improved_answer))
+
+    messages.append(HumanMessagePromptTemplate.from_template(improvements[-1].user_prompt +
+        ' (Just make sure to, once again, comply with the word limit of {word_limit} words as this is crucial!)'))
 
     return ChatPromptTemplate.from_messages(messages)

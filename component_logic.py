@@ -37,13 +37,8 @@ def handle_submit(
     # check which input was submitted
     input_submitted: str
 
-    if workflow_state.current_step_id == StepID.ENTER_QUESTION:
-        debug(**{'Question': user_message})
-        values_to_save = [user_message]
-        input_submitted = f'**{user_message}**'
-        user_message = None
-    elif workflow_state.current_step_id == StepID.PROMPT_USER_TO_SUBMIT_ANSWER:
-        debug(**{'User answer': user_message})
+    if workflow_state.current_step_id in (StepID.ENTER_QUESTION, StepID.USER_GUIDANCE_PROMPT, StepID.PROMPT_USER_TO_SUBMIT_ANSWER):
+        debug(**{'User': user_message})
         values_to_save = [user_message]
         input_submitted = f'**{user_message}**'
         user_message = None
@@ -55,7 +50,7 @@ def handle_submit(
     elif workflow_state.current_step_id in (StepID.ENTER_RAG_CONFIG_ORIGINAL_QUESTION, StepID.ENTER_RAG_CONFIG_IMPLICIT_QUESTION):
         debug(**{'System prompt': user_message, '# Tokens': number_1, '# Documents': number_2})
         values_to_save = [user_message, number_1, number_2]
-        input_submitted = f'**System prompt**:\n{user_message}\n\n**# Tokens**: {str(number_1)}\n**# Documents**: {str(number_2)}'
+        input_submitted = f'*# Tokens*: {str(number_1)}\n*# Documents*: {str(number_2)}\n*System prompt*:\n{user_message}'
         user_message = None
         number_1 = DEFAULT_WORD_LIMIT
         number_2 = 0
