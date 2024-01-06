@@ -14,7 +14,7 @@ from utilities.document_helpers import (
     get_most_relevant_docs_in_vector_store_for_answering_question,
     get_vector_store_for_files
 )
-from configurations.constants import IS_DEV_MODE, GPT_MODEL
+from configurations.constants import IS_DEV_MODE
 from configurations.prompts import (
     get_prompt_template_for_generating_original_answer,
     get_prompt_template_for_comprehensiveness_check_openai_functions,
@@ -47,7 +47,8 @@ def generate_answer_to_question_stream(context: AppContext) -> MessageOutputType
     yield intro_to_answer
 
     chatbot_msg = intro_to_answer
-    for _, llm_response in stream_from_llm_generation(
+    llm_response = llm_response_formatted = ''
+    for _, llm_response, llm_response_formatted in stream_from_llm_generation(
         prompt=get_prompt_template_for_generating_original_answer(
             context.get_system_prompt_for_original_question()),
         chain_type='qa_chain',
@@ -56,17 +57,15 @@ def generate_answer_to_question_stream(context: AppContext) -> MessageOutputType
         question=question_context.question,
         word_limit=question_context.word_limit
     ):
-        answer_to_question = llm_response
-        chatbot_msg = f'{intro_to_answer}\n\n*{answer_to_question}*'
+        chatbot_msg = f'{intro_to_answer}\n\n{llm_response_formatted}'
         yield chatbot_msg
 
-    question_context.answer = answer_to_question
+
+    context.set_answer_to_current_grant_application_question(llm_response, llm_response_formatted)
 
     time.sleep(0.25)
-    chatbot_msg += f'\n\nGenerated answer contains **{len(answer_to_question.split())}** words.'
+    chatbot_msg += f'\n\nGenerated answer contains **{len(llm_response.split())}** words.'
     yield chatbot_msg
-
-
 
 
 def check_for_comprehensiveness(context: AppContext) -> MessageOutputType:
@@ -80,9 +79,14 @@ def check_for_comprehensiveness(context: AppContext) -> MessageOutputType:
 
     with get_openai_callback() as cb:
         prompt = get_prompt_template_for_comprehensiveness_check_openai_functions()
-        chat_openai = ChatOpenAI(client=None, model=GPT_MODEL, temperature=0)
+        chat_openai = ChatOpenAI(client=None, model='gpt-4', temperature=0)
         chain = create_openai_fn_chain([function_for_comprehensiveness_check], chat_openai, prompt, verbose=True)
-        response = chain(inputs=dict(question=question_context.question, answer=question_context.answer))['function']
+
+        response = chain(
+            inputs=dict(question=question_context.question, answer=question_context.answer.original)
+        )['function']
+
+        print(f'response: {response}')
         debug(**{'Summary info OpenAI callback': cb})
 
     comprehensiveness_context.missing_information = response['missing_information']
@@ -129,8 +133,8 @@ def generate_answer_for_implicit_question_stream(context: AppContext) -> Message
     most_relevant_documents = get_most_relevant_docs_in_vector_store_for_answering_question(
         vector_store=context.uploaded_files.vector_store, question=context.get_current_implicit_question(), n_results=4)
 
-    answer_to_question = ''
-    for _, llm_response in stream_from_llm_generation(
+    llm_response = llm_response_formatted = ''
+    for _, llm_response, llm_response_formatted in stream_from_llm_generation(
         prompt=get_prompt_template_for_generating_answer_to_implicit_question(
             context.get_system_prompt_for_implicit_question()),
         chain_type='qa_chain',
@@ -139,11 +143,10 @@ def generate_answer_for_implicit_question_stream(context: AppContext) -> Message
         docs=most_relevant_documents,
         question=context.get_current_implicit_question()
     ):
-        answer_to_question = llm_response
-        yield f'{start_of_chatbot_message}\n\n*{answer_to_question}*'
+        yield f'{start_of_chatbot_message}\n\n{llm_response_formatted}'
 
-    if 'Not enough information' not in answer_to_question:
-        context.set_answer_to_current_implicit_question(answer_to_question)
+    if 'Not enough information' not in llm_response:
+        context.set_answer_to_current_implicit_question(llm_response, llm_response_formatted)
 
 
 
@@ -174,29 +177,28 @@ def generate_final_answer_stream(context: AppContext) -> MessageOutputType:
 
     yield intro_to_final_answer
 
-    final_answer = ''
-    for _, llm_response in stream_from_llm_generation(
+    llm_response = llm_response_formatted = ''
+    for _, llm_response, llm_response_formatted in stream_from_llm_generation(
         prompt=get_prompt_template_for_generating_final_answer(),
         chain_type='llm_chain',
         verbose=True,
         question=question_context.question,
-        answers_to_implicit_questions='\n'.join([q.answer for q in implicit_questions_answered.values()]),
+        answers_to_implicit_questions='\n'.join([q.answer.original for q in implicit_questions_answered.values()]),
         word_limit=question_context.word_limit,
-        original_answer=question_context.answer
+        original_answer=question_context.answer.original
     ):
-        final_answer = llm_response
-        chatbot_msg = f'{intro_to_final_answer}\n\n*{final_answer}*'
+        chatbot_msg = f'{intro_to_final_answer}\n\n{llm_response_formatted}'
         yield chatbot_msg
 
-    comprehensiveness_context.revised_application_answer = final_answer
+    context.set_revised_answer_to_current_grant_application_question(llm_response, llm_response_formatted)
 
-    chatbot_msg += f'\n\nThe final answer contains **{len(final_answer.split())}** words. The word limit is **{question_context.word_limit}** words.'
+    chatbot_msg += f'\n\nThe final answer contains **{len(llm_response.split())}** words. The word limit is **{question_context.word_limit}** words.'
     yield chatbot_msg
 
     time.sleep(0.25)
     comparison_msg = (
-        f'For reference, the original answer, which contains **{len(question_context.answer.split())}** words, is the following:\n\n' +
-        f'*{question_context.answer}*')
+        f'For reference, the original answer, which contains **{len(question_context.answer.original.split())}** words, is the following:\n\n' +
+        f'{question_context.answer.formatted}')
 
     yield [chatbot_msg, comparison_msg]
 
@@ -212,22 +214,21 @@ def generate_improved_answer_following_user_guidance_prompt(context: AppContext)
     chatbot_msg = intro_to_improved_answer
     yield intro_to_improved_answer
 
-    final_answer = ''
-    for _, llm_response in stream_from_llm_generation(
+    llm_response = llm_response_formatted = ''
+    for _, llm_response, llm_response_formatted in stream_from_llm_generation(
         prompt=get_prompt_template_for_user_guidance_post_answer(context.get_current_improvements()),
         chain_type='llm_chain',
         verbose=True,
         question=question_context.question,
-        answers_to_implicit_questions='\n'.join([q.answer for q in implicit_questions_answered.values()]),
+        answers_to_implicit_questions='\n'.join([q.answer.original for q in implicit_questions_answered.values()]),
         word_limit=question_context.word_limit,
-        original_answer=question_context.answer,
-        answer=comprehensiveness_context.revised_application_answer,
+        original_answer=question_context.answer.original,
+        answer=comprehensiveness_context.revised_application_answer.original,
     ):
-        final_answer = llm_response
-        chatbot_msg = f'{intro_to_improved_answer}\n\n*{final_answer}*'
+        chatbot_msg = f'{intro_to_improved_answer}\n\n{llm_response_formatted}'
         yield chatbot_msg
 
-    context.set_improved_answer(final_answer)
+    context.set_improved_answer(llm_response, llm_response_formatted)
 
-    chatbot_msg += f'\n\nThe improved answer contains **{len(final_answer.split())}** words. The word limit is **{question_context.word_limit}** words.'
+    chatbot_msg += f'\n\nThe improved answer contains **{len(llm_response.split())}** words. The word limit is **{question_context.word_limit}** words.'
     yield chatbot_msg

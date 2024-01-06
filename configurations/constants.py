@@ -53,6 +53,7 @@ class ComponentLabel(StrEnum):
     EDIT_IT = 'Let me edit it'
     ADD_GUIDANCE = 'Let me add some guidance'
     OF_COURSE = 'Of course I\'m ready!'
+    ANSWERS = 'Answers'
 
 class ComponentID(StrEnum):
     CHATBOT = auto()
@@ -67,6 +68,7 @@ class ComponentID(StrEnum):
     UPLOAD_FILES_BTN = auto()
     CLEAR_FILES_BTN = auto()
     SUBMIT_FILES_BTN = auto()
+    ANSWER_MARKUP = auto()
 
 DEFAULT_WORD_LIMIT = 150
 DEFAULT_NUM_OF_TOKENS = 1000
@@ -93,7 +95,7 @@ SERVER_PORT = int(os.getenv('SERVER_PORT', 7860))
 CREATE_LINK = utils.get_space() is None and os.getenv('CREATE_LINK', 'True').lower() in ('true', 't', '1', 'yes')
 EXCLUDE_LOGO = os.getenv("EXCLUDE_LOGO", 'False').lower() in ('true', 't', '1', 'yes')
 
-CHATBOT_HEIGHT = int(os.getenv('CHATBOT_HEIGHT', 700))
+CHATBOT_HEIGHT = int(os.getenv('CHATBOT_HEIGHT', 580))
 CHATBOT_LAYOUT = 'bubble' if os.getenv('CHATBOT_LAYOUT', 'panel').lower() in ('bubble', 'b') else 'panel'
 
 SYSTEM_PROMPT_FOR_ANSWERING_ORIGINAL_QUESTION = (

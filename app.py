@@ -1,7 +1,5 @@
 from functools import partial
-import logging
 import time
-import os
 import warnings
 
 import gradio as gr
@@ -57,34 +55,40 @@ with gr.Blocks(css='css/custom.css', theme=gr.themes.Default(primary_hue=gr.them
     submit_files_btn_component = workflow_manager.get_component(ComponentID.SUBMIT_FILES_BTN)
     clear_files_btn_component = workflow_manager.get_component(ComponentID.CLEAR_FILES_BTN)
     clear_files_btn_component.add(files_component) # make the clear button clear the files
+    answers_markup = workflow_manager.get_component(ComponentID.ANSWER_MARKUP)
 
     with gr.Row():
-        chatbot.render()
+        with gr.Column(scale=3):
+            chatbot.render()
 
-    with gr.Row():
-        btn_1_component.render()
-        btn_2_component.render()
+            with gr.Row():
+                btn_1_component.render()
+                btn_2_component.render()
 
-    with gr.Row():
-        with gr.Column():
-            user_text_box_component.render()
-            number_1_component.render()
-            number_2_component.render()
-            submit_user_input_component.render()
-            upload_files_btn_component.render()
-            clear_files_btn_component.render()
-            submit_files_btn_component.render()
+            with gr.Row():
+                with gr.Column():
+                    user_text_box_component.render()
+                    number_1_component.render()
+                    number_2_component.render()
+                    submit_user_input_component.render()
+                    upload_files_btn_component.render()
+                    clear_files_btn_component.render()
+                    submit_files_btn_component.render()
 
-        files_component.render()
+                files_component.render()
 
-        with gr.Row(visible=False) as examples_row:
-            examples=gr.Examples(
-                examples=GRANT_APPLICATION_QUESTIONS_EXAMPLES,
-                inputs=user_text_box_component,
-                label=ComponentLabel.EXAMPLES)
+            with gr.Row(visible=False) as examples_row:
+                examples=gr.Examples(
+                    examples=GRANT_APPLICATION_QUESTIONS_EXAMPLES,
+                    inputs=user_text_box_component,
+                    label=ComponentLabel.EXAMPLES)
 
-        workflow_manager.components[ComponentID.EXAMPLES] = examples_row
-        workflow_manager.steps[StepID.ENTER_QUESTION].components[ComponentID.EXAMPLES] = {}
+            workflow_manager.components[ComponentID.EXAMPLES] = examples_row
+            workflow_manager.steps[StepID.ENTER_QUESTION].components[ComponentID.EXAMPLES] = {}
+
+        with gr.Column(scale=2):
+            answers_markup.render()
+
 
 
     def handle_proceed_to_next_step(
@@ -126,6 +130,9 @@ with gr.Blocks(css='css/custom.css', theme=gr.themes.Default(primary_hue=gr.them
         for chatbot_messages in generate_chatbot_messages_from_trigger(workflow, component):
             new_chat_history = chat_history + chatbot_messages
             yield {chatbot: new_chat_history}
+
+        if report := workflow.context.get_completed_application():
+            yield {answers_markup: report}
 
         # 5. Update chatbot step
         update_workflow_step(workflow_manager.steps, workflow, component)

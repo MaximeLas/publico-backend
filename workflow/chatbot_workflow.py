@@ -81,8 +81,6 @@ class WorkflowManager:
                     "I'm Publico, your personal grant writing coach.\n" +
                     "Are you ready to start writing together?"]],
                 label=ComponentLabel.CHATBOT,
-                show_share_button=True,
-                show_copy_button=True,
                 height=CHATBOT_HEIGHT,
                 bubble_full_width=False,
                 avatar_images=(None, 'assets/logo192.png'),
@@ -146,6 +144,11 @@ class WorkflowManager:
                 variant='primary',
                 visible=False,
                 interactive=False
+            ),
+            ComponentID.ANSWER_MARKUP: gr.Markdown(
+                label=ComponentLabel.ANSWERS,
+                line_breaks=True,
+                visible=True
             )
         }
 

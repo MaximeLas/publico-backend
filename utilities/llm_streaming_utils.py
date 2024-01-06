@@ -2,6 +2,7 @@ from collections.abc import Iterator
 from queue import Queue, Empty
 from threading import Thread
 from typing import Literal
+import re
 
 from devtools import debug
 
@@ -37,7 +38,7 @@ def stream_from_llm_generation(
     verbose = False,
     docs: list[Document] | None = None,
     **input_variables
-) -> Iterator[tuple[str, str]]:
+) -> Iterator[tuple[str, str, str]]:
     '''
     This function will return a generator that will yield the next token from the LLM.
     
@@ -51,7 +52,7 @@ def stream_from_llm_generation(
             input_variables: the input variables included in the prompt
         
         Returns:
-            an iterator that will yield the next token from the LLM and the total content generated so far
+            a generator that will yield the next token from the LLM, the current answer, and the current answer formatted for display
     '''
 
     if chain_type not in ['llm_chain', 'qa_chain']:
@@ -102,7 +103,8 @@ def stream_from_llm_generation(
     t = Thread(target=task)
     t.start()
 
-    content = ''
+    answer = ''
+    answer_formatted = '*'
     num_tokens = 0
     # Get each new token from the queue and yield for our generator
     while True:
@@ -110,15 +112,22 @@ def stream_from_llm_generation(
             # get the next token from the queue
             if (next_token := q.get(True, timeout=1)) is not job_done:
                 num_tokens += 1
-                content += next_token
-                yield next_token, content
+                answer += next_token
+                if '\n\n' in next_token:
+                    # to display italics correctly remove any whitespaces before the \n\n
+                    # and add an asterix before and after \n\n
+                    answer_formatted += re.sub(r'\s*\n\n', '*\n\n*', next_token)
+                else:
+                    answer_formatted += next_token
+
+                yield next_token, answer, answer_formatted + '*'
             else:
                 print('\n-------------------------------------------------------------')
                 print('----------------------- End of stream -----------------------')
                 debug(**{
                     'Number of tokens generated': num_tokens,
-                    'Number of words generated': len(content.split()),
-                    'Final answer from LLM': content
+                    'Number of words generated': len(answer.split()),
+                    'Final answer from LLM': answer
                 })
                 print('-------------------------------------------------------------\n')
                 break

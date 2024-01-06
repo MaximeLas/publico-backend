@@ -1,4 +1,4 @@
-env
+.env
 .chroma
 __pycache__
 draft.py
