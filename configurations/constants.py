@@ -53,7 +53,8 @@ class ComponentLabel(StrEnum):
     EDIT_IT = 'Let me edit it'
     ADD_GUIDANCE = 'Let me add some guidance'
     OF_COURSE = 'Of course I\'m ready!'
-    ANSWERS = 'Answers'
+    REPORT_MARKDOWN = 'Report'
+    APPLICATION_ANSWERS = 'Application Answers - Click to Download'
 
 class ComponentID(StrEnum):
     CHATBOT = auto()
@@ -68,7 +69,8 @@ class ComponentID(StrEnum):
     UPLOAD_FILES_BTN = auto()
     CLEAR_FILES_BTN = auto()
     SUBMIT_FILES_BTN = auto()
-    ANSWER_MARKUP = auto()
+    ANSWERS_MARKUP = auto()
+    ANSWERS_FILE = auto()
 
 DEFAULT_WORD_LIMIT = 150
 DEFAULT_NUM_OF_TOKENS = 1000

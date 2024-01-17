@@ -145,11 +145,14 @@ class WorkflowManager:
                 visible=False,
                 interactive=False
             ),
-            ComponentID.ANSWER_MARKUP: gr.Markdown(
-                label=ComponentLabel.ANSWERS,
+            ComponentID.ANSWERS_MARKUP: gr.Markdown(
+                label=ComponentLabel.REPORT_MARKDOWN,
                 line_breaks=True,
                 visible=True
-            )
+            ),
+            ComponentID.ANSWERS_FILE: gr.File(
+                label=ComponentLabel.APPLICATION_ANSWERS,
+                visible=False)
         }
 
     def initialize_steps(self) -> dict[StepID, ChatbotStep]:

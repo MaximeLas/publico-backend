@@ -16,15 +16,15 @@ from configurations.constants import (
 
 
 @dataclass
-class LLMReponse:
-    original: str
-    formatted: str
+class TextFormat:
+    original: str = ''
+    formatted: str = ''
 
 
 @dataclass
 class ImplicitQuestion:
     question: str
-    answer: LLMReponse | None = None
+    answer: TextFormat | None = None
 
 
 @dataclass
@@ -33,13 +33,13 @@ class ComprehensivenessCheckerContext:
     implicit_questions: dict[int, ImplicitQuestion] = field(default_factory=dict)
     index_of_implicit_question_being_answered: int | None = None
     wish_to_answer_implicit_questions: bool = True
-    revised_application_answer: LLMReponse | None = None
+    revised_application_answer: TextFormat | None = None
 
 
 @dataclass
 class Improvement:
     user_prompt: str
-    improved_answer: LLMReponse
+    improved_answer: TextFormat
 
 
 @dataclass
@@ -52,9 +52,35 @@ class GrantApplicationQuestionContext:
     question: str | None = None
     word_limit: str | None = None
     most_relevant_documents: list[Document] = field(default_factory=list)
-    answer: LLMReponse | None = None
+    answer: TextFormat | None = None
     comprehensiveness: ComprehensivenessCheckerContext = field(default_factory=ComprehensivenessCheckerContext)
     polish: PolishContext = field(default_factory=PolishContext)
+
+    def get_original_answer(self, format: bool) -> str | None:
+        if self.answer:
+            return self.answer.formatted if format else self.answer.original
+        else:
+            return None
+
+    def get_revised_answer(self, format: bool) -> str | None:
+        if self.comprehensiveness.revised_application_answer:
+            return (
+                self.comprehensiveness.revised_application_answer.formatted
+                    if format else
+                self.comprehensiveness.revised_application_answer.original
+            )
+        else:
+            return None
+
+    def get_last_improved_answer(self, format: bool) -> str | None:
+        if self.polish.improvements:
+            return (
+                self.polish.improvements[-1].improved_answer.formatted
+                    if format else
+                self.polish.improvements[-1].improved_answer.original
+            )
+        else:
+            return None
 
 
 @dataclass
@@ -76,7 +102,7 @@ class TestConfigContext:
 class AppContext:
     uploaded_files: FilesStorageContext = field(default_factory=FilesStorageContext)
     questions: list[GrantApplicationQuestionContext] = field(default_factory=list)
-    full_application: str | None = None
+    full_application: TextFormat = field(default_factory=TextFormat)
     test_config: TestConfigContext = field(default_factory=TestConfigContext) if IS_DEV_MODE else None
 
 
@@ -105,7 +131,7 @@ class AppContext:
         original: str,
         formatted: str | None = None
     ):
-        self.questions[-1].answer = LLMReponse(original, formatted)
+        self.questions[-1].answer = TextFormat(original, formatted)
 
 
     def get_index_of_implicit_question_being_answered(self) -> int | None:
@@ -144,7 +170,7 @@ class AppContext:
         if not index or index > len(implicit_questions):
             raise Exception('Cannot set answer as no implicit question currently being answered')
 
-        implicit_questions[index].answer = LLMReponse(original, formatted)
+        implicit_questions[index].answer = TextFormat(original, formatted)
 
 
     def get_next_implicit_question(self) -> str:
@@ -176,7 +202,7 @@ class AppContext:
         original: str,
         formatted: str | None = None
     ):
-        self.questions[-1].comprehensiveness.revised_application_answer = LLMReponse(original, formatted)
+        self.questions[-1].comprehensiveness.revised_application_answer = TextFormat(original, formatted)
 
 
     def get_current_user_guidance_prompt(self) -> str:
@@ -192,41 +218,46 @@ class AppContext:
 
 
     def set_improved_answer(self, original: str, formatted: str | None = None):
-        self.questions[-1].polish.improvements[-1].improved_answer = LLMReponse(original, formatted)
+        self.questions[-1].polish.improvements[-1].improved_answer = TextFormat(original, formatted)
 
 
     def is_allowed_to_add_more_guidance(self) -> bool:
         return len(self.questions[-1].polish.improvements) < 3
 
 
-    def get_completed_application(self) -> str | None:
-        report = ''
+    def get_completed_application(self) -> tuple[str, str]:
+        report_original = ''
+        report_formatted = ''
         for i, question in enumerate(self.questions):
-            report += f'## Question {i+1}\n **{question.question}**'
+            report_original += f'Question {i+1}: {question.question}'
+            report_formatted += f'## Question {i+1}\n **{question.question}**'
+
             if question.word_limit:
-                report += f' ({question.word_limit} words)'
-            answer = (
-                question.polish.improvements[-1].improved_answer.formatted
-                if question.polish.improvements
-                else (
-                    question.comprehensiveness.revised_application_answer.formatted
-                    if question.comprehensiveness.revised_application_answer
-                    else (
-                        question.answer.formatted
-                        if question.answer
-                        else ''
-                    )
-                )
+                report_original += f' ({question.word_limit} words)'
+                report_formatted += f' ({question.word_limit} words)'
+
+            answer_original = (
+                question.get_last_improved_answer(False) or
+                question.get_revised_answer(False) or
+                question.get_original_answer(False) or
+                ''
+            )
+            answer_formatted = (
+                question.get_last_improved_answer(True) or
+                question.get_revised_answer(True) or
+                question.get_original_answer(True) or
+                ''
             )
 
-            if answer:
-                report += f'\n\n{answer}\n({len(answer.split())} words)\n\n'
+            if answer_original:
+                report_original += f'\n\n{answer_original}\n({len(answer_original.split())} words)\n\n'
+                report_formatted += f'\n\n{answer_formatted}\n({len(answer_formatted.split())} words)\n\n'
 
-        if self.full_application is not report:
-            self.full_application = report
-            return report
-        else:
-            return None
+        if self.full_application.original is not report_original:
+            self.full_application.original = report_original
+            self.full_application.formatted = report_formatted
+
+        return report_original, report_formatted
 
 
     ''' Test Config methods '''

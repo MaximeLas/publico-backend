@@ -55,7 +55,8 @@ with gr.Blocks(css='css/custom.css', theme=gr.themes.Default(primary_hue=gr.them
     submit_files_btn_component = workflow_manager.get_component(ComponentID.SUBMIT_FILES_BTN)
     clear_files_btn_component = workflow_manager.get_component(ComponentID.CLEAR_FILES_BTN)
     clear_files_btn_component.add(files_component) # make the clear button clear the files
-    answers_markup = workflow_manager.get_component(ComponentID.ANSWER_MARKUP)
+    answers_markup = workflow_manager.get_component(ComponentID.ANSWERS_MARKUP)
+    answers_file = workflow_manager.get_component(ComponentID.ANSWERS_FILE)
 
     with gr.Row():
         with gr.Column(scale=3):
@@ -87,6 +88,7 @@ with gr.Blocks(css='css/custom.css', theme=gr.themes.Default(primary_hue=gr.them
             workflow_manager.steps[StepID.ENTER_QUESTION].components[ComponentID.EXAMPLES] = {}
 
         with gr.Column(scale=2):
+            answers_file.render()
             answers_markup.render()
 
 
@@ -131,8 +133,12 @@ with gr.Blocks(css='css/custom.css', theme=gr.themes.Default(primary_hue=gr.them
             new_chat_history = chat_history + chatbot_messages
             yield {chatbot: new_chat_history}
 
-        if report := workflow.context.get_completed_application():
-            yield {answers_markup: report}
+        report_original, report_formatted = workflow.context.get_completed_application()
+        if report_original:
+            yield {
+                answers_markup: report_formatted,
+                answers_file: gr.update(value=generate_grand_application_txt_file(report_original), visible=True)
+            }
 
         # 5. Update chatbot step
         update_workflow_step(workflow_manager.steps, workflow, component)
@@ -164,6 +170,14 @@ with gr.Blocks(css='css/custom.css', theme=gr.themes.Default(primary_hue=gr.them
             ],
             outputs=[workflow_state, *(list(workflow_manager.components.values()))]
         )
+
+    def generate_grand_application_txt_file(report: str) -> str:
+        file_name = f'grant_application_{time.strftime("%Y-%m-%d_%H-%M-%S")}.txt'
+
+        with open(file_name, 'w') as file:
+            file.write(report)
+
+        return file_name
 
     @chatbot.like(inputs=None, outputs=None)
     def vote(data: gr.LikeData):
