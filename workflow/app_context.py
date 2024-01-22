@@ -253,9 +253,11 @@ class AppContext:
                 report_original += f'\n\n{answer_original}\n({len(answer_original.split())} words)\n\n'
                 report_formatted += f'\n\n{answer_formatted}\n({len(answer_formatted.split())} words)\n\n'
 
-        if self.full_application.original is not report_original:
-            self.full_application.original = report_original
-            self.full_application.formatted = report_formatted
+        if self.full_application.original == report_original:
+            return None, None
+
+        self.full_application.original = report_original
+        self.full_application.formatted = report_formatted
 
         return report_original, report_formatted
 

@@ -133,25 +133,26 @@ with gr.Blocks(css='css/custom.css', theme=gr.themes.Default(primary_hue=gr.them
             new_chat_history = chat_history + chatbot_messages
             yield {chatbot: new_chat_history}
 
+        # 5. Update Application Answers (markdown and txt file)
         report_original, report_formatted = workflow.context.get_completed_application()
         if report_original:
             yield {
                 answers_markup: report_formatted,
-                answers_file: gr.update(value=generate_grand_application_txt_file(report_original), visible=True)
+                answers_file: gr.update(value=generate_grant_application_txt_file(report_original), visible=True)
             }
 
-        # 5. Update chatbot step
+        # 6. Update chatbot step
         update_workflow_step(workflow_manager.steps, workflow, component)
 
-        # 6. Modify the context
+        # 7. Modify the context
         modify_context(workflow)
 
-        # 7. Show initial chatbot message
+        # 8. Show initial chatbot message
         time.sleep(0.25)
         for initial_chatbot_message in get_initial_chatbot_message(workflow):
             yield {chatbot: new_chat_history + initial_chatbot_message}
 
-        # 8. Make next step's components visible
+        # 9. Make next step's components visible
         if visible_components := update_visibility_of_components_in_current_step(
             workflow_manager.components, workflow, True):
             yield visible_components
@@ -171,7 +172,7 @@ with gr.Blocks(css='css/custom.css', theme=gr.themes.Default(primary_hue=gr.them
             outputs=[workflow_state, *(list(workflow_manager.components.values()))]
         )
 
-    def generate_grand_application_txt_file(report: str) -> str:
+    def generate_grant_application_txt_file(report: str) -> str:
         file_name = f'grant_application_{time.strftime("%Y-%m-%d_%H-%M-%S")}.txt'
 
         with open(file_name, 'w') as file:

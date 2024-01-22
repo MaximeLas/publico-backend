@@ -158,7 +158,7 @@ class WorkflowManager:
     def initialize_steps(self) -> dict[StepID, ChatbotStep]:
         yes_btn_props = dict(value=ComponentLabel.YES, variant='primary')
         no_btn_props = dict(value=ComponentLabel.NO, variant='stop')
-        user_props = dict(value='', label=ComponentLabel.USER)
+        user_props = dict(label=ComponentLabel.USER)
         num_tokens_props = dict(value=DEFAULT_NUM_OF_TOKENS, label=ComponentLabel.NUM_OF_TOKENS)
         num_docs_props = dict(value=DEFAULT_NUM_OF_DOC_CHUNKS, label=ComponentLabel.NUM_OF_DOCS)
 
@@ -248,7 +248,7 @@ class WorkflowManager:
                     'Would you like to answer the questions one by one?'),
                 next_step_decider={
                     ComponentLabel.YES: FixedStepDecider(StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION),
-                    ComponentLabel.NO: FixedStepDecider(StepID.DO_ANOTHER_QUESTION)},
+                    ComponentLabel.NO: FixedStepDecider(StepID.ASK_USER_IF_GUIDANCE_NEEDED)},
                 components={ComponentID.BTN_1: yes_btn_props, ComponentID.BTN_2: no_btn_props}
             ),
             StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION: ChatbotStep(

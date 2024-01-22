@@ -131,7 +131,9 @@ def generate_answer_for_implicit_question_stream(context: AppContext) -> Message
             tokens_per_doc_chunk=context.get_num_of_tokens_per_doc_chunk())
 
     most_relevant_documents = get_most_relevant_docs_in_vector_store_for_answering_question(
-        vector_store=context.uploaded_files.vector_store, question=context.get_current_implicit_question(), n_results=4)
+        vector_store=context.uploaded_files.vector_store,
+        question=context.get_current_implicit_question(),
+        n_results=context.get_num_of_doc_chunks_to_consider())
 
     llm_response = llm_response_formatted = ''
     for _, llm_response, llm_response_formatted in stream_from_llm_generation(
@@ -223,7 +225,11 @@ def generate_improved_answer_following_user_guidance_prompt(context: AppContext)
         answers_to_implicit_questions='\n'.join([q.answer.original for q in implicit_questions_answered.values()]),
         word_limit=question_context.word_limit,
         original_answer=question_context.answer.original,
-        answer=comprehensiveness_context.revised_application_answer.original,
+        answer=(
+            comprehensiveness_context.revised_application_answer.original
+                if comprehensiveness_context.revised_application_answer
+                else
+            question_context.answer.original)
     ):
         chatbot_msg = f'{intro_to_improved_answer}\n\n{llm_response_formatted}'
         yield chatbot_msg
