@@ -185,7 +185,7 @@ def generate_final_answer_stream(context: AppContext) -> MessageOutputType:
         chain_type='llm_chain',
         verbose=True,
         question=question_context.question,
-        answers_to_implicit_questions='\n'.join([q.answer.original for q in implicit_questions_answered.values()]),
+        answers_to_implicit_questions='\n\n'.join([f'{q.question}\n{q.answer.original}' for q in implicit_questions_answered.values()]),
         word_limit=question_context.word_limit,
         original_answer=question_context.answer.original
     ):
@@ -222,7 +222,7 @@ def generate_improved_answer_following_user_guidance_prompt(context: AppContext)
         chain_type='llm_chain',
         verbose=True,
         question=question_context.question,
-        answers_to_implicit_questions='\n'.join([q.answer.original for q in implicit_questions_answered.values()]),
+        answers_to_implicit_questions='\n\n'.join([f'{q.question}\n{q.answer.original}' for q in implicit_questions_answered.values()]),
         word_limit=question_context.word_limit,
         original_answer=question_context.answer.original,
         answer=(
