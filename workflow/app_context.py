@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 import tempfile
 
 from langchain.docstore.document import Document
-from langchain.vectorstores import Chroma
+from langchain_community.vectorstores import Chroma
 
 from configurations.constants import (
     DEFAULT_NUM_OF_DOC_CHUNKS,

@@ -1,10 +1,12 @@
-gradio # 3.42.0
-langchain # 0.0.271
-devtools # 0.12.1
-tiktoken # 0.4.0
-openai # 0.27.9
-chromadb # 0.4.6
-unstructured # 0.10.6
+gradio
+langchain
+langchain
+langchain-community
+devtools
+tiktoken
+openai
+chromadb
+unstructured
 unstructured[docx]
 
 # export HNSWLIB_NO_NATIVE=1

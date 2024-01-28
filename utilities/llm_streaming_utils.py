@@ -6,7 +6,7 @@ import re
 
 from devtools import debug
 
-from langchain.chat_models import ChatOpenAI
+from langchain_community.chat_models import ChatOpenAI
 from langchain.chains.llm import LLMChain
 from langchain.chains.question_answering import load_qa_chain
 from langchain.callbacks.base import BaseCallbackHandler

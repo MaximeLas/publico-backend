@@ -90,7 +90,7 @@ GRANT_APPLICATION_QUESTIONS_EXAMPLES = [
 
 PAGE_TITLE = "Publico.ai - Demo"
 
-GPT_MODEL = 'gpt-4-1106-preview' if os.getenv('GPT_MODEL', 'gpt-4') not in ('3.5', 'gpt-3.5', 'gpt-3.5-turbo') else 'gpt-3.5-turbo'
+GPT_MODEL = 'gpt-4-turbo-preview' if os.getenv('GPT_MODEL', 'gpt-4') not in ('3.5', 'gpt-3.5', 'gpt-3.5-turbo') else 'gpt-3.5-turbo'
 IS_DEV_MODE = os.getenv('DEV', 'False').lower() in ('true', 't', '1', 'yes')
 
 SERVER_PORT = int(os.getenv('SERVER_PORT', 7860))

@@ -2,9 +2,9 @@ import time
 
 from devtools import debug
 
-from langchain.callbacks import get_openai_callback
+from langchain_community.callbacks import get_openai_callback
 from langchain.chains.openai_functions import create_openai_fn_chain
-from langchain.chat_models import ChatOpenAI
+from langchain_community.chat_models import ChatOpenAI
 
 from workflow.chatbot_step import MessageOutputType
 from workflow.app_context import ImplicitQuestion, AppContext
@@ -79,7 +79,7 @@ def check_for_comprehensiveness(context: AppContext) -> MessageOutputType:
 
     with get_openai_callback() as cb:
         prompt = get_prompt_template_for_comprehensiveness_check_openai_functions()
-        chat_openai = ChatOpenAI(client=None, model='gpt-4', temperature=0)
+        chat_openai = ChatOpenAI(client=None, model='gpt-4-turbo-preview', temperature=0)
         chain = create_openai_fn_chain([function_for_comprehensiveness_check], chat_openai, prompt, verbose=True)
 
         response = chain(

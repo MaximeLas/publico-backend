@@ -5,7 +5,7 @@ colorFrom: green
 colorTo: gray
 sdk: gradio
 python_version: 3.11.2
-sdk_version: 4.12.0
+sdk_version: 4.16.0
 app_file: app.py
 pinned: true
 fullWidth: true
@@ -17,68 +17,50 @@ Check out the configuration reference at https://huggingface.co/docs/hub/spaces-
 
 🚀 Check out the live demo at [Hugging Face Spaces](https://huggingface.co/spaces/PublicoDemo/Demo)
 
-This project implements an interactive conversational chatbot to guide users through answering grant application questions.
 
 ## Description
 
-The chatbot leads users through key stages like:
+Publico.ai is an interactive conversational chatbot designed to assist users in crafting comprehensive and compelling grant application answers.
 
-- Uploading documents
-- Entering questions
-- Checking comprehensiveness
-- Generating final answers
+The chatbot employs a `WorkflowManager` to handle state transitions and orchestrate the user journey through key stages, such as document uploading, question input, comprehensiveness evaluation, implicit question handling, user guidance, and final answer generation.
 
-It utilizes a `WorkflowManager` to handle state and progression between steps.
+The system utilizes advanced Language Models via LangChain to generate responses. By ingesting and searching through the user's uploaded documents, it constructs high-quality grant application answers that cover all required aspects, ultimately helping users create compelling grant applications.
 
-Responses are generated using LLMs like GPT-3.5-Turbo and GPT-4 via LangChain. Answers are constructed by ingesting and searching through the user's uploaded documents.
 
-The system aims to create high quality grant application answers that cover all required aspects.
+## Key Components and Files
 
-## Architecture
+### Workflow and Context Management (workflow)
 
-The app is structured into several key architectural groups:
+Handles the definition of workflow steps, manages state and transitions between steps, decides the next step in the workflow, and tracks workflow state like user documents, questions, and answers.
 
-### Workflow Management
+- `chatbot_step.py`: Handles the definition of workflow steps.
+- `chatbot_workflow.py`: Manages state and transitions between steps.
+- `step_decider.py`: Decides the next step in the workflow.
+- `app_context.py`: Tracks workflow state like user documents, questions, and answers.
 
-- `chatbot_step.py`
-- `chatbot_workflow.py`
-- `step_decider.py`
+### Chatbot UI (app.py, components)
 
-These modules handle the definition of workflow steps, managing state and transitions between steps, and deciding the next step.
+Responsible for launching the Gradio UI and managing component events and logic.
 
-### Chatbot UI
+- `app.py`: Main application file that launches the Gradio UI.
+- `component_logic.py`: Handles component events and logic.
+- `component_wrapper.py`: Wraps components for extensibility.
 
-- `app.py`
-- `component_logic.py`
-- `component_wrapper.py`
+### Response Generation (message_generation, configurations)
 
-Launch the Gradio UI, handle component events and logic, and wrap components for extensibility.
+Generates chatbot responses using different approaches like LLMs and contains prompt engineering.
 
-### Context Tracking
+- `msg_gen_publico.py`: Functions that generate chatbot responses using the Publico approach.
+- `msg_gen_llm.py`: Functions that generate chatbot responses using LLMs (Language Models) like GPT-3.5-Turbo and GPT-4.
+- `prompts.py`: Contains prompt engineering for LLMs.
 
-- `context.py`
+### Text Processing and LLM Integration (utilities)
 
-Tracks workflow state like user documents, questions, and answers.
+Provides utilities for streaming text generation from LLMs, using advanced capabilities like OpenAI Functions, and processing user documents to construct answers.
 
-### Response Generation
-
-- `message_generator_*.py`
-- `prompts.py`
-
-Functions that generate chatbot responses via different approaches like LLMs. Also contains prompt engineering.
-
-### LLM Integration
-
-- `llm_streaming_utils.py`
-- `openai_functions_utils.py`
-
-Utilities for streaming text generation from LLMs and using advanced capabilities like OpenAI Functions.
-
-### Document Processing
-
-- `helpers.py`
-
-Helper methods for ingesting, splitting, embedding, and searching user documents to construct answers.
+- `llm_streaming_utils.py`: Utilities for streaming text generation from LLMs.
+- `openai_functions_utils.py`: Utilities for using advanced capabilities like OpenAI Functions.
+- `document_helpers.py`: Helper methods for ingesting, splitting, embedding, and searching user documents to construct answers.
 
 
 ## Usage
@@ -123,10 +105,12 @@ docker login registry.hf.space
 ```bash
 docker pull registry.hf.space/publicodemo-demo:latest
 
-docker run -it -p 7860:7860 --platform linux/amd64 \
+docker run --rm -it -p 7860:7860 --platform linux/amd64 \
   -d \
   -e OPENAI_API_KEY=$OPENAI_API_KEY \
-  -e CREATE_LINK=true \
+  -e SERVER_PORT=7860 \
+  -e EXCLUDE_LOGO=true \
+  -e CHATBOT_HEIGHT=560 \
   registry.hf.space/publicodemo-demo:latest python app.py
 ```
 
@@ -139,14 +123,14 @@ docker logs <container_id>
 
 ### Configuration
 
-Other environment variables can be set:
+Environment variables can be set to customize the app's behavior, such as server port, development mode, chatbot height, and layout, and GPT model selection.
 
 ```bash
 -e SERVER_PORT=5050 \
 -e DEV=true \
 -e CREATE_LINK=false \
 -e EXCLUDE_LOGO=true \
--e CHATBOT_HEIGHT=800
+-e CHATBOT_HEIGHT=560
 -e CHATBOT_LAYOUT="bubble"
 -e GPT_MODEL="gpt-3.5"
 ```

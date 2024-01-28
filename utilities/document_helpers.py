@@ -5,10 +5,10 @@ from devtools import debug
 import tiktoken
 
 from langchain.docstore.document import Document
-from langchain.document_loaders import UnstructuredFileLoader
+from langchain_community.document_loaders import UnstructuredFileLoader
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import Chroma
+from langchain_community.vectorstores import Chroma
 from langchain.vectorstores.base import VectorStore
 
 from configurations.constants import IS_DEV_MODE, GPT_MODEL
@@ -286,7 +286,7 @@ def get_vector_store_for_files(files: list[str], tokens_per_doc_chunk=1000) -> V
     '''
 
     # create vector store with OpenAIEmbeddings
-    vector_store = Chroma(embedding_function=OpenAIEmbeddings(client=None))
+    vector_store = Chroma(embedding_function=OpenAIEmbeddings(client=None, model='text-embedding-3-large', dimensions=1024))
 
     # get the files in the vector store
     files_in_vector_store = set(metadata['source'].rsplit('.', 1)[0] for metadata in vector_store._collection.get()['metadatas'])
