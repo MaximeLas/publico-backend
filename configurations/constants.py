@@ -34,6 +34,7 @@ class StepID(StrEnum):
     END = auto()
 
 class Component(IntEnum):
+    CHATBOT = auto()
     START = auto()
     YES = auto()
     NO = auto()

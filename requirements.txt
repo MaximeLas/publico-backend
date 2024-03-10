@@ -10,5 +10,7 @@ unstructured
 unstructured[docx]
 langchain_openai
 pytest
+fastapi
+uvicorn
 
 # export HNSWLIB_NO_NATIVE=1
