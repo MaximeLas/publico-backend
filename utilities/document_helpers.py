@@ -6,7 +6,7 @@ import tiktoken
 
 from langchain.docstore.document import Document
 from langchain_community.document_loaders import UnstructuredFileLoader
-from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain.vectorstores.base import VectorStore

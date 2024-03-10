@@ -10,7 +10,8 @@ from configurations.constants import (
     DEFAULT_NUM_OF_TOKENS, 
     IS_DEV_MODE, 
     SYSTEM_PROMPT_FOR_ANSWERING_ORIGINAL_QUESTION,
-    SYSTEM_PROMPT_FOR_ANSWERING_IMPLICIT_QUESTION
+    SYSTEM_PROMPT_FOR_ANSWERING_IMPLICIT_QUESTION,
+    StepID
 )
 
 
@@ -99,10 +100,13 @@ class TestConfigContext:
 
 
 @dataclass
-class AppContext:
+class SessionState:
     uploaded_files: FilesStorageContext = field(default_factory=FilesStorageContext)
     questions: list[GrantApplicationQuestionContext] = field(default_factory=list)
     full_application: TextFormat = field(default_factory=TextFormat)
+    current_step_id: StepID = StepID.START
+    chat_history: list[list] = field(default_factory=list)
+    last_user_input = None
     test_config: TestConfigContext = field(default_factory=TestConfigContext) if IS_DEV_MODE else None
 
 
@@ -113,8 +117,14 @@ class AppContext:
     def get_last_question_context(self) -> GrantApplicationQuestionContext:
         return self.questions[-1]
 
+    def get_index_of_last_question(self) -> int:
+        return len(self.questions) - 1
 
-    def set_uploaded_files(self, files: list[tempfile._TemporaryFileWrapper]):
+
+    def set_uploaded_files(self, text: str):
+        self.uploaded_files.files = ['/Users/maximelas/Developer/Demo/PBRC.txt', '/Users/maximelas/Developer/Demo/PBRC2.txt']
+
+    def set_uploaded_filess(self, files: list[tempfile._TemporaryFileWrapper]):
         self.uploaded_files.files = [file.name for file in files]
 
 

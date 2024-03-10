@@ -8,5 +8,7 @@ openai
 chromadb
 unstructured
 unstructured[docx]
+langchain_openai
+pytest
 
 # export HNSWLIB_NO_NATIVE=1

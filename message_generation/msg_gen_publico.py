@@ -1,20 +1,21 @@
 from collections.abc import Iterator
+from queue import Queue
 import time
 
 import gradio as gr
 
 from workflow.chatbot_step import GenerateMessageFunc
-from workflow.app_context import AppContext
+from workflow.session_state import SessionState
 
 
-def generate_validation_message_following_files_upload(context: AppContext) -> list[str]:
+def generate_validation_message_following_files_upload(state: SessionState, queue: Queue) -> list[str]:
     '''Generate a validation message following a file upload.'''
 
-    files = context.uploaded_files.files
+    files = state.uploaded_files.files
     file_or_files = 'file' if len(files) == 1 else 'files'
 
-    time.sleep(0.25)
-    yield (
+    # time.sleep(0.15)
+    queue.put_nowait(
         f'You successfully uploaded **{len(files)}** {file_or_files}! 🎉\n\n' +
         'Now, on to your first grant application question!')
 
@@ -34,7 +35,7 @@ def create_new_chatbot_messages_from_response(response: str | list[str]) -> list
 
 def generate_chatbot_messages(
     fns: list[GenerateMessageFunc],
-    context: AppContext
+    context: SessionState
 ) -> Iterator[list[tuple[str, None]]]:
     '''Generate chatbot messages from a list of functions, and yield the chat history with the new chatbot messages.'''
 

@@ -1,4 +1,4 @@
-from enum import StrEnum, auto
+from enum import IntEnum, StrEnum, auto
 import os
 
 from gradio import utils
@@ -33,6 +33,18 @@ class StepID(StrEnum):
 
     END = auto()
 
+class Component(IntEnum):
+    START = auto()
+    YES = auto()
+    NO = auto()
+    FILES = auto()
+    WORD_LIMIT = auto()
+    GOOD_AS_IS = auto()
+    EDIT_IT = auto()
+    ADD_GUIDANCE = auto()
+    OF_COURSE = auto()
+    NUM_OF_TOKENS = auto()
+    NUM_OF_DOCS = auto()
 
 class ComponentLabel(StrEnum):
     CHATBOT = 'AI Grant Writing Coach 🚀'
