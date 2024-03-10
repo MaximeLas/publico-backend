@@ -122,7 +122,7 @@ class SessionState:
 
 
     def set_uploaded_files(self, text: str):
-        self.uploaded_files.files = ['/Users/maximelas/Developer/Demo/PBRC.txt', '/Users/maximelas/Developer/Demo/PBRC2.txt']
+        self.uploaded_files.files = ['./PBRC.txt', './PBRC2.txt']
 
     def set_uploaded_filess(self, files: list[tempfile._TemporaryFileWrapper]):
         self.uploaded_files.files = [file.name for file in files]

@@ -4,7 +4,7 @@ from time import sleep
 
 from fastapi.responses import StreamingResponse
 
-from steps import get_chatbot_step
+from workflow.steps import get_chatbot_step
 
 from fastapi import FastAPI
 from pydantic import BaseModel
