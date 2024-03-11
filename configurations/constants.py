@@ -35,57 +35,19 @@ class StepID(StrEnum):
 
 class Component(IntEnum):
     CHATBOT = auto()
-    START = auto()
+    START = auto() # I'm ready!
     YES = auto()
     NO = auto()
     FILES = auto()
     WORD_LIMIT = auto()
-    GOOD_AS_IS = auto()
-    EDIT_IT = auto()
-    ADD_GUIDANCE = auto()
-    OF_COURSE = auto()
+    GOOD_AS_IS = auto() # Good as is!
+    EDIT_IT = auto() # Let me edit it
+    ADD_GUIDANCE = auto() # Let me add some guidance
+    OF_COURSE = auto() # Of course I'm ready!
     NUM_OF_TOKENS = auto()
     NUM_OF_DOCS = auto()
 
-class ComponentLabel(StrEnum):
-    CHATBOT = 'AI Grant Writing Coach 🚀'
-    USER = 'User'
-    SUBMIT = 'Submit'
-    WORD_LIMIT = 'Word Limit'
-    NUM_OF_TOKENS = '# Tokens'
-    NUM_OF_DOCS = '# Documents'
-    SYSTEM_PROMPT = 'System Prompt'
-    EXAMPLES = 'Examples of grant application questions'
-    START = 'I\'m ready!'
-    YES = 'Yes'
-    NO = 'No'
-    FILES = 'Documents'
-    UPLOAD = 'Upload'
-    CLEAR = 'Clear'
-    GOOD_AS_IS = 'Good as is!'
-    EDIT_IT = 'Let me edit it'
-    ADD_GUIDANCE = 'Let me add some guidance'
-    OF_COURSE = 'Of course I\'m ready!'
-    REPORT_MARKDOWN = 'Report'
-    APPLICATION_ANSWERS = 'Application Answers - Click to Download'
 
-class ComponentID(StrEnum):
-    CHATBOT = auto()
-    USER_TEXT_BOX = auto()
-    NUMBER_1 = auto()
-    NUMBER_2 = auto()
-    SUBMIT_USER_INPUT_BTN = auto()
-    EXAMPLES = auto()
-    BTN_1 = auto()
-    BTN_2 = auto()
-    FILES = auto()
-    UPLOAD_FILES_BTN = auto()
-    CLEAR_FILES_BTN = auto()
-    SUBMIT_FILES_BTN = auto()
-    ANSWERS_MARKUP = auto()
-    ANSWERS_FILE = auto()
-
-DEFAULT_WORD_LIMIT = 150
 DEFAULT_NUM_OF_TOKENS = 1000
 DEFAULT_NUM_OF_DOC_CHUNKS = 2
 
@@ -101,17 +63,12 @@ GRANT_APPLICATION_QUESTIONS_EXAMPLES = [
     'What are your diversity, equity, and inclusion goals?'
 ]
 
-PAGE_TITLE = "Publico.ai - Demo"
-
-GPT_MODEL = 'gpt-4-turbo-preview' if os.getenv('GPT_MODEL', 'gpt-4') not in ('3.5', 'gpt-3.5', 'gpt-3.5-turbo') else 'gpt-3.5-turbo'
+GPT_MODEL = 'gpt-4-turbo-preview' if os.getenv('GPT_MODEL', 'gpt-3.5') not in ('3.5', 'gpt-3.5', 'gpt-3.5-turbo') else 'gpt-3.5-turbo'
 IS_DEV_MODE = os.getenv('DEV', 'False').lower() in ('true', 't', '1', 'yes')
 
 SERVER_PORT = int(os.getenv('SERVER_PORT', 7860))
 CREATE_LINK = utils.get_space() is None and os.getenv('CREATE_LINK', 'True').lower() in ('true', 't', '1', 'yes')
 EXCLUDE_LOGO = os.getenv("EXCLUDE_LOGO", 'False').lower() in ('true', 't', '1', 'yes')
-
-CHATBOT_HEIGHT = int(os.getenv('CHATBOT_HEIGHT', 580))
-CHATBOT_LAYOUT = 'bubble' if os.getenv('CHATBOT_LAYOUT', 'panel').lower() in ('bubble', 'b') else 'panel'
 
 SYSTEM_PROMPT_FOR_ANSWERING_ORIGINAL_QUESTION = (
     'You are going to help a nonprofit organization that is applying for a grant.\n'

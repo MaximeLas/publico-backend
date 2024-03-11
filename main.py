@@ -1,4 +1,4 @@
-from enum import Enum, auto
+from enum import Enum, IntEnum, auto
 import logging
 from threading import Thread
 from asyncio import Queue, sleep
@@ -24,10 +24,10 @@ app = FastAPI()
 sessions: dict[UUID4, SessionState] = {}
 
 
-class InputType(Enum):
+class InputType(IntEnum):
     Chatbot = auto()
-    NumberInput = auto()
     Button = auto()
+    NumberInput = auto()
 
 class UserInput(BaseModel):
     input_type: InputType
@@ -42,17 +42,17 @@ class ChatRequest(BaseModel):
     user_input: UserInput
 
 
-job_done = object()  # Define a unique sentinel value for job completion
+JOB_DONE = object()  # Define a unique sentinel value for job completion
+
 async def async_queue_generator(queue: Queue):
     logging.info("Starting async generator")
     while True:
         try:
             item = await queue.get()
-            if item is job_done:
-                logging.info("Received job_done, stopping generator")
+            if item is JOB_DONE:
+                logging.info("JOB_DONE - Stopping async generator")
                 break
             else:
-                logging.info(f"Yielding item: {item}")
                 yield item
         except:
             logging.info("Error in async_queue_generator")
@@ -61,6 +61,7 @@ async def async_queue_generator(queue: Queue):
 class NewSessionResponse(BaseModel):
     session_id: UUID4
     initial_message: str
+    components: set[Component]
 
 class UpdatedEditorContent(BaseModel):
     question_index: int
@@ -71,13 +72,13 @@ class UpdatedEditorContent(BaseModel):
 class AfterChatResponse(BaseModel):
     initial_message: str
     components: set[Component]
-    updated_content: UpdatedEditorContent | None = None
+    updated_content: UpdatedEditorContent | None
 
 class AfterChatRequest(BaseModel):
     session_id: UUID4
 
 
-def get_updated_content(state: SessionState):
+def get_updated_content(state: SessionState) -> UpdatedEditorContent | None:
     updated_content = None
 
     if content_types := get_chatbot_step(state.current_step_id).updated_editor_contents:
@@ -102,16 +103,16 @@ def get_updated_content(state: SessionState):
 
 def handle_chat_request(request: ChatRequest, queue: Queue):
     user_input = request.user_input.input_value
-    state = sessions[request.session_id] #state.chat_history += [[f'**{user_input}**', None]]
+    state = sessions[request.session_id]
     chatbot_step = get_chatbot_step(state.current_step_id)
 
     if save_fn := chatbot_step.save_event_outcome_fn:
         save_fn(state, user_input)
 
-    for fn in chatbot_step.get_generate_chatbot_messages_fns_for_trigger(user_input):
+    for fn in chatbot_step.get_generate_chatbot_messages_fns_for_trigger(trigger=state.last_user_input):
         fn(state, queue)
 
-    queue.put_nowait(job_done)
+    queue.put_nowait(JOB_DONE)
 
 
 '''API Endpoints'''
@@ -119,24 +120,24 @@ def handle_chat_request(request: ChatRequest, queue: Queue):
 @app.post('/new_session')
 async def new_session() -> NewSessionResponse:
     session_id = uuid.uuid4()
-
     state = SessionState()
-
     sessions[session_id] = state
 
     chatbot_step = get_chatbot_step(state.current_step_id)
-    initial_message = chatbot_step.initial_chatbot_message.get_formatted_message(state)
 
-    return NewSessionResponse(session_id=session_id, initial_message=initial_message)
+    initial_message = chatbot_step.get_initial_chatbot_message(state)
+    components=chatbot_step.get_components(state)
+
+    return NewSessionResponse(session_id=session_id, initial_message=initial_message, components=components)
 
 
 @app.post("/chat/")
 async def chat(request: ChatRequest) -> StreamingResponse:
-    if request.session_id not in sessions:
-        sessions[request.session_id] = SessionState()
-
-    user_input = request.user_input.input_value
-    sessions[request.session_id].last_user_input = user_input
+    sessions[request.session_id].last_user_input = (
+        Component(request.user_input.input_value)
+            if request.user_input.input_type == InputType.Button
+            else
+        None)
 
     queue = Queue()
     Thread(target=handle_chat_request, kwargs=dict(request=request, queue=queue)).start()
@@ -152,15 +153,14 @@ async def after_chat(request: AfterChatRequest) -> AfterChatResponse:
 
     updated_content = get_updated_content(state)
     
-    state.current_step_id = chatbot_step.determine_next_step(state.last_user_input, state)
+    state.current_step_id = chatbot_step.determine_next_step(state)
     chatbot_step = get_chatbot_step(state.current_step_id)
     chatbot_step.initialize_step_func(state)
 
-    initial_message = chatbot_step.initial_chatbot_message.get_formatted_message(state)
-
     response = AfterChatResponse(
-        initial_message=initial_message,
-        components=chatbot_step.get_components(state)
+        initial_message=chatbot_step.get_initial_chatbot_message(state),
+        components=chatbot_step.get_components(state),
+        updated_content=updated_content
     )
     if updated_content:
         response.updated_content = updated_content

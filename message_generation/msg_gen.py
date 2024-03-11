@@ -1,4 +1,4 @@
-from queue import Queue
+from asyncio import Queue
 import time
 
 from devtools import debug
@@ -7,7 +7,6 @@ from langchain_community.callbacks import get_openai_callback
 from langchain.chains.openai_functions import create_openai_fn_runnable
 from langchain_openai import ChatOpenAI
 
-from workflow.chatbot_step import MessageOutputType
 from workflow.session_state import ImplicitQuestion, SessionState
 from utilities.llm_streaming_utils import stream_from_llm_generation
 from utilities.openai_functions_utils import function_for_comprehensiveness_check
@@ -25,7 +24,7 @@ from configurations.prompts import (
 )
 
 
-def generate_answer_to_question_stream(state: SessionState, queue: Queue) -> MessageOutputType:
+def generate_answer_to_question_stream(state: SessionState, queue: Queue) -> None:
     '''Generate and stream an answer to a grant application question by streaming tokens from the LLM.'''
 
     # get the vector store for the uploaded files (will only update if files are not the same as before)
@@ -54,32 +53,16 @@ def generate_answer_to_question_stream(state: SessionState, queue: Queue) -> Mes
         queue.put_nowait(f'\n\nGenerated answer contains **{len(answer.split())}** words.')
 
     stream_from_llm_generation(
+        prompt=get_prompt_template_for_generating_original_answer(state.get_system_prompt_for_original_question()),
         queue=queue,
         on_llm_end=on_llm_end,
-        prompt=get_prompt_template_for_generating_original_answer(state.get_system_prompt_for_original_question()),
         chain_type='qa_chain',
         docs=question_state.most_relevant_documents,
         question=question_state.question,
         word_limit=question_state.word_limit
     )
 
-    # doing it in separata thread
-    '''Thread(
-        target=stream_from_llm_generation,
-        kwargs=dict(
-            queue=queue,
-            job_done=job_done,
-            on_llm_end=on_llm_end,
-            prompt=get_prompt_template_for_generating_original_answer(state.get_system_prompt_for_original_question()),
-            chain_type='qa_chain',
-            docs=question_state.most_relevant_documents,
-            question=question_state.question,
-            word_limit=question_state.word_limit
-        ),
-        daemon=True
-    ).start()'''
-
-def check_for_comprehensiveness(state: SessionState, queue: Queue) -> MessageOutputType:
+def check_for_comprehensiveness(state: SessionState, queue: Queue) -> None:
     '''Check for comprehensiveness of an answer to a grant application question using OpenAI functions.'''
 
     queue.put_nowait('Give me a moment while I think about how to improve it ... 🔍')
@@ -126,7 +109,7 @@ def check_for_comprehensiveness(state: SessionState, queue: Queue) -> MessageOut
         queue.put_nowait(f'\n(**{i}**) **{q.question}**')
 
 
-def generate_answer_for_implicit_question_stream(state: SessionState, queue: Queue) -> MessageOutputType:
+def generate_answer_for_implicit_question_stream(state: SessionState, queue: Queue) -> None:
     '''Generate and stream answers for implicit questions to be answered to make the answer comprehensive.'''
 
     start_of_chatbot_message = 'Here\'s what I found in your documents to answer this question:'
@@ -147,10 +130,10 @@ def generate_answer_for_implicit_question_stream(state: SessionState, queue: Que
             state.set_answer_to_current_implicit_question(answer, answer_formatted)
 
     stream_from_llm_generation(
-        queue=queue,
-        on_llm_end=on_llm_end,
         prompt=get_prompt_template_for_generating_answer_to_implicit_question(
             state.get_system_prompt_for_implicit_question()),
+        queue=queue,
+        on_llm_end=on_llm_end,
         chain_type='qa_chain',
         model='gpt-3.5-turbo',
         verbose=False,
@@ -160,7 +143,7 @@ def generate_answer_for_implicit_question_stream(state: SessionState, queue: Que
 
 
 
-def generate_final_answer_stream(state: SessionState, queue: Queue) -> MessageOutputType:
+def generate_final_answer_stream(state: SessionState, queue: Queue) -> None:
     '''Generate and stream a final answer to a grant application question.'''
 
     question_context = state.get_last_question_context()
@@ -211,7 +194,7 @@ def generate_final_answer_stream(state: SessionState, queue: Queue) -> MessageOu
     )
 
 
-def generate_improved_answer_following_user_guidance_prompt(state: SessionState, queue: Queue) -> MessageOutputType:
+def generate_improved_answer_following_user_guidance_prompt(state: SessionState, queue: Queue) -> None:
     '''Generate and stream an improved answer to a grant application question following user guidance.'''
 
     question_context = state.get_last_question_context()
