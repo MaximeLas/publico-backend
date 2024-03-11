@@ -5,3 +5,4 @@ draft.py
 secrets
 env*
 venv
+.DS_Store
