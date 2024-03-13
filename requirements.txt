@@ -1,14 +1,12 @@
-gradio
-langchain
+devtools
 langchain
 langchain-community
-devtools
-tiktoken
+langchain_openai
 openai
+tiktoken
 chromadb
 unstructured
 unstructured[docx]
-langchain_openai
 pytest
 fastapi
 uvicorn
