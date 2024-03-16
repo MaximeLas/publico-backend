@@ -120,7 +120,7 @@ def handle_chat_request(request: ChatRequest, queue: Queue):
 @app.post('/new_session')
 async def new_session() -> NewSessionResponse:
     session_id = uuid.uuid4()
-    state = SessionState()
+    state = SessionState(session_id=session_id)
     sessions[session_id] = state
 
     chatbot_step = get_chatbot_step(state.current_step_id)

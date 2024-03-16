@@ -15,7 +15,7 @@ from message_generation.msg_gen import (
     generate_final_answer_stream,
     generate_improved_answer_following_user_guidance_prompt
 )
-from message_generation.msg_gen_publico import generate_validation_message_following_files_upload
+from message_generation.msg_gen import generate_validation_message_following_files_upload
 from workflow.chatbot_step import ChatbotStep, EditorContentType
 from workflow.session_state import SessionState
 from workflow.step_decider import ConditionalStepDecider, FixedStepDecider, MultiConditionalStepDecider

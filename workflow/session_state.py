@@ -4,6 +4,7 @@ import tempfile
 
 from langchain.docstore.document import Document
 from langchain_community.vectorstores import Chroma
+from pydantic import UUID4
 
 from configurations.constants import (
     DEFAULT_NUM_OF_DOC_CHUNKS,
@@ -85,12 +86,6 @@ class GrantApplicationQuestionContext:
 
 
 @dataclass
-class FilesStorageContext:
-    files: list[str] = field(default_factory=list)
-    vector_store: Chroma = None
-
-
-@dataclass
 class TestConfigContext:
     system_prompt: str = None
     num_of_tokens_per_doc_chunk: int = 1000
@@ -101,7 +96,8 @@ class TestConfigContext:
 
 @dataclass
 class SessionState:
-    uploaded_files: FilesStorageContext = field(default_factory=FilesStorageContext)
+    session_id: UUID4
+    uploaded_files: list[str] = field(default_factory=list)
     questions: list[GrantApplicationQuestionContext] = field(default_factory=list)
     full_application: TextFormat = field(default_factory=TextFormat)
     current_step_id: StepID = StepID.START
@@ -121,11 +117,10 @@ class SessionState:
         return len(self.questions) - 1
 
 
-    def set_uploaded_files(self, text: str):
-        self.uploaded_files.files = ['./PBRC.txt', './PBRC2.txt']
+    def set_uploaded_files(self, files: list[str]):
+        files = ['./PBRC.txt', './PBRC2.txt']
 
-    def set_uploaded_filess(self, files: list[tempfile._TemporaryFileWrapper]):
-        self.uploaded_files.files = [file.name for file in files]
+        self.uploaded_files = files
 
 
     def set_grant_application_question(self, question: str):

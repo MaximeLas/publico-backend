@@ -11,8 +11,8 @@ from workflow.session_state import ImplicitQuestion, SessionState
 from utilities.llm_streaming_utils import stream_from_llm_generation
 from utilities.openai_functions_utils import function_for_comprehensiveness_check
 from utilities.document_helpers import (
+    add_files_to_vector_store,
     get_most_relevant_docs_in_vector_store_for_answering_question,
-    get_vector_store_for_files
 )
 from configurations.constants import IS_DEV_MODE
 from configurations.prompts import (
@@ -22,17 +22,26 @@ from configurations.prompts import (
     get_prompt_template_for_generating_final_answer,
     get_prompt_template_for_user_guidance_post_answer
 )
+import logging
+
+def generate_validation_message_following_files_upload(state: SessionState, queue: Queue) -> list[str]:
+    '''Generate a validation message following a file upload.'''
+
+    files = state.uploaded_files
+    file_or_files = 'file' if len(files) == 1 else 'files'
+
+    queue.put_nowait(
+        f'You successfully uploaded **{len(files)}** {file_or_files}! 🎉\n\n' +
+        'Now, on to your first grant application question!')
+
+    add_files_to_vector_store(
+        session_id=str(state.session_id),
+        files=files,
+        tokens_per_doc_chunk=state.get_num_of_tokens_per_doc_chunk())
 
 
 def generate_answer_to_question_stream(state: SessionState, queue: Queue) -> None:
     '''Generate and stream an answer to a grant application question by streaming tokens from the LLM.'''
-
-    # get the vector store for the uploaded files (will only update if files are not the same as before)
-    print(f'get vector store for files: {state.uploaded_files.files}')
-    state.uploaded_files.vector_store = get_vector_store_for_files(
-        files=state.uploaded_files.files,
-        tokens_per_doc_chunk=state.get_num_of_tokens_per_doc_chunk())
-    print('got vector store for files')
 
     question_state = state.get_last_question_context()
     if question_state.question is None:
@@ -40,7 +49,7 @@ def generate_answer_to_question_stream(state: SessionState, queue: Queue) -> Non
         return
 
     question_state.most_relevant_documents = get_most_relevant_docs_in_vector_store_for_answering_question(
-        vector_store=state.uploaded_files.vector_store,
+        session_id=str(state.session_id),
         question=question_state.question,
         n_results=state.get_num_of_doc_chunks_to_consider())
 
@@ -116,12 +125,13 @@ def generate_answer_for_implicit_question_stream(state: SessionState, queue: Que
     queue.put_nowait(start_of_chatbot_message + '\n\n')
 
     if IS_DEV_MODE and state.user_has_changed_num_of_tokens():
-        state.uploaded_files.vector_store = get_vector_store_for_files(
-            files=state.uploaded_files.files,
+        add_files_to_vector_store(
+            session_id=str(state.session_id),
+            files=state.uploaded_files,
             tokens_per_doc_chunk=state.get_num_of_tokens_per_doc_chunk())
 
     most_relevant_documents = get_most_relevant_docs_in_vector_store_for_answering_question(
-        vector_store=state.uploaded_files.vector_store,
+        session_id=str(state.session_id),
         question=state.get_current_implicit_question(),
         n_results=state.get_num_of_doc_chunks_to_consider())
 
