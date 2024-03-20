@@ -1,6 +1,7 @@
 
 from dataclasses import dataclass, field
 import tempfile
+import datetime
 
 from langchain.docstore.document import Document
 from langchain_community.vectorstores import Chroma
@@ -19,7 +20,7 @@ from configurations.constants import (
 
 @dataclass
 class TextFormat:
-    original: str = ''
+    raw: str = ''
     formatted: str = ''
 
 
@@ -48,19 +49,26 @@ class Improvement:
 class PolishContext:
     improvements: list[Improvement] = field(default_factory=list)
 
+@dataclass
+class EditedAnswer:
+    time: datetime.datetime
+    previous_answer: str
+    new_answer: str
 
 @dataclass
 class GrantApplicationQuestionContext:
     question: str | None = None
     word_limit: str | None = None
     most_relevant_documents: list[Document] = field(default_factory=list)
-    answer: TextFormat | None = None
+    answer: TextFormat | None = None # change this to original_answer
     comprehensiveness: ComprehensivenessCheckerContext = field(default_factory=ComprehensivenessCheckerContext)
     polish: PolishContext = field(default_factory=PolishContext)
+    edited_answers: list[EditedAnswer] = field(default_factory=list)
+    current_answer: str | None = None
 
     def get_original_answer(self, format: bool) -> str | None:
         if self.answer:
-            return self.answer.formatted if format else self.answer.original
+            return self.answer.formatted if format else self.answer.raw
         else:
             return None
 
@@ -69,7 +77,7 @@ class GrantApplicationQuestionContext:
             return (
                 self.comprehensiveness.revised_application_answer.formatted
                     if format else
-                self.comprehensiveness.revised_application_answer.original
+                self.comprehensiveness.revised_application_answer.raw
             )
         else:
             return None
@@ -79,7 +87,7 @@ class GrantApplicationQuestionContext:
             return (
                 self.polish.improvements[-1].improved_answer.formatted
                     if format else
-                self.polish.improvements[-1].improved_answer.original
+                self.polish.improvements[-1].improved_answer.raw
             )
         else:
             return None
@@ -133,10 +141,10 @@ class SessionState:
 
     def set_answer_to_current_grant_application_question(
         self,
-        original: str,
+        raw: str,
         formatted: str | None = None
     ):
-        self.questions[-1].answer = TextFormat(original, formatted)
+        self.questions[-1].answer = TextFormat(raw, formatted)
 
 
     def get_index_of_implicit_question_being_answered(self) -> int | None:
@@ -152,7 +160,7 @@ class SessionState:
     
     def get_answer_of_current_implicit_question(self) -> str | None:
         if (index := self.get_index_of_implicit_question_being_answered()) is not None:
-            return self.questions[-1].comprehensiveness.implicit_questions[index].answer.original
+            return self.questions[-1].comprehensiveness.implicit_questions[index].answer.raw
         else:
             raise Exception('No implicit question currently being answered')
 
@@ -166,7 +174,7 @@ class SessionState:
 
     def set_answer_to_current_implicit_question(
         self,
-        original: str,
+        raw: str,
         formatted: str | None = None
     ):
         index = self.get_index_of_implicit_question_being_answered()
@@ -175,7 +183,7 @@ class SessionState:
         if not index or index > len(implicit_questions):
             raise Exception('Cannot set answer as no implicit question currently being answered')
 
-        implicit_questions[index].answer = TextFormat(original, formatted)
+        implicit_questions[index].answer = TextFormat(raw, formatted)
 
 
     def get_next_implicit_question(self) -> str:
@@ -204,10 +212,10 @@ class SessionState:
 
     def set_revised_answer_to_current_grant_application_question(
         self,
-        original: str,
+        raw: str,
         formatted: str | None = None
     ):
-        self.questions[-1].comprehensiveness.revised_application_answer = TextFormat(original, formatted)
+        self.questions[-1].comprehensiveness.revised_application_answer = TextFormat(raw, formatted)
 
 
     def get_current_user_guidance_prompt(self) -> str:
@@ -222,49 +230,61 @@ class SessionState:
         return self.questions[-1].polish.improvements
 
 
-    def set_improved_answer(self, original: str, formatted: str | None = None):
-        self.questions[-1].polish.improvements[-1].improved_answer = TextFormat(original, formatted)
+    def set_improved_answer(self, raw: str, formatted: str | None = None):
+        self.questions[-1].polish.improvements[-1].improved_answer = TextFormat(raw, formatted)
 
 
     def is_allowed_to_add_more_guidance(self) -> bool:
         return len(self.questions[-1].polish.improvements) < 3
 
 
+    def edit_last_question(self, question_index: int, answer: str):
+        question = self.questions[question_index]
+        question.edited_answers.push(EditedAnswer(
+            time=datetime.now(),
+            previous_answer=question.current_answer,
+            new_answer=answer
+        ))
+
+        question.current_answer = answer
+
+
+
     def get_completed_application(self) -> tuple[str, str]:
-        report_original = ''
+        report_raw = ''
         report_formatted = ''
         for i, question in enumerate(self.questions):
-            report_original += f'Question {i+1}: {question.question}'
+            report_raw += f'Question {i+1}: {question.question}'
             report_formatted += f'## Question {i+1}\n **{question.question}**'
 
             if question.word_limit:
-                report_original += f' ({question.word_limit} words)'
+                report_raw += f' ({question.word_limit} words)'
                 report_formatted += f' ({question.word_limit} words)'
 
-            answer_original = (
+            answer_raw = (
                 question.get_last_improved_answer(False) or
                 question.get_revised_answer(False) or
-                question.get_original_answer(False) or
+                question.get_raw_answer(False) or
                 ''
             )
             answer_formatted = (
                 question.get_last_improved_answer(True) or
                 question.get_revised_answer(True) or
-                question.get_original_answer(True) or
+                question.get_raw_answer(True) or
                 ''
             )
 
-            if answer_original:
-                report_original += f'\n\n{answer_original}\n({len(answer_original.split())} words)\n\n'
+            if answer_raw:
+                report_raw += f'\n\n{answer_raw}\n({len(answer_raw.split())} words)\n\n'
                 report_formatted += f'\n\n{answer_formatted}\n({len(answer_formatted.split())} words)\n\n'
 
-        if self.full_application.original == report_original:
+        if self.full_application.raw == report_raw:
             return None, None
 
-        self.full_application.original = report_original
+        self.full_application.raw = report_raw
         self.full_application.formatted = report_formatted
 
-        return report_original, report_formatted
+        return report_raw, report_formatted
 
 
     ''' Test Config methods '''

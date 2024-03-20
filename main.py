@@ -1,24 +1,34 @@
 from enum import Enum, IntEnum, auto
+import uuid
 import logging
 from threading import Thread
 from asyncio import Queue, sleep
-import uuid
-
-from fastapi.responses import StreamingResponse
-
-from workflow.steps import get_chatbot_step
 
 from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import UUID4, BaseModel
-from configurations.constants import Component
-from workflow.session_state import SessionState
 
+from configurations.constants import Component
 from workflow.chatbot_step import EditorContentType
+from workflow.session_state import SessionState
+from workflow.steps import get_chatbot_step
 
 logging.basicConfig(level=logging.INFO)
 
-
 app = FastAPI()
+
+origins = [
+    "http://localhost:3000",
+    "http://localhost"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],)
+
 
 # create a dict of sessions to session state
 sessions: dict[UUID4, SessionState] = {}
@@ -76,6 +86,11 @@ class AfterChatResponse(BaseModel):
 
 class AfterChatRequest(BaseModel):
     session_id: UUID4
+
+class EditAnswerRequest(BaseModel):
+    session_id: UUID4
+    question_index: int
+    answer: str
 
 
 def get_updated_content(state: SessionState) -> UpdatedEditorContent | None:
@@ -166,3 +181,9 @@ async def after_chat(request: AfterChatRequest) -> AfterChatResponse:
         response.updated_content = updated_content
 
     return response
+
+
+@app.post("/edit")
+async def edit(request: EditAnswerRequest) -> None:
+    state = sessions[request.session_id]
+    state.edit_last_question(request.question_index, request.answer)

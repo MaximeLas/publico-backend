@@ -117,7 +117,7 @@ def get_prompt_template_for_user_guidance_post_answer(improvements: list[Improve
 
     for improvement in improvements[:-1]:
         messages.append(HumanMessagePromptTemplate.from_template(improvement.user_prompt))
-        messages.append(AIMessagePromptTemplate.from_template(improvement.improved_answer.original))
+        messages.append(AIMessagePromptTemplate.from_template(improvement.improved_answer.raw))
 
     messages.append(HumanMessagePromptTemplate.from_template(improvements[-1].user_prompt +
         ' (Just make sure to, once again, comply with the word limit of {word_limit} words as this is crucial!)'))

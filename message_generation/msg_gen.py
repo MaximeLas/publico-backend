@@ -85,7 +85,7 @@ def check_for_comprehensiveness(state: SessionState, queue: Queue) -> None:
         chain = create_openai_fn_runnable([function_for_comprehensiveness_check], chat_openai, prompt)
 
         response = chain.invoke(
-            dict(question=question_state.question, answer=question_state.answer.original)
+            dict(question=question_state.question, answer=question_state.answer.raw)
         )
 
         print(f'response: {response}')
@@ -186,7 +186,7 @@ def generate_final_answer_stream(state: SessionState, queue: Queue) -> None:
 
         time.sleep(0.05)
         comparison_msg = (
-            f'For reference, the original answer, which contains **{len(question_context.answer.original.split())}** words, is the following:\n\n' +
+            f'For reference, the original answer, which contains **{len(question_context.answer.raw.split())}** words, is the following:\n\n' +
             f'{question_context.answer.formatted}')
 
         queue.put_nowait(comparison_msg)
@@ -198,9 +198,9 @@ def generate_final_answer_stream(state: SessionState, queue: Queue) -> None:
         chain_type='llm_chain',
         verbose=True,
         question=question_context.question,
-        answers_to_implicit_questions='\n\n'.join([f'{q.question}\n{q.answer.original}' for q in implicit_questions_answered.values()]),
+        answers_to_implicit_questions='\n\n'.join([f'{q.question}\n{q.answer.raw}' for q in implicit_questions_answered.values()]),
         word_limit=question_context.word_limit,
-        original_answer=question_context.answer.original
+        original_answer=question_context.answer.raw
     )
 
 
@@ -225,12 +225,12 @@ def generate_improved_answer_following_user_guidance_prompt(state: SessionState,
         chain_type='llm_chain',
         verbose=True,
         question=question_context.question,
-        answers_to_implicit_questions='\n\n'.join([f'{q.question}\n{q.answer.original}' for q in implicit_questions_answered.values()]),
+        answers_to_implicit_questions='\n\n'.join([f'{q.question}\n{q.answer.raw}' for q in implicit_questions_answered.values()]),
         word_limit=question_context.word_limit,
-        original_answer=question_context.answer.original,
+        original_answer=question_context.answer.raw,
         answer=(
-            comprehensiveness_state.revised_application_answer.original
+            comprehensiveness_state.revised_application_answer.raw
                 if comprehensiveness_state.revised_application_answer
                 else
-            question_context.answer.original)
+            question_context.answer.raw)
     )

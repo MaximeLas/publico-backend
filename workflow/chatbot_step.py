@@ -53,8 +53,6 @@ class ChatbotStep():
 
     def get_generate_chatbot_messages_fns_for_trigger(self, trigger: Component | None) -> GenerateMsgFns:
         fns = self.generate_chatbot_messages_fns
-        logging.info(f'fns: {fns}, type: {type(fns)}')
-        logging.info(f'trigger: {trigger}, type: {type(trigger)}')
         if isinstance(fns, dict):
             assert trigger is not None and isinstance(trigger, Component)
             return fns.get(trigger, [])

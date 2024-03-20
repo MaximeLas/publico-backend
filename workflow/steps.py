@@ -98,9 +98,11 @@ STEPS: dict[StepID, ChatbotStep] = {
     ),
     StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION: ChatbotStep(
         initial_chatbot_message=lambda state: (
-            f"(**{state.get_index_of_implicit_question_being_answered()}**) " +
-            f"**{state.get_next_implicit_question()}**\n\n" +
-            "Does this question address a topic or information that should be incorporated into the final answer?"),
+            "(**{index}**) **{question}**\n\n" +
+            "Does this question address a topic or information that should be incorporated into the final answer?"
+            .format(
+                question=state.get_next_implicit_question(),
+                index=state.get_index_of_implicit_question_being_answered())),
         components={Component.YES, Component.NO},
         next_step_decider={
             Component.YES: FixedStepDecider(
