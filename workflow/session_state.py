@@ -1,10 +1,8 @@
 
 from dataclasses import dataclass, field
-import tempfile
 import datetime
 
 from langchain.docstore.document import Document
-from langchain_community.vectorstores import Chroma
 from pydantic import UUID4
 
 from configurations.constants import (
@@ -234,7 +232,7 @@ class SessionState:
     def edit_last_question(self, question_index: int, answer: str):
         question = self.questions[question_index]
         question.edited_answers.append(EditedAnswer(
-            time=datetime.now(),
+            time=datetime.datetime.now(),
             previous_answer=question.current_answer,
             new_answer=answer
         ))
