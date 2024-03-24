@@ -21,12 +21,19 @@ from workflow.session_state import SessionState
 from workflow.step_decider import ConditionalStepDecider, FixedStepDecider, MultiConditionalStepDecider
 
 
+def get_initial_chatbot_message_for_generating_answer_to_implicit_question(state: SessionState) -> str:
+    question, index = state.get_next_implicit_question_and_index()
+
+    return (
+        f'(**{index}**) **{question}**\n\n' +
+        'Does this question address a topic or information that should be incorporated into the final answer?')
+
 
 STEPS: dict[StepID, ChatbotStep] = {
     StepID.START: ChatbotStep(
         initial_chatbot_message=(
-            "Welcome! 👋\n" +
-            "I'm Publico, your personal grant writing coach.\n" +
+            "Welcome! 👋\n\n" +
+            "I'm Publico, your personal grant writing coach.\n\n" +
             "Are you ready to start writing together?"),
         components={Component.START},
         next_step_decider=FixedStepDecider(StepID.HAVE_MATERIALS_TO_SHARE)
@@ -35,16 +42,17 @@ STEPS: dict[StepID, ChatbotStep] = {
         initial_chatbot_message=(
             "Do you have any existing materials you'd like to share (past grants, reports, etc.)?"),
         components={Component.YES, Component.NO},
+        save_event_outcome_fn=SessionState.set_uploaded_files,
         next_step_decider={
             Component.YES: FixedStepDecider(StepID.UPLOAD_FILES),
             Component.NO: FixedStepDecider(StepID.ENTER_QUESTION)}
     ),
     StepID.UPLOAD_FILES: ChatbotStep(
         initial_chatbot_message=(
-            "That's very useful! Please upload your documents below.\n" +
+            "That's very useful! Please upload your documents below.\n\n" +
             "Supported file types: **.docx** & **.txt**"),
         components={Component.FILES},
-        save_event_outcome_fn=SessionState.set_uploaded_files,
+        #save_event_outcome_fn=SessionState.set_uploaded_files,
         next_step_decider=FixedStepDecider(StepID.ENTER_QUESTION),
         generate_chatbot_messages_fns=[generate_validation_message_following_files_upload]
     ),
@@ -73,8 +81,8 @@ STEPS: dict[StepID, ChatbotStep] = {
     ),
     StepID.ENTER_RAG_CONFIG_ORIGINAL_QUESTION: ChatbotStep(
         initial_chatbot_message=(
-            "1) What system prompt should be used to generate the answer?\n" +
-            "2) How many tokens at most should be included in a single document chunk?\n" +
+            "1) What system prompt should be used to generate the answer?\n\n" +
+            "2) How many tokens at most should be included in a single document chunk?\n\n" +
             "3) How many chunks sould be selected in the similarity check step?"),
         components={Component.NUM_OF_TOKENS, Component.NUM_OF_DOCS},
         save_event_outcome_fn=SessionState.set_test_config_params,
@@ -97,12 +105,7 @@ STEPS: dict[StepID, ChatbotStep] = {
             Component.NO: FixedStepDecider(StepID.ASK_USER_IF_GUIDANCE_NEEDED)}
     ),
     StepID.DO_PROCEED_WITH_IMPLICIT_QUESTION: ChatbotStep(
-        initial_chatbot_message=lambda state: (
-            "(**{index}**) **{question}**\n\n" +
-            "Does this question address a topic or information that should be incorporated into the final answer?"
-            .format(
-                question=state.get_next_implicit_question(),
-                index=state.get_index_of_implicit_question_being_answered())),
+        initial_chatbot_message=get_initial_chatbot_message_for_generating_answer_to_implicit_question,
         components={Component.YES, Component.NO},
         next_step_decider={
             Component.YES: FixedStepDecider(
@@ -126,8 +129,8 @@ STEPS: dict[StepID, ChatbotStep] = {
     ),
     StepID.ENTER_RAG_CONFIG_IMPLICIT_QUESTION: ChatbotStep(
         initial_chatbot_message=(
-            "1) What system prompt should be used to generate the answer?\n" +
-            "2) How many tokens at most should be included in a single document chunk?\n" +
+            "1) What system prompt should be used to generate the answer?\n\n" +
+            "2) How many tokens at most should be included in a single document chunk?\n\n" +
             "3) How many chunks sould be selected in the similarity check step?"),
         components={Component.NUM_OF_TOKENS, Component.NUM_OF_DOCS},
         save_event_outcome_fn=SessionState.set_test_config_params,
@@ -189,7 +192,7 @@ STEPS: dict[StepID, ChatbotStep] = {
     ),
     StepID.READY_TO_GENERATE_FINAL_ANSWER: ChatbotStep(
         initial_chatbot_message=(
-            "We're done with the implicit questions! 🏁\n" +
+            "We're done with the implicit questions! 🏁\n\n" +
             "Are you ready to have your final answer generated?"),
         components={Component.OF_COURSE},
         next_step_decider=FixedStepDecider(StepID.ASK_USER_IF_GUIDANCE_NEEDED),

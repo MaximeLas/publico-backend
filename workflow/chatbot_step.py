@@ -1,5 +1,4 @@
 from asyncio import Queue
-from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum, auto
@@ -9,15 +8,13 @@ from configurations.constants import Component, StepID
 from workflow.session_state import SessionState
 from workflow.step_decider import StepDecider
 
-
-
 class EditorContentType(Enum):
     QUESTION = auto()
     WORD_LIMIT = auto()
     ANSWER = auto()
 
 GenerateMsgFns = list[Callable[[SessionState, Queue], None]]
-import logging
+
 @dataclass
 class ChatbotStep():
     initial_chatbot_message: str | Callable[[SessionState], str]

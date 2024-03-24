@@ -64,7 +64,7 @@ class GrantApplicationQuestionContext:
     comprehensiveness: ComprehensivenessCheckerContext = field(default_factory=ComprehensivenessCheckerContext)
     polish: PolishContext = field(default_factory=PolishContext)
     edited_answers: list[EditedAnswer] = field(default_factory=list)
-    current_answer: str | None = None
+    current_answer: str | None = None # TODO: point this to the last answer in current workflow
 
     def get_original_answer(self, format: bool) -> str | None:
         if self.answer:
@@ -156,13 +156,6 @@ class SessionState:
             return self.questions[-1].comprehensiveness.implicit_questions[index].question
         else:
             raise Exception('No implicit question currently being answered')
-    
-    
-    def get_answer_of_current_implicit_question(self) -> str | None:
-        if (index := self.get_index_of_implicit_question_being_answered()) is not None:
-            return self.questions[-1].comprehensiveness.implicit_questions[index].answer.raw
-        else:
-            raise Exception('No implicit question currently being answered')
 
 
     def exists_answer_to_current_implicit_question(self) -> bool:
@@ -186,7 +179,7 @@ class SessionState:
         implicit_questions[index].answer = TextFormat(raw, formatted)
 
 
-    def get_next_implicit_question(self) -> str:
+    def get_next_implicit_question_and_index(self) -> tuple[str, int]:
         comprehensiveness = self.questions[-1].comprehensiveness
 
         if (index := self.get_index_of_implicit_question_being_answered()) is not None:
@@ -194,10 +187,10 @@ class SessionState:
                 raise Exception('No more implicit questions to answer')
 
             comprehensiveness.index_of_implicit_question_being_answered += 1
-            return comprehensiveness.implicit_questions[index + 1].question
+            return comprehensiveness.implicit_questions[index + 1].question, index + 1
         else:
             comprehensiveness.index_of_implicit_question_being_answered = 1
-            return comprehensiveness.implicit_questions[1].question
+            return comprehensiveness.implicit_questions[1].question, 1
 
     
     def has_more_implcit_questions_to_answer(self) -> bool:
@@ -240,7 +233,7 @@ class SessionState:
 
     def edit_last_question(self, question_index: int, answer: str):
         question = self.questions[question_index]
-        question.edited_answers.push(EditedAnswer(
+        question.edited_answers.append(EditedAnswer(
             time=datetime.now(),
             previous_answer=question.current_answer,
             new_answer=answer

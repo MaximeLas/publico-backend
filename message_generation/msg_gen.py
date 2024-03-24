@@ -58,8 +58,8 @@ def generate_answer_to_question_stream(state: SessionState, queue: Queue) -> Non
 
     def on_llm_end(answer: str, answer_formatted: str):
         state.set_answer_to_current_grant_application_question(answer, answer_formatted)
-        time.sleep(0.05)
-        queue.put_nowait(f'\n\nGenerated answer contains **{len(answer.split())}** words.')
+        time.sleep(0.15)
+        queue.put_nowait(f'\n\nGenerated answer contains **{len(answer.split())}** words.\n\n')
 
     stream_from_llm_generation(
         prompt=get_prompt_template_for_generating_original_answer(state.get_system_prompt_for_original_question()),
@@ -74,7 +74,7 @@ def generate_answer_to_question_stream(state: SessionState, queue: Queue) -> Non
 def check_for_comprehensiveness(state: SessionState, queue: Queue) -> None:
     '''Check for comprehensiveness of an answer to a grant application question using OpenAI functions.'''
 
-    queue.put_nowait('Give me a moment while I think about how to improve it ... 🔍')
+    queue.put_nowait('Give me a moment while I think about how to improve it ... 🔍\n\n')
 
     question_state = state.get_last_question_context()
     comprehensiveness_state = question_state.comprehensiveness
@@ -107,15 +107,13 @@ def check_for_comprehensiveness(state: SessionState, queue: Queue) -> None:
 
     queue.put_nowait(f'*{comprehensiveness_state.missing_information}*')
 
-    time.sleep(0.05)
-    queue.put_nowait('\n\nTo make the answer as strong as possible, I\'d include answers to the following questions:\n')
+    time.sleep(0.15)
+    queue.put_nowait('\n\nTo make the answer as strong as possible, I\'d include answers to the following questions:')
 
-    time.sleep(0.05)
-    implicit_questions = ''
+    time.sleep(0.15)
     for i, q in comprehensiveness_state.implicit_questions.items():
-        time.sleep(0.05)
-        implicit_questions += f'\n(**{i}**) **{q.question}**'
-        queue.put_nowait(f'\n(**{i}**) **{q.question}**')
+        time.sleep(0.1)
+        queue.put_nowait(f'\n\n(**{i}**) **{q.question}**')
 
 
 def generate_answer_for_implicit_question_stream(state: SessionState, queue: Queue) -> None:
@@ -176,13 +174,13 @@ def generate_final_answer_stream(state: SessionState, queue: Queue) -> None:
 
     intro_to_final_answer = (
         f'Here is the final answer to **"{question_context.question}"** '
-        f'after integrating answer{s} to **{num_implicit_questions}** implicit question{s}:')
+        f'after integrating answer{s} to **{num_implicit_questions}** implicit question{s}:\n\n')
 
     queue.put_nowait(intro_to_final_answer)
 
     def on_llm_end(answer: str, answer_formatted: str):
         state.set_revised_answer_to_current_grant_application_question(answer, answer_formatted)
-        queue.put_nowait(f'\n\nThe final answer contains **{len(answer.split())}** words. The word limit is **{question_context.word_limit}** words.')
+        queue.put_nowait(f'\n\nThe final answer contains **{len(answer.split())}** words. The word limit is **{question_context.word_limit}** words.\n\n')
 
         time.sleep(0.05)
         comparison_msg = (
@@ -211,7 +209,7 @@ def generate_improved_answer_following_user_guidance_prompt(state: SessionState,
     comprehensiveness_state = question_context.comprehensiveness
     implicit_questions_answered = dict(filter(lambda elem: elem[1].answer is not None, question_context.comprehensiveness.implicit_questions.items()))
 
-    intro_to_improved_answer = f'Here is the improved answer to **"{question_context.question}"**:'
+    intro_to_improved_answer = f'Here is the improved answer to **"{question_context.question}"**:\n\n'
     queue.put_nowait(intro_to_improved_answer)
 
     def on_llm_end(answer: str, answer_formatted: str):

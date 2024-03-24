@@ -123,6 +123,7 @@ def stream_from_llm_generation(
                         else
                     next_token
                 )
+                # add markdown to next_token as well
 
                 queue.put_nowait(next_token)
             else:
