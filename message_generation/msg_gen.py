@@ -48,7 +48,7 @@ def generate_answer_to_question_stream(state: SessionState, queue: Queue) -> Non
         queue.put_nowait('No answer generated due to missing application question.')
         return
 
-    question_state.most_relevant_documents = get_most_relevant_docs_in_vector_store_for_answering_question(
+    most_relevant_documents = get_most_relevant_docs_in_vector_store_for_answering_question(
         session_id=str(state.session_id),
         question=question_state.question,
         n_results=state.get_num_of_doc_chunks_to_consider())
@@ -66,7 +66,7 @@ def generate_answer_to_question_stream(state: SessionState, queue: Queue) -> Non
         queue=queue,
         on_llm_end=on_llm_end,
         chain_type='qa_chain',
-        docs=question_state.most_relevant_documents,
+        docs=most_relevant_documents,
         question=question_state.question,
         word_limit=question_state.word_limit
     )
@@ -88,7 +88,6 @@ def check_for_comprehensiveness(state: SessionState, queue: Queue) -> None:
             dict(question=question_state.question, answer=question_state.answer.raw)
         )
 
-        print(f'response: {response}')
         debug(**{'Summary info OpenAI callback': cb})
 
     comprehensiveness_state.missing_information = response['missing_information']
@@ -103,7 +102,7 @@ def check_for_comprehensiveness(state: SessionState, queue: Queue) -> None:
     else:
         raise ValueError(f'Unexpected type for implicit questions: {type(questions)}\n')
 
-    debug(**{f'Implicit question #{i}': q.question for i, q in comprehensiveness_state.implicit_questions.items()})
+    #debug(**{f'Implicit question #{i}': q.question for i, q in comprehensiveness_state.implicit_questions.items()})
 
     queue.put_nowait(f'*{comprehensiveness_state.missing_information}*')
 
@@ -183,11 +182,11 @@ def generate_final_answer_stream(state: SessionState, queue: Queue) -> None:
         queue.put_nowait(f'\n\nThe final answer contains **{len(answer.split())}** words. The word limit is **{question_context.word_limit}** words.\n\n')
 
         time.sleep(0.05)
-        comparison_msg = (
+        '''comparison_msg = (
             f'For reference, the original answer, which contains **{len(question_context.answer.raw.split())}** words, is the following:\n\n' +
             f'{question_context.answer.formatted}')
 
-        queue.put_nowait(comparison_msg)
+        queue.put_nowait(comparison_msg)'''
 
     stream_from_llm_generation(
         prompt=get_prompt_template_for_generating_final_answer(),

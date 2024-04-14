@@ -52,7 +52,7 @@ STEPS: dict[StepID, ChatbotStep] = {
             "That's very useful! Please upload your documents below.\n\n" +
             "Supported file types: **.docx** & **.txt**"),
         components={Component.FILES},
-        #save_event_outcome_fn=SessionState.set_uploaded_files,
+        save_event_outcome_fn=SessionState.set_uploaded_files,
         next_step_decider=FixedStepDecider(StepID.ENTER_QUESTION),
         generate_chatbot_messages_fns=[generate_validation_message_following_files_upload]
     ),

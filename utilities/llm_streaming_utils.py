@@ -30,7 +30,6 @@ class QueueCallback(BaseCallbackHandler):
         self.q.put(token)
 
     def on_llm_end(self, *args, **kwargs) -> None:
-        logging.info("LLM end signaled")
         return self.q.empty()
 
 
@@ -97,12 +96,10 @@ def stream_from_llm_generation(
         chain.invoke(input=kwargs)
 
         # put the job_done object in the queue to signal that we're done
-        logging.info("LLM streaming finished, adding job_done to queue")
         q.put(job_done)
 
     # Create a thread and start the function
     Thread(target=task).start()
-    logging.info("Task started")
 
     answer = ''
     answer_formatted = '*'

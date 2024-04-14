@@ -57,7 +57,6 @@ class EditedAnswer:
 class GrantApplicationQuestionContext:
     question: str | None = None
     word_limit: str | None = None
-    most_relevant_documents: list[Document] = field(default_factory=list)
     answer: TextFormat | None = None # change this to original_answer
     comprehensiveness: ComprehensivenessCheckerContext = field(default_factory=ComprehensivenessCheckerContext)
     polish: PolishContext = field(default_factory=PolishContext)
@@ -102,10 +101,9 @@ class TestConfigContext:
 
 @dataclass
 class SessionState:
-    session_id: UUID4
+    session_id: str
     uploaded_files: list[str] = field(default_factory=list)
     questions: list[GrantApplicationQuestionContext] = field(default_factory=list)
-    full_application: TextFormat = field(default_factory=TextFormat)
     current_step_id: StepID = StepID.START
     chat_history: list[list] = field(default_factory=list)
     last_user_input = None
@@ -124,7 +122,8 @@ class SessionState:
 
 
     def set_uploaded_files(self, files: list[str]):
-        files = ['./PBRC.txt', './PBRC2.txt']
+        if files is None:
+            files = ['./PBRC.txt', './PBRC2.txt']
 
         self.uploaded_files = files
 
@@ -238,44 +237,6 @@ class SessionState:
         ))
 
         question.current_answer = answer
-
-
-
-    def get_completed_application(self) -> tuple[str, str]:
-        report_raw = ''
-        report_formatted = ''
-        for i, question in enumerate(self.questions):
-            report_raw += f'Question {i+1}: {question.question}'
-            report_formatted += f'## Question {i+1}\n **{question.question}**'
-
-            if question.word_limit:
-                report_raw += f' ({question.word_limit} words)'
-                report_formatted += f' ({question.word_limit} words)'
-
-            answer_raw = (
-                question.get_last_improved_answer(False) or
-                question.get_revised_answer(False) or
-                question.get_raw_answer(False) or
-                ''
-            )
-            answer_formatted = (
-                question.get_last_improved_answer(True) or
-                question.get_revised_answer(True) or
-                question.get_raw_answer(True) or
-                ''
-            )
-
-            if answer_raw:
-                report_raw += f'\n\n{answer_raw}\n({len(answer_raw.split())} words)\n\n'
-                report_formatted += f'\n\n{answer_formatted}\n({len(answer_formatted.split())} words)\n\n'
-
-        if self.full_application.raw == report_raw:
-            return None, None
-
-        self.full_application.raw = report_raw
-        self.full_application.formatted = report_formatted
-
-        return report_raw, report_formatted
 
 
     ''' Test Config methods '''

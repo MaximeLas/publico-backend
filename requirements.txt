@@ -10,5 +10,7 @@ unstructured[docx]
 pytest
 fastapi
 uvicorn
+firebase-admin
+google-cloud-firestore
 
 # export HNSWLIB_NO_NATIVE=1
