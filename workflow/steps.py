@@ -25,7 +25,7 @@ def get_initial_chatbot_message_for_generating_answer_to_implicit_question(state
     question, index = state.get_next_implicit_question_and_index()
 
     return (
-        f'(**{index}**) **{question}**\n\n' +
+        f'(**{index+1}**) **{question}**\n\n' +
         'Does this question address a topic or information that should be incorporated into the final answer?')
 
 

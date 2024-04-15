@@ -30,14 +30,16 @@ def generate_validation_message_following_files_upload(state: SessionState, queu
     files = state.uploaded_files
     file_or_files = 'file' if len(files) == 1 else 'files'
 
-    queue.put_nowait(
-        f'You successfully uploaded **{len(files)}** {file_or_files}! 🎉\n\n' +
-        'Now, on to your first grant application question!')
+    queue.put_nowait(f'Uploading **{len(files)}** {file_or_files} ... 📤\n\n')
 
     add_files_to_vector_store(
         session_id=str(state.session_id),
         files=files,
         tokens_per_doc_chunk=state.get_num_of_tokens_per_doc_chunk())
+
+    queue.put_nowait(
+        f'You successfully uploaded **{len(files)}** {file_or_files}! 🎉\n\n' +
+        'Now, on to your first grant application question!')
 
 
 def generate_answer_to_question_stream(state: SessionState, queue: Queue) -> None:
@@ -56,8 +58,8 @@ def generate_answer_to_question_stream(state: SessionState, queue: Queue) -> Non
     intro_to_answer = 'Based on the information you provided, here\'s the best answer I could put together:\n\n'
     queue.put_nowait(intro_to_answer)
 
-    def on_llm_end(answer: str, answer_formatted: str):
-        state.set_answer_to_current_grant_application_question(answer, answer_formatted)
+    def on_llm_end(answer: str):
+        state.set_answer_to_current_grant_application_question(answer)
         time.sleep(0.15)
         queue.put_nowait(f'\n\nGenerated answer contains **{len(answer.split())}** words.\n\n')
 
@@ -85,7 +87,7 @@ def check_for_comprehensiveness(state: SessionState, queue: Queue) -> None:
         chain = create_openai_fn_runnable([function_for_comprehensiveness_check], chat_openai, prompt)
 
         response = chain.invoke(
-            dict(question=question_state.question, answer=question_state.answer.raw)
+            dict(question=question_state.question, answer=question_state.answer)
         )
 
         debug(**{'Summary info OpenAI callback': cb})
@@ -94,11 +96,11 @@ def check_for_comprehensiveness(state: SessionState, queue: Queue) -> None:
 
     questions = response['implicit_questions']
     if type(questions) is dict:
-        comprehensiveness_state.implicit_questions = {
-            i+1: ImplicitQuestion(q) for i, q in enumerate(questions.values())}
+        comprehensiveness_state.implicit_questions = [
+            ImplicitQuestion(q) for q in questions.values()]
     elif type(questions) is list:
-        comprehensiveness_state.implicit_questions = {
-            i+1: ImplicitQuestion(q if type(q) is str else q['question']) for i, q in enumerate(questions)}
+        comprehensiveness_state.implicit_questions = [
+            ImplicitQuestion(q if type(q) is str else q['question']) for q in questions]
     else:
         raise ValueError(f'Unexpected type for implicit questions: {type(questions)}\n')
 
@@ -110,9 +112,9 @@ def check_for_comprehensiveness(state: SessionState, queue: Queue) -> None:
     queue.put_nowait('\n\nTo make the answer as strong as possible, I\'d include answers to the following questions:')
 
     time.sleep(0.15)
-    for i, q in comprehensiveness_state.implicit_questions.items():
+    for i, q in enumerate(comprehensiveness_state.implicit_questions):
         time.sleep(0.1)
-        queue.put_nowait(f'\n\n(**{i}**) **{q.question}**')
+        queue.put_nowait(f'\n\n(**{i+1}**) **{q.question}**')
 
 
 def generate_answer_for_implicit_question_stream(state: SessionState, queue: Queue) -> None:
@@ -132,9 +134,9 @@ def generate_answer_for_implicit_question_stream(state: SessionState, queue: Que
         question=state.get_current_implicit_question(),
         n_results=state.get_num_of_doc_chunks_to_consider())
 
-    def on_llm_end(answer: str, answer_formatted: str):
+    def on_llm_end(answer: str):
         if 'Not enough information' not in answer:
-            state.set_answer_to_current_implicit_question(answer, answer_formatted)
+            state.set_answer_to_current_implicit_question(answer)
 
     stream_from_llm_generation(
         prompt=get_prompt_template_for_generating_answer_to_implicit_question(
@@ -167,7 +169,7 @@ def generate_final_answer_stream(state: SessionState, queue: Queue) -> None:
         queue.put_nowait('Something went wrong, please try again.')
         return
 
-    implicit_questions_answered = dict(filter(lambda elem: elem[1].answer is not None, comprehensiveness_state.implicit_questions.items()))
+    implicit_questions_answered = list(filter(lambda iq: iq.answer is not None, comprehensiveness_state.implicit_questions))
     num_implicit_questions = len(implicit_questions_answered)
     s = 's' if num_implicit_questions > 1 else ''
 
@@ -177,16 +179,9 @@ def generate_final_answer_stream(state: SessionState, queue: Queue) -> None:
 
     queue.put_nowait(intro_to_final_answer)
 
-    def on_llm_end(answer: str, answer_formatted: str):
-        state.set_revised_answer_to_current_grant_application_question(answer, answer_formatted)
+    def on_llm_end(answer: str):
+        state.set_revised_answer_to_current_grant_application_question(answer)
         queue.put_nowait(f'\n\nThe final answer contains **{len(answer.split())}** words. The word limit is **{question_context.word_limit}** words.\n\n')
-
-        time.sleep(0.05)
-        '''comparison_msg = (
-            f'For reference, the original answer, which contains **{len(question_context.answer.raw.split())}** words, is the following:\n\n' +
-            f'{question_context.answer.formatted}')
-
-        queue.put_nowait(comparison_msg)'''
 
     stream_from_llm_generation(
         prompt=get_prompt_template_for_generating_final_answer(),
@@ -195,9 +190,9 @@ def generate_final_answer_stream(state: SessionState, queue: Queue) -> None:
         chain_type='llm_chain',
         verbose=True,
         question=question_context.question,
-        answers_to_implicit_questions='\n\n'.join([f'{q.question}\n{q.answer.raw}' for q in implicit_questions_answered.values()]),
+        answers_to_implicit_questions='\n\n'.join([f'{q.question}\n{q.answer}' for q in implicit_questions_answered]),
         word_limit=question_context.word_limit,
-        original_answer=question_context.answer.raw
+        original_answer=question_context.answer
     )
 
 
@@ -206,13 +201,13 @@ def generate_improved_answer_following_user_guidance_prompt(state: SessionState,
 
     question_context = state.get_last_question_context()
     comprehensiveness_state = question_context.comprehensiveness
-    implicit_questions_answered = dict(filter(lambda elem: elem[1].answer is not None, question_context.comprehensiveness.implicit_questions.items()))
+    implicit_questions_answered = list(filter(lambda iq: iq.answer is not None, question_context.comprehensiveness.implicit_questions))
 
     intro_to_improved_answer = f'Here is the improved answer to **"{question_context.question}"**:\n\n'
     queue.put_nowait(intro_to_improved_answer)
 
-    def on_llm_end(answer: str, answer_formatted: str):
-        state.set_improved_answer(answer, answer_formatted)
+    def on_llm_end(answer: str):
+        state.set_improved_answer(answer)
         queue.put_nowait(f'\n\nThe improved answer contains **{len(answer.split())}** words. The word limit is **{question_context.word_limit}** words.')
 
     stream_from_llm_generation(
@@ -222,12 +217,12 @@ def generate_improved_answer_following_user_guidance_prompt(state: SessionState,
         chain_type='llm_chain',
         verbose=True,
         question=question_context.question,
-        answers_to_implicit_questions='\n\n'.join([f'{q.question}\n{q.answer.raw}' for q in implicit_questions_answered.values()]),
+        answers_to_implicit_questions='\n\n'.join([f'{q.question}\n{q.answer}' for q in implicit_questions_answered]),
         word_limit=question_context.word_limit,
-        original_answer=question_context.answer.raw,
+        original_answer=question_context.answer,
         answer=(
-            comprehensiveness_state.revised_application_answer.raw
+            comprehensiveness_state.revised_application_answer
                 if comprehensiveness_state.revised_application_answer
                 else
-            question_context.answer.raw)
+            question_context.answer)
     )

@@ -125,8 +125,9 @@ def stream_from_llm_generation(
                 queue.put_nowait(next_token)
             else:
                 print_end_of_stream(answer, num_tokens)
+                answer_formatted += '*'
                 if on_llm_end is not None:
-                    on_llm_end(answer, answer_formatted + '*')
+                    on_llm_end(answer)
                 return
         except Empty:
             logging.info('Queue is empty after 1 second of waiting')

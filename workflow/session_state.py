@@ -15,32 +15,25 @@ from configurations.constants import (
 )
 
 
-
-@dataclass
-class TextFormat:
-    raw: str = ''
-    formatted: str = ''
-
-
 @dataclass
 class ImplicitQuestion:
     question: str
-    answer: TextFormat | None = None
+    answer: str | None = None
 
 
 @dataclass
 class ComprehensivenessCheckerContext:
     missing_information: str | None = None
-    implicit_questions: dict[int, ImplicitQuestion] = field(default_factory=dict)
+    implicit_questions: list[ImplicitQuestion] = field(default_factory=list)
     index_of_implicit_question_being_answered: int | None = None
     wish_to_answer_implicit_questions: bool = True
-    revised_application_answer: TextFormat | None = None
+    revised_application_answer: str | None = None
 
 
 @dataclass
 class Improvement:
     user_prompt: str
-    improved_answer: TextFormat
+    improved_answer: str
 
 
 @dataclass
@@ -57,35 +50,21 @@ class EditedAnswer:
 class GrantApplicationQuestionContext:
     question: str | None = None
     word_limit: str | None = None
-    answer: TextFormat | None = None # change this to original_answer
+    answer: str | None = None # change this to original_answer
     comprehensiveness: ComprehensivenessCheckerContext = field(default_factory=ComprehensivenessCheckerContext)
     polish: PolishContext = field(default_factory=PolishContext)
     edited_answers: list[EditedAnswer] = field(default_factory=list)
     current_answer: str | None = None # TODO: point this to the last answer in current workflow
 
-    def get_original_answer(self, format: bool) -> str | None:
-        if self.answer:
-            return self.answer.formatted if format else self.answer.raw
-        else:
-            return None
+    def get_original_answer(self) -> str | None:
+        return self.answer
 
-    def get_revised_answer(self, format: bool) -> str | None:
-        if self.comprehensiveness.revised_application_answer:
-            return (
-                self.comprehensiveness.revised_application_answer.formatted
-                    if format else
-                self.comprehensiveness.revised_application_answer.raw
-            )
-        else:
-            return None
+    def get_revised_answer(self) -> str | None:
+        return self.comprehensiveness.revised_application_answer
 
-    def get_last_improved_answer(self, format: bool) -> str | None:
+    def get_last_improved_answer(self,) -> str | None:
         if self.polish.improvements:
-            return (
-                self.polish.improvements[-1].improved_answer.formatted
-                    if format else
-                self.polish.improvements[-1].improved_answer.raw
-            )
+            return self.polish.improvements[-1].improved_answer
         else:
             return None
 
@@ -136,12 +115,8 @@ class SessionState:
         self.questions[-1].word_limit = word_limit
 
 
-    def set_answer_to_current_grant_application_question(
-        self,
-        raw: str,
-        formatted: str | None = None
-    ):
-        self.questions[-1].answer = TextFormat(raw, formatted)
+    def set_answer_to_current_grant_application_question(self, answer: str):
+        self.questions[-1].answer = answer
 
 
     def get_index_of_implicit_question_being_answered(self) -> int | None:
@@ -162,50 +137,43 @@ class SessionState:
             raise Exception('No implicit question currently being answered')
 
 
-    def set_answer_to_current_implicit_question(
-        self,
-        raw: str,
-        formatted: str | None = None
-    ):
+    def set_answer_to_current_implicit_question(self, answer: str):
         index = self.get_index_of_implicit_question_being_answered()
         implicit_questions = self.questions[-1].comprehensiveness.implicit_questions
 
-        if not index or index > len(implicit_questions):
+        if index is None or index > len(implicit_questions):
+            print(f'index: {index}, len: {len(implicit_questions)}')
             raise Exception('Cannot set answer as no implicit question currently being answered')
 
-        implicit_questions[index].answer = TextFormat(raw, formatted)
+        implicit_questions[index].answer = answer
 
 
     def get_next_implicit_question_and_index(self) -> tuple[str, int]:
         comprehensiveness = self.questions[-1].comprehensiveness
 
         if (index := self.get_index_of_implicit_question_being_answered()) is not None:
-            if index == len(comprehensiveness.implicit_questions):
+            if index == len(comprehensiveness.implicit_questions) - 1:
                 raise Exception('No more implicit questions to answer')
 
             comprehensiveness.index_of_implicit_question_being_answered += 1
             return comprehensiveness.implicit_questions[index + 1].question, index + 1
         else:
-            comprehensiveness.index_of_implicit_question_being_answered = 1
-            return comprehensiveness.implicit_questions[1].question, 1
+            comprehensiveness.index_of_implicit_question_being_answered = 0
+            return comprehensiveness.implicit_questions[0].question, 0
 
     
     def has_more_implcit_questions_to_answer(self) -> bool:
         index = self.get_index_of_implicit_question_being_answered()
 
-        return index is None or index < len(self.questions[-1].comprehensiveness.implicit_questions)
+        return index is None or index < len(self.questions[-1].comprehensiveness.implicit_questions) - 1
 
 
     def exists_answer_to_any_implicit_question(self) -> bool:
-        return any([question.answer for question in self.questions[-1].comprehensiveness.implicit_questions.values()])
+        return any([question.answer for question in self.questions[-1].comprehensiveness.implicit_questions])
 
 
-    def set_revised_answer_to_current_grant_application_question(
-        self,
-        raw: str,
-        formatted: str | None = None
-    ):
-        self.questions[-1].comprehensiveness.revised_application_answer = TextFormat(raw, formatted)
+    def set_revised_answer_to_current_grant_application_question(self, answer: str):
+        self.questions[-1].comprehensiveness.revised_application_answer = answer
 
 
     def get_current_user_guidance_prompt(self) -> str:
@@ -220,8 +188,8 @@ class SessionState:
         return self.questions[-1].polish.improvements
 
 
-    def set_improved_answer(self, raw: str, formatted: str | None = None):
-        self.questions[-1].polish.improvements[-1].improved_answer = TextFormat(raw, formatted)
+    def set_improved_answer(self, answer: str):
+        self.questions[-1].polish.improvements[-1].improved_answer = answer
 
 
     def is_allowed_to_add_more_guidance(self) -> bool:

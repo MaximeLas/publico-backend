@@ -106,9 +106,9 @@ def get_updated_content(state: SessionState) -> UpdatedEditorContent | None:
                 updated_content.word_limit = last_question_context.word_limit
             elif content_type == EditorContentType.ANSWER:
                 updated_content.answer = (
-                    last_question_context.get_last_improved_answer(False) or
-                    last_question_context.get_revised_answer(False) or
-                    last_question_context.get_original_answer(False)
+                    last_question_context.get_last_improved_answer() or
+                    last_question_context.get_revised_answer() or
+                    last_question_context.get_original_answer()
                 )
             else:
                 raise ValueError(f'Unknown content type: {content_type}')

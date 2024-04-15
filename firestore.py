@@ -59,17 +59,12 @@ def serialize_for_firestore(obj):
     elif isinstance(obj, (list, tuple)):
         return [serialize_for_firestore(v) for v in obj if v is not None]
     elif isinstance(obj, dict):
-        return {str(k): serialize_for_firestore(v) for k, v in obj.items() if v is not None}
-    elif isinstance(obj, datetime.datetime):
-        return obj.replace(tzinfo=datetime.timezone.utc) if obj.tzinfo is None else obj
-    elif obj is None or isinstance(obj, (str, int, float, bool)):
-        return obj
+        return {k: serialize_for_firestore(v) for k, v in obj.items() if v is not None}
     else:
-        raise TypeError(f"Unsupported type for Firestore serialization: {type(obj)}")
+        return obj
 
 
 def update_session_state_in_firestore(session_id: str, session_state: any):
     # Use this enhanced function to serialize your session state before sending to Firestore
     session_state_serialized = serialize_for_firestore(session_state)
-    #print(f'\nsession_state_serialized: {session_state_serialized}')  # Add this right before the Firestore update call
     db.collection('chat_sessions').document(session_id).update(session_state_serialized)
