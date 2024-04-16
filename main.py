@@ -155,7 +155,7 @@ async def new_session() -> NewSessionResponse:
     initial_message = chatbot_step.get_initial_chatbot_message(state)
     components=chatbot_step.get_components(state)
 
-    update_chat_session_in_firestore(str(session_id), state)
+    #update_chat_session_in_firestore(str(session_id), state)
     return NewSessionResponse(session_id=session_id, initial_message=initial_message, components=components)
 
 
@@ -173,7 +173,6 @@ async def chat(request: ChatRequest) -> StreamingResponse:
     queue = Queue()
     Thread(target=handle_chat_request, kwargs=dict(request=request, queue=queue)).start()
 
-    update_chat_session_in_firestore(str(request.session_id), state)
     return StreamingResponse(content=async_queue_generator(queue=queue), media_type="text/event-stream")
 
 
