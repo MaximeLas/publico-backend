@@ -10,12 +10,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import UUID4, BaseModel
 
 from configurations.constants import Component
-from firestore import update_session_state_in_firestore
+from firestore import update_chat_session_in_firestore, retrieve_session_state_from_firestore
 from workflow.chatbot_step import EditorContentType
 from workflow.session_state import SessionState
 from workflow.steps import get_chatbot_step
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -65,7 +65,7 @@ async def async_queue_generator(queue: Queue):
             else:
                 yield item
         except:
-            logging.info("Error in async_queue_generator")
+            logger.info('Error in async_queue_generator')
             await sleep(0.01)
 
 class NewSessionResponse(BaseModel):
@@ -93,6 +93,14 @@ class EditAnswerRequest(BaseModel):
     answer: str
 
 
+def get_session_state(session_id: UUID4) -> SessionState:
+    if session_id not in sessions:
+        logger.info(f'Getting session state from Firestore for session_id: {session_id}')
+        sessions[session_id] = retrieve_session_state_from_firestore(str(session_id))
+
+    return sessions[session_id]
+
+
 def get_updated_content(state: SessionState) -> UpdatedEditorContent | None:
     updated_content = None
 
@@ -118,7 +126,7 @@ def get_updated_content(state: SessionState) -> UpdatedEditorContent | None:
 
 def handle_chat_request(request: ChatRequest, queue: Queue):
     user_input = request.user_input.input_value
-    state = sessions[request.session_id]
+    state = get_session_state(request.session_id)
     chatbot_step = get_chatbot_step(state.current_step_id)
 
     if save_fn := chatbot_step.save_event_outcome_fn:
@@ -127,6 +135,7 @@ def handle_chat_request(request: ChatRequest, queue: Queue):
     for fn in chatbot_step.get_generate_chatbot_messages_fns_for_trigger(trigger=state.last_user_input):
         fn(state, queue)
 
+    update_chat_session_in_firestore(str(request.session_id), state)
     queue.put_nowait(JOB_DONE)
 
 
@@ -134,8 +143,10 @@ def handle_chat_request(request: ChatRequest, queue: Queue):
 
 @app.post('/new_session')
 async def new_session() -> NewSessionResponse:
-    print(f'New session request')
+    logger.info(f'New session request')
     session_id = uuid.uuid4()
+    logger.info(f'New session id: {session_id}')
+
     state = SessionState(session_id=str(session_id))
     sessions[session_id] = state
 
@@ -144,14 +155,16 @@ async def new_session() -> NewSessionResponse:
     initial_message = chatbot_step.get_initial_chatbot_message(state)
     components=chatbot_step.get_components(state)
 
-    print(f'New session id: {session_id}')
+    update_chat_session_in_firestore(str(session_id), state)
     return NewSessionResponse(session_id=session_id, initial_message=initial_message, components=components)
 
 
 @app.post("/chat/")
 async def chat(request: ChatRequest) -> StreamingResponse:
-    print(f'Chat request: {request}')
-    sessions[request.session_id].last_user_input = (
+    logger.info(f'Chat request: {request}')
+    state = get_session_state(request.session_id)
+
+    state.last_user_input = (
         Component(request.user_input.input_value)
             if request.user_input.input_type == InputType.Button
             else
@@ -160,13 +173,14 @@ async def chat(request: ChatRequest) -> StreamingResponse:
     queue = Queue()
     Thread(target=handle_chat_request, kwargs=dict(request=request, queue=queue)).start()
 
+    update_chat_session_in_firestore(str(request.session_id), state)
     return StreamingResponse(content=async_queue_generator(queue=queue), media_type="text/event-stream")
 
 
 @app.post("/after_chat")
 async def after_chat(request: AfterChatRequest) -> AfterChatResponse:
-    print(f'After chat request: {request}')
-    state = sessions[request.session_id]
+    logger.info(f'After chat request: {request}')
+    state = get_session_state(request.session_id)
     
     chatbot_step = get_chatbot_step(state.current_step_id)
 
@@ -181,15 +195,19 @@ async def after_chat(request: AfterChatRequest) -> AfterChatResponse:
         components=chatbot_step.get_components(state),
         updated_content=updated_content
     )
+
     if updated_content:
         response.updated_content = updated_content
 
-    update_session_state_in_firestore(str(request.session_id), state)  # Update the session state in Fi
+    update_chat_session_in_firestore(str(request.session_id), state)
     return response
 
 
 @app.post("/edit")
 async def edit(request: EditAnswerRequest) -> None:
-    state = sessions[request.session_id]
+    state = get_session_state(request.session_id)
+
     state.edit_last_question(request.question_index, request.answer)
-    print(f"Edited answer for question {request.question_index} to: {request.answer}\n")
+    logger.info(f'Edited answer for question {request.question_index} to: {request.answer}\n')
+
+    update_chat_session_in_firestore(str(request.session_id), state)
