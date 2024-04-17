@@ -11,6 +11,7 @@ from pydantic import UUID4, BaseModel
 
 from configurations.constants import Component
 from firestore import update_chat_session_in_firestore, retrieve_session_state_from_firestore
+from utilities.document_helpers import add_files_to_vector_store
 from workflow.chatbot_step import EditorContentType
 from workflow.session_state import SessionState
 from workflow.steps import get_chatbot_step
@@ -96,7 +97,13 @@ class EditAnswerRequest(BaseModel):
 def get_session_state(session_id: UUID4) -> SessionState:
     if session_id not in sessions:
         logger.info(f'Getting session state from Firestore for session_id: {session_id}')
-        sessions[session_id] = retrieve_session_state_from_firestore(str(session_id))
+        session_state = retrieve_session_state_from_firestore(str(session_id))
+        sessions[session_id] = session_state
+        if session_state.uploaded_files:
+            add_files_to_vector_store(
+                session_id=session_state.session_id,
+                files=session_state.uploaded_files,
+                tokens_per_doc_chunk=session_state.get_num_of_tokens_per_doc_chunk())
 
     return sessions[session_id]
 
@@ -135,7 +142,7 @@ def handle_chat_request(request: ChatRequest, queue: Queue):
     for fn in chatbot_step.get_generate_chatbot_messages_fns_for_trigger(trigger=state.last_user_input):
         fn(state, queue)
 
-    update_chat_session_in_firestore(str(request.session_id), state)
+    update_chat_session_in_firestore(state)
     queue.put_nowait(JOB_DONE)
 
 
@@ -198,7 +205,7 @@ async def after_chat(request: AfterChatRequest) -> AfterChatResponse:
     if updated_content:
         response.updated_content = updated_content
 
-    update_chat_session_in_firestore(str(request.session_id), state)
+    update_chat_session_in_firestore(state)
     return response
 
 
@@ -209,4 +216,4 @@ async def edit(request: EditAnswerRequest) -> None:
     state.edit_last_question(request.question_index, request.answer)
     logger.info(f'Edited answer for question {request.question_index} to: {request.answer}\n')
 
-    update_chat_session_in_firestore(str(request.session_id), state)
+    update_chat_session_in_firestore(state)

@@ -42,7 +42,6 @@ STEPS: dict[StepID, ChatbotStep] = {
         initial_chatbot_message=(
             "Do you have any existing materials you'd like to share (past grants, reports, etc.)?"),
         components={Component.YES, Component.NO},
-        save_event_outcome_fn=SessionState.set_uploaded_files,
         next_step_decider={
             Component.YES: FixedStepDecider(StepID.UPLOAD_FILES),
             Component.NO: FixedStepDecider(StepID.ENTER_QUESTION)}

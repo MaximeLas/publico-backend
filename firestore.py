@@ -1,12 +1,13 @@
 import logging
 from dataclasses import asdict, fields, is_dataclass
-from enum import Enum, StrEnum
+from enum import Enum
 
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
 
 from workflow.session_state import SessionState
 
+# Logging Configuration
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -14,7 +15,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Firebase Configuration
-CREDENTIAL_PATH = "./publico-ai-firebase-adminsdk-rnl7e-43eac58a0e.json"
+CREDENTIAL_PATH = './publico-ai-firebase-adminsdk-rnl7e-43eac58a0e.json'
 STORAGE_BUCKET = 'publico-ai.appspot.com'
 MY_ID = 'YcsbK8htCbUYO5egX1L428LiYwi2'
 
@@ -23,13 +24,14 @@ cred = credentials.Certificate(CREDENTIAL_PATH)
 firebase_admin.initialize_app(cred, {'storageBucket': STORAGE_BUCKET})
 db = firestore.client()
 
+
 def fetch_document(collection, document_id):
     doc_ref = db.collection(collection).document(document_id)
     doc = doc_ref.get()
     if doc.exists:
         return doc.to_dict()
     else:
-        logger.info(f"No such document with ID: {document_id}")
+        logger.info(f'No such document with ID: {document_id}')
         return None
 
 def get_files_for_user(user_id: str, file_names: list[str] = ['PBRC.txt']) -> list[str]:
@@ -38,24 +40,16 @@ def get_files_for_user(user_id: str, file_names: list[str] = ['PBRC.txt']) -> li
 
     file_contents = []
     for file_name in file_names:
-        file_path = f"{user_folder}{file_name}"
+        file_path = f'{user_folder}{file_name}'
         blob = bucket.blob(file_path)
         if blob.exists():
             try:
                 content = blob.download_as_text()
                 file_contents.append(content)
             except Exception as e:
-                logger.error(f"Error reading content from {file_path}: {e}")
+                logger.error(f'Error reading content from {file_path}: {e}')
 
     return file_contents
-
-def handle_list_conversion(element_type, list_values):
-    return [convert_value(element_type, item) for item in list_values]
-
-def handle_enum_conversion(type_hint, value):
-    if issubclass(type_hint, StrEnum):
-        return type_hint[value.upper()]
-    return type_hint(value)
 
 def convert_value(type_hint, value):
     if not isinstance(type_hint, type):
@@ -65,10 +59,9 @@ def convert_value(type_hint, value):
         if is_dataclass(type_hint):
             return deserialize_to_dataclass(type_hint, value)
         if isinstance(value, list):
-            element_type = type_hint.__args__[0] if hasattr(type_hint, '__args__') else dict
-            return handle_list_conversion(element_type, value)
+            return deserialize_list(type_hint, value)
         if issubclass(type_hint, Enum):
-            return handle_enum_conversion(type_hint, value)
+            return type_hint[value.upper()] if isinstance(value, str) else type_hint(value)
     except Exception as e:
         logger.error(f"Failed to convert value '{value}' with type_hint '{type_hint}': {e}")
         return None
@@ -76,10 +69,7 @@ def convert_value(type_hint, value):
 
 def deserialize_list(field_type, value):
     element_type = field_type.__args__[0] if hasattr(field_type, '__args__') else dict
-    if is_dataclass(element_type):
-        return [deserialize_to_dataclass(element_type, item) for item in value]
-    else:
-        return [convert_value(element_type, item) for item in value]
+    return [convert_value(element_type, item) for item in value]
 
 def deserialize_to_dataclass(cls, data):
     if not isinstance(data, dict):
@@ -118,8 +108,8 @@ def retrieve_session_state_from_firestore(session_id: str) -> SessionState:
     if server_data and 'server_state' in server_data:
         return deserialize_to_dataclass(SessionState, server_data['server_state'])
     else:
-        raise ValueError(f"No valid server state found with ID: {session_id}")
+        raise ValueError(f'No valid server state found with ID: {session_id}')
 
-def update_chat_session_in_firestore(session_id: str, session_state: SessionState):
+def update_chat_session_in_firestore(session_state: SessionState):
     session_state_serialized = serialize_for_firestore(session_state)
-    db.collection('chat_sessions').document(session_id).set({'server_state': session_state_serialized}, merge=True)
+    db.collection('chat_sessions').document(session_state.session_id).set({'server_state': session_state_serialized}, merge=True)

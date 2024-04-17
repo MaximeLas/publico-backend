@@ -33,7 +33,7 @@ def generate_validation_message_following_files_upload(state: SessionState, queu
     queue.put_nowait(f'Uploading **{len(files)}** {file_or_files} ... 📤\n\n')
 
     add_files_to_vector_store(
-        session_id=str(state.session_id),
+        session_id=state.session_id,
         files=files,
         tokens_per_doc_chunk=state.get_num_of_tokens_per_doc_chunk())
 
