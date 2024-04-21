@@ -15,9 +15,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Firebase Configuration
-CREDENTIAL_PATH = './publico-ai-firebase-adminsdk-rnl7e-43eac58a0e.json'
+CREDENTIAL_PATH = './publico-ai-2830bb7f3310.json'
 STORAGE_BUCKET = 'publico-ai.appspot.com'
-MY_ID = 'YcsbK8htCbUYO5egX1L428LiYwi2'
+MY_ID = 'UkWqrbGE1fUjsl5wmPpLNzCuMOy2'
 
 # Firebase Initialization
 cred = credentials.Certificate(CREDENTIAL_PATH)
@@ -104,7 +104,7 @@ def serialize_iterable_for_firestore(obj):
         return [serialize_for_firestore(v) for v in obj if v is not None]
 
 def retrieve_session_state_from_firestore(session_id: str) -> SessionState:
-    server_data = fetch_document('chat_sessions', session_id)
+    server_data = fetch_document('client_chat_sessions', session_id)
     if server_data and 'server_state' in server_data:
         return deserialize_to_dataclass(SessionState, server_data['server_state'])
     else:
@@ -112,4 +112,4 @@ def retrieve_session_state_from_firestore(session_id: str) -> SessionState:
 
 def update_chat_session_in_firestore(session_state: SessionState):
     session_state_serialized = serialize_for_firestore(session_state)
-    db.collection('chat_sessions').document(session_state.session_id).set({'server_state': session_state_serialized}, merge=True)
+    db.collection('client_chat_sessions').document(session_state.session_id).set({'server_state': session_state_serialized}, merge=True)
