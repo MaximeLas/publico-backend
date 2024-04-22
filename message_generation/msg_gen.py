@@ -57,7 +57,7 @@ def generate_answer_to_question_stream(state: SessionState, queue: Queue) -> Non
         question=question_state.question,
         n_results=state.get_num_of_doc_chunks_to_consider())
 
-    intro_to_answer = 'Based on the information you provided, here\'s the best answer I could put together:{dnl}'
+    intro_to_answer = f'Based on the information you provided, here\'s the best answer I could put together:{dnl}'
     queue.put_nowait(intro_to_answer)
 
     def on_llm_end(answer: str):
@@ -78,7 +78,7 @@ def generate_answer_to_question_stream(state: SessionState, queue: Queue) -> Non
 def check_for_comprehensiveness(state: SessionState, queue: Queue) -> None:
     '''Check for comprehensiveness of an answer to a grant application question using OpenAI functions.'''
 
-    queue.put_nowait('Give me a moment while I think about how to improve it ... 🔍{dnl}')
+    queue.put_nowait(f'Give me a moment while I think about how to improve it ... 🔍{dnl}')
 
     question_state = state.get_last_question_context()
     comprehensiveness_state = question_state.comprehensiveness
@@ -111,7 +111,7 @@ def check_for_comprehensiveness(state: SessionState, queue: Queue) -> None:
     queue.put_nowait(f'*{comprehensiveness_state.missing_information}*')
 
     time.sleep(0.15)
-    queue.put_nowait('{dnl}To make the answer as strong as possible, I\'d include answers to the following questions:')
+    queue.put_nowait(f'{dnl}To make the answer as strong as possible, I\'d include answers to the following questions:')
 
     time.sleep(0.15)
     for i, q in enumerate(comprehensiveness_state.implicit_questions):
@@ -123,7 +123,7 @@ def generate_answer_for_implicit_question_stream(state: SessionState, queue: Que
     '''Generate and stream answers for implicit questions to be answered to make the answer comprehensive.'''
 
     start_of_chatbot_message = 'Here\'s what I found in your documents to answer this question:'
-    queue.put_nowait(start_of_chatbot_message + '{dnl}')
+    queue.put_nowait(start_of_chatbot_message + dnl)
 
     if IS_DEV_MODE and state.user_has_changed_num_of_tokens():
         add_files_to_vector_store(
@@ -192,7 +192,7 @@ def generate_final_answer_stream(state: SessionState, queue: Queue) -> None:
         chain_type='llm_chain',
         verbose=True,
         question=question_context.question,
-        answers_to_implicit_questions='{dnl}'.join([f'{q.question}\n{q.answer}' for q in implicit_questions_answered]),
+        answers_to_implicit_questions=dnl.join([f'{q.question}\n{q.answer}' for q in implicit_questions_answered]),
         word_limit=question_context.word_limit,
         original_answer=question_context.answer
     )
