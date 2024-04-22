@@ -15,9 +15,16 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Firebase Configuration
-CREDENTIAL_PATH = './publico-ai-2830bb7f3310.json'
 STORAGE_BUCKET = 'publico-ai.appspot.com'
+SERVER_COLLECTION = 'server_session_states'
+
+# Max config
+CREDENTIAL_PATH = './publico-ai-firebase-adminsdk-rnl7e-43eac58a0e.json'
+MY_ID = 'YcsbK8htCbUYO5egX1L428LiYwi2'
+# Lior config:
+CREDENTIAL_PATH = './publico-ai-2830bb7f3310.json'
 MY_ID = 'UkWqrbGE1fUjsl5wmPpLNzCuMOy2'
+
 
 # Firebase Initialization
 cred = credentials.Certificate(CREDENTIAL_PATH)
