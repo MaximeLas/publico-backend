@@ -24,13 +24,15 @@ from configurations.prompts import (
 )
 import logging
 
+dnl = '\n &nbsp;\n &nbsp;'
+
 def generate_validation_message_following_files_upload(state: SessionState, queue: Queue) -> list[str]:
     '''Generate a validation message following a file upload.'''
 
     files = state.uploaded_files
     file_or_files = 'file' if len(files) == 1 else 'files'
 
-    queue.put_nowait(f'Uploading **{len(files)}** {file_or_files} ... 📤\n\n')
+    queue.put_nowait(f'Uploading **{len(files)}** {file_or_files} ... 📤{dnl}')
 
     add_files_to_vector_store(
         session_id=state.session_id,
@@ -38,7 +40,7 @@ def generate_validation_message_following_files_upload(state: SessionState, queu
         tokens_per_doc_chunk=state.get_num_of_tokens_per_doc_chunk())
 
     queue.put_nowait(
-        f'You successfully uploaded **{len(files)}** {file_or_files}! 🎉\n\n' +
+        f'You successfully uploaded **{len(files)}** {file_or_files}! 🎉{dnl}' +
         'Now, on to your first grant application question!')
 
 
@@ -55,13 +57,13 @@ def generate_answer_to_question_stream(state: SessionState, queue: Queue) -> Non
         question=question_state.question,
         n_results=state.get_num_of_doc_chunks_to_consider())
 
-    intro_to_answer = 'Based on the information you provided, here\'s the best answer I could put together:\n\n'
+    intro_to_answer = 'Based on the information you provided, here\'s the best answer I could put together:{dnl}'
     queue.put_nowait(intro_to_answer)
 
     def on_llm_end(answer: str):
         state.set_answer_to_current_grant_application_question(answer)
         time.sleep(0.15)
-        queue.put_nowait(f'\n\nGenerated answer contains **{len(answer.split())}** words.\n\n')
+        queue.put_nowait(f'{dnl}Generated answer contains **{len(answer.split())}** words.{dnl}')
 
     stream_from_llm_generation(
         prompt=get_prompt_template_for_generating_original_answer(state.get_system_prompt_for_original_question()),
@@ -76,7 +78,7 @@ def generate_answer_to_question_stream(state: SessionState, queue: Queue) -> Non
 def check_for_comprehensiveness(state: SessionState, queue: Queue) -> None:
     '''Check for comprehensiveness of an answer to a grant application question using OpenAI functions.'''
 
-    queue.put_nowait('Give me a moment while I think about how to improve it ... 🔍\n\n')
+    queue.put_nowait('Give me a moment while I think about how to improve it ... 🔍{dnl}')
 
     question_state = state.get_last_question_context()
     comprehensiveness_state = question_state.comprehensiveness
@@ -109,19 +111,19 @@ def check_for_comprehensiveness(state: SessionState, queue: Queue) -> None:
     queue.put_nowait(f'*{comprehensiveness_state.missing_information}*')
 
     time.sleep(0.15)
-    queue.put_nowait('\n\nTo make the answer as strong as possible, I\'d include answers to the following questions:')
+    queue.put_nowait('{dnl}To make the answer as strong as possible, I\'d include answers to the following questions:')
 
     time.sleep(0.15)
     for i, q in enumerate(comprehensiveness_state.implicit_questions):
         time.sleep(0.1)
-        queue.put_nowait(f'\n\n(**{i+1}**) **{q.question}**')
+        queue.put_nowait(f'{dnl}(**{i+1}**) **{q.question}**')
 
 
 def generate_answer_for_implicit_question_stream(state: SessionState, queue: Queue) -> None:
     '''Generate and stream answers for implicit questions to be answered to make the answer comprehensive.'''
 
     start_of_chatbot_message = 'Here\'s what I found in your documents to answer this question:'
-    queue.put_nowait(start_of_chatbot_message + '\n\n')
+    queue.put_nowait(start_of_chatbot_message + '{dnl}')
 
     if IS_DEV_MODE and state.user_has_changed_num_of_tokens():
         add_files_to_vector_store(
@@ -175,13 +177,13 @@ def generate_final_answer_stream(state: SessionState, queue: Queue) -> None:
 
     intro_to_final_answer = (
         f'Here is the final answer to **"{question_context.question}"** '
-        f'after integrating answer{s} to **{num_implicit_questions}** implicit question{s}:\n\n')
+        f'after integrating answer{s} to **{num_implicit_questions}** implicit question{s}:{dnl}')
 
     queue.put_nowait(intro_to_final_answer)
 
     def on_llm_end(answer: str):
         state.set_revised_answer_to_current_grant_application_question(answer)
-        queue.put_nowait(f'\n\nThe final answer contains **{len(answer.split())}** words. The word limit is **{question_context.word_limit}** words.\n\n')
+        queue.put_nowait(f'{dnl}The final answer contains **{len(answer.split())}** words. The word limit is **{question_context.word_limit}** words.{dnl}')
 
     stream_from_llm_generation(
         prompt=get_prompt_template_for_generating_final_answer(),
@@ -190,7 +192,7 @@ def generate_final_answer_stream(state: SessionState, queue: Queue) -> None:
         chain_type='llm_chain',
         verbose=True,
         question=question_context.question,
-        answers_to_implicit_questions='\n\n'.join([f'{q.question}\n{q.answer}' for q in implicit_questions_answered]),
+        answers_to_implicit_questions='{dnl}'.join([f'{q.question}\n{q.answer}' for q in implicit_questions_answered]),
         word_limit=question_context.word_limit,
         original_answer=question_context.answer
     )
@@ -203,12 +205,12 @@ def generate_improved_answer_following_user_guidance_prompt(state: SessionState,
     comprehensiveness_state = question_context.comprehensiveness
     implicit_questions_answered = list(filter(lambda iq: iq.answer is not None, question_context.comprehensiveness.implicit_questions))
 
-    intro_to_improved_answer = f'Here is the improved answer to **"{question_context.question}"**:\n\n'
+    intro_to_improved_answer = f'Here is the improved answer to **"{question_context.question}"**:{dnl}'
     queue.put_nowait(intro_to_improved_answer)
 
     def on_llm_end(answer: str):
         state.set_improved_answer(answer)
-        queue.put_nowait(f'\n\nThe improved answer contains **{len(answer.split())}** words. The word limit is **{question_context.word_limit}** words.')
+        queue.put_nowait(f'{dnl}The improved answer contains **{len(answer.split())}** words. The word limit is **{question_context.word_limit}** words.')
 
     stream_from_llm_generation(
         prompt=get_prompt_template_for_user_guidance_post_answer(state.get_current_improvements()),
@@ -217,7 +219,7 @@ def generate_improved_answer_following_user_guidance_prompt(state: SessionState,
         chain_type='llm_chain',
         verbose=True,
         question=question_context.question,
-        answers_to_implicit_questions='\n\n'.join([f'{q.question}\n{q.answer}' for q in implicit_questions_answered]),
+        answers_to_implicit_questions=dnl.join([f'{q.question}\n{q.answer}' for q in implicit_questions_answered]),
         word_limit=question_context.word_limit,
         original_answer=question_context.answer,
         answer=(

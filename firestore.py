@@ -104,12 +104,13 @@ def serialize_iterable_for_firestore(obj):
         return [serialize_for_firestore(v) for v in obj if v is not None]
 
 def retrieve_session_state_from_firestore(session_id: str) -> SessionState:
-    server_data = fetch_document('client_chat_sessions', session_id)
-    if server_data and 'server_state' in server_data:
-        return deserialize_to_dataclass(SessionState, server_data['server_state'])
-    else:
-        raise ValueError(f'No valid server state found with ID: {session_id}')
+    session_state_date = fetch_document(SERVER_COLLECTION, session_id)
+    try:
+        session_state = deserialize_to_dataclass(SessionState, session_state_date)
+        return session_state
+    except Exception as e:
+        raise ValueError(f'No valid server state found with ID: {session_id}\nError: {e}')
 
 def update_chat_session_in_firestore(session_state: SessionState):
     session_state_serialized = serialize_for_firestore(session_state)
-    db.collection('client_chat_sessions').document(session_state.session_id).set({'server_state': session_state_serialized}, merge=True)
+    db.collection(SERVER_COLLECTION).document(session_state.session_id).set(session_state_serialized, merge=True)
