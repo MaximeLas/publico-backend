@@ -20,7 +20,7 @@ from workflow.chatbot_step import ChatbotStep, EditorContentType
 from workflow.session_state import SessionState
 from workflow.step_decider import ConditionalStepDecider, FixedStepDecider, MultiConditionalStepDecider
 
-dnl = '\n&nbsp;\n&nbsp;'
+dnl = '\n&nbsp;\n'
 
 def get_initial_chatbot_message_for_generating_answer_to_implicit_question(state: SessionState) -> str:
     question, index = state.get_next_implicit_question_and_index()

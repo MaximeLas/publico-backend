@@ -24,7 +24,7 @@ from configurations.prompts import (
 )
 import logging
 
-dnl = '\n&nbsp;\n&nbsp;'
+dnl = '\n&nbsp;\n'
 
 def generate_validation_message_following_files_upload(state: SessionState, queue: Queue) -> list[str]:
     '''Generate a validation message following a file upload.'''
