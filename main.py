@@ -4,13 +4,13 @@ import logging
 from threading import Thread
 from asyncio import Queue, sleep
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Header
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import UUID4, BaseModel
 
 from configurations.constants import Component
-from firestore import update_chat_session_in_firestore, retrieve_session_state_from_firestore
+from firestore import authenticate_request, update_chat_session_in_firestore, retrieve_session_state_from_firestore
 from utilities.document_helpers import add_files_to_vector_store
 from workflow.chatbot_step import EditorContentType
 from workflow.session_state import SessionState
@@ -94,16 +94,14 @@ class EditAnswerRequest(BaseModel):
     answer: str
 
 
-def get_session_state(session_id: UUID4) -> SessionState:
+
+def get_session_state(session_id: UUID4, user_id: str | None = None) -> SessionState:
     if session_id not in sessions:
         logger.info(f'Getting session state from Firestore for session_id: {session_id}')
         session_state = retrieve_session_state_from_firestore(str(session_id))
         sessions[session_id] = session_state
         if session_state.uploaded_files:
-            add_files_to_vector_store(
-                session_id=session_state.session_id,
-                files=session_state.uploaded_files,
-                tokens_per_doc_chunk=session_state.get_num_of_tokens_per_doc_chunk())
+            add_files_to_vector_store(session_state)
 
     return sessions[session_id]
 
@@ -149,12 +147,13 @@ def handle_chat_request(request: ChatRequest, queue: Queue):
 '''API Endpoints'''
 
 @app.post('/new_session')
-async def new_session() -> NewSessionResponse:
+async def new_session(authorization: str = Header(None)) -> NewSessionResponse:
     logger.info(f'New session request')
+    user_id = authenticate_request(authorization=authorization)
     session_id = uuid.uuid4()
     logger.info(f'New session id: {session_id}')
 
-    state = SessionState(session_id=str(session_id))
+    state = SessionState(session_id=str(session_id), user_id=user_id)
     sessions[session_id] = state
 
     chatbot_step = get_chatbot_step(state.current_step_id)
@@ -165,10 +164,13 @@ async def new_session() -> NewSessionResponse:
     #update_chat_session_in_firestore(str(session_id), state)
     return NewSessionResponse(session_id=session_id, initial_message=initial_message, components=components)
 
-
+from firebase_admin import auth
 @app.post("/chat/")
-async def chat(request: ChatRequest) -> StreamingResponse:
+async def chat(request: ChatRequest, authorization: str = Header(None)) -> StreamingResponse:
     logger.info(f'Chat request: {request}')
+
+    authenticate_request(authorization)
+
     state = get_session_state(request.session_id)
 
     state.last_user_input = (

@@ -32,12 +32,9 @@ def generate_validation_message_following_files_upload(state: SessionState, queu
     files = state.uploaded_files
     file_or_files = 'file' if len(files) == 1 else 'files'
 
-    queue.put_nowait(f'Uploading **{len(files)}** {file_or_files} ... 📤{dnl}')
+    queue.put_nowait(f'Uploading **{len(files)}** {file_or_files} ... 📤\n')
 
-    add_files_to_vector_store(
-        session_id=state.session_id,
-        files=files,
-        tokens_per_doc_chunk=state.get_num_of_tokens_per_doc_chunk())
+    add_files_to_vector_store(state)
 
     queue.put_nowait(
         f'You successfully uploaded **{len(files)}** {file_or_files}! 🎉{dnl}' +
@@ -116,7 +113,7 @@ def check_for_comprehensiveness(state: SessionState, queue: Queue) -> None:
     time.sleep(0.15)
     for i, q in enumerate(comprehensiveness_state.implicit_questions):
         time.sleep(0.1)
-        queue.put_nowait(f'{dnl}(**{i+1}**) **{q.question}**')
+        queue.put_nowait(f'\n(**{i+1}**) **{q.question}**')
 
 
 def generate_answer_for_implicit_question_stream(state: SessionState, queue: Queue) -> None:
@@ -126,10 +123,7 @@ def generate_answer_for_implicit_question_stream(state: SessionState, queue: Que
     queue.put_nowait(start_of_chatbot_message + dnl)
 
     if IS_DEV_MODE and state.user_has_changed_num_of_tokens():
-        add_files_to_vector_store(
-            session_id=str(state.session_id),
-            files=state.uploaded_files,
-            tokens_per_doc_chunk=state.get_num_of_tokens_per_doc_chunk())
+        add_files_to_vector_store(state)
 
     most_relevant_documents = get_most_relevant_docs_in_vector_store_for_answering_question(
         session_id=str(state.session_id),
@@ -183,7 +177,7 @@ def generate_final_answer_stream(state: SessionState, queue: Queue) -> None:
 
     def on_llm_end(answer: str):
         state.set_revised_answer_to_current_grant_application_question(answer)
-        queue.put_nowait(f'{dnl}The final answer contains **{len(answer.split())}** words. The word limit is **{question_context.word_limit}** words.{dnl}')
+        queue.put_nowait(f'{dnl}The final answer contains **{len(answer.split())}** words. The word limit is **{question_context.word_limit}** words.')
 
     stream_from_llm_generation(
         prompt=get_prompt_template_for_generating_final_answer(),

@@ -2,8 +2,9 @@ import logging
 from dataclasses import asdict, fields, is_dataclass
 from enum import Enum
 
+from fastapi import HTTPException
 import firebase_admin
-from firebase_admin import credentials, firestore, storage
+from firebase_admin import credentials, firestore, storage, auth
 
 from workflow.session_state import SessionState
 
@@ -18,19 +19,31 @@ logger = logging.getLogger(__name__)
 STORAGE_BUCKET = 'publico-ai.appspot.com'
 SERVER_COLLECTION = 'server_session_states'
 
-# Max config
+# Change this to the path of your Firebase Admin SDK credentials file
 CREDENTIAL_PATH = './publico-ai-firebase-adminsdk-rnl7e-43eac58a0e.json'
-MY_ID = 'YcsbK8htCbUYO5egX1L428LiYwi2'
-# Lior config:
-CREDENTIAL_PATH = './publico-ai-2830bb7f3310.json'
-MY_ID = 'UkWqrbGE1fUjsl5wmPpLNzCuMOy2'
-
 
 # Firebase Initialization
 cred = credentials.Certificate(CREDENTIAL_PATH)
 firebase_admin.initialize_app(cred, {'storageBucket': STORAGE_BUCKET})
 db = firestore.client()
 
+
+def authenticate_request(authorization: str | None) -> str:
+    if authorization is None or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authorization token is missing or invalid")
+
+    logger.info(f"Authorization header: {authorization}")
+    # Extract the token from the Authorization header
+    token = authorization.split(" ")[1]
+
+    # Validate the token and decode it
+    try:
+        decoded_token = auth.verify_id_token(token)
+        user_id = decoded_token['uid']  # Extract user ID from the token
+        logger.info(f"User ID retrieved from token: {user_id}")
+        return user_id
+    except Exception as e:
+        raise HTTPException(status_code=403, detail="Invalid token") from e
 
 def fetch_document(collection, document_id):
     doc_ref = db.collection(collection).document(document_id)
@@ -41,10 +54,10 @@ def fetch_document(collection, document_id):
         logger.info(f'No such document with ID: {document_id}')
         return None
 
-def get_files_for_user(user_id: str, file_names: list[str] = ['PBRC.txt']) -> list[str]:
+def get_files_for_user(file_names: list[str], user_id: str) -> list[dict[str, str]]:
     user_folder = f'chat_documents/{user_id}/'
     bucket = storage.bucket()
-
+    logger.info(f'Fetching files for user {user_id} for files: {file_names}')
     file_contents = []
     for file_name in file_names:
         file_path = f'{user_folder}{file_name}'
@@ -56,7 +69,8 @@ def get_files_for_user(user_id: str, file_names: list[str] = ['PBRC.txt']) -> li
             except Exception as e:
                 logger.error(f'Error reading content from {file_path}: {e}')
 
-    return file_contents
+    logger.info(f'Fetched {len(file_contents)} files for user {user_id}')
+    return [{'file_name': file_name, 'content': content} for file_name, content in zip(file_names, file_contents)]
 
 def convert_value(type_hint, value):
     if not isinstance(type_hint, type):

@@ -10,6 +10,8 @@ from langchain_community.vectorstores.chroma import Chroma
 from langchain.vectorstores.base import VectorStore
 
 from configurations.constants import IS_DEV_MODE, GPT_MODEL
+from firestore import get_files_for_user
+from workflow.session_state import SessionState
 
 
 VECTOR_STORE: Chroma = Chroma(embedding_function=OpenAIEmbeddings(client=None, model='text-embedding-3-large', dimensions=1024))
@@ -69,33 +71,29 @@ def add_index_and_current_token_count_to_metadata_in_documents(
         doc.metadata['index'] = i + 1
 
 
-def create_document(file_path: str) -> Document:
+def create_document(file: dict[str, str]) -> Document:
     '''
-    Create (type) Document from txt file and return it with metadata containing original token count and source file name
-    
+    Create document from file and return it
+
         Parameters:
-            file_path (str): path to txt file
+            file (dict[str, str]): dictionary containing file name and content
         
         Returns:
-            Document: document created
+            Document: document created from file
     '''
 
-    # read file and create document from it with metadata containing original token count and source file name
-    with open(file_path) as f:
-        text = f.read()
-        tokens_count = get_token_count_in_text(text)
-        document = Document(
-            page_content=text,
-            metadata={'source': file_path, 'original_token_count': tokens_count}
-        )
-    
+    document = Document(
+        page_content=file['content'],
+        metadata={'source': file['file_name'], 'original_token_count': get_token_count_in_text(file['content'])}
+    )
+
     # print document created from txt file and its token count in metadata
     print(f'• Document containing {document.metadata["original_token_count"]} tokens created from txt file \'{document.metadata["source"].split("/")[-1]}\'')
     
     return document
 
 
-def create_documents_from_files(files: list[str]) -> list[Document]:
+def create_documents_from_files(file_names: list[str], user_id: str) -> list[Document]:
     '''
     Create list of (type) Documents from files of different types and return it
     
@@ -107,20 +105,20 @@ def create_documents_from_files(files: list[str]) -> list[Document]:
     '''
 
     documents: list[Document] = []
-
-    for file_path in files:
+    files = get_files_for_user(file_names, user_id)
+    for file in files:
         # create document from txt file and add it to list of documents
-        if file_path.endswith('.txt'):
-            documents.append(create_document(file_path))
-        elif file_path.endswith('.docx'):
-            loader = UnstructuredFileLoader(file_path)
+        if file['file_name'].endswith('.txt'):
+            documents.append(create_document(file))
+        elif file['file_name'].endswith('.docx'):
+            loader = UnstructuredFileLoader(file['file_name']) # needs fixing
             text = loader.load()[0].page_content
 
-            file_path_txt = file_path.replace('.docx', '.txt')
+            file_path_txt = file['file_name'].replace('.docx', '.txt')
             with open(file_path_txt, 'w') as file:
                 file.write(text)
 
-            documents.append(create_document(file_path_txt))
+            documents.append(create_document(file))
 
     print(f'\n{len(documents)} Documents created from given list of files')
 
@@ -176,6 +174,7 @@ def get_documents_chunks_from_documents(
     
 def get_documents_chunks_for_files(
     files: list[str],
+    user_id: str,
     model=GPT_MODEL,
     chunk_size=4000,
     chunk_overlap=400,
@@ -197,7 +196,7 @@ def get_documents_chunks_for_files(
             list[Document]: list of documents chunks created from files
     '''
 
-    documents = create_documents_from_files(files)
+    documents = create_documents_from_files(files, user_id)
 
     return get_documents_chunks_from_documents(documents, model, chunk_size, chunk_overlap, separators)
 
@@ -225,7 +224,7 @@ def print_summary_of_relevant_documents_and_scored(docs: list[tuple[Document, fl
     debug(**{'Total token count of relevant documents': sum([doc.metadata["current_token_count"] for doc, _ in docs])})
 
 
-def add_files_to_vector_store(session_id: str, files: list[str], tokens_per_doc_chunk=1000):
+def add_files_to_vector_store(state: SessionState):
     '''
     Get vector store for files uploaded by user and return it
         Parameters:
@@ -238,28 +237,28 @@ def add_files_to_vector_store(session_id: str, files: list[str], tokens_per_doc_
     '''
 
     # get the files in the vector store
-    files_for_session = set(md['source'].rsplit('.', 1)[0] for md in VECTOR_STORE.get(where={'session_id': session_id})['metadatas'])
+    files_for_session = set(md['source'].rsplit('.', 1)[0] for md in VECTOR_STORE.get(where={'session_id': state.session_id})['metadatas'])
 
     # get the files uploaded by the user
-    files_uploaded = set(file.rsplit('.', 1)[0] for file in files)
+    files_uploaded = set(file.rsplit('.', 1)[0] for file in state.uploaded_files)
 
     # check if the uploaded files are different from the files in the vector store
     if files_uploaded != files_for_session or IS_DEV_MODE:
         # if so, get the documents chunks for the uploaded files
         documents_chunks = get_documents_chunks_for_files(
-            files=files,
-            chunk_size=tokens_per_doc_chunk,
+            files=state.uploaded_files,
+            user_id=state.user_id,
+            chunk_size=state.get_num_of_tokens_per_doc_chunk(),
             chunk_overlap=150)
 
         # delete the current embeddings in the vector store
         if files_for_session:
-            VECTOR_STORE.delete(ids=VECTOR_STORE.get(where={'session_id': session_id})['ids'])
+            VECTOR_STORE.delete(ids=VECTOR_STORE.get(where={'session_id': state.session_id})['ids'])
 
         # add the documents chunks to the vector store as embeddings
         VECTOR_STORE.add_texts(
             texts=[doc.page_content for doc in documents_chunks],
-            metadatas=[doc.metadata | {"session_id": session_id} for doc in documents_chunks])
-
+            metadatas=[doc.metadata | {"session_id": state.session_id} for doc in documents_chunks])
 
 def get_most_relevant_docs_in_vector_store_for_answering_question(
     session_id: str,

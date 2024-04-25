@@ -33,8 +33,7 @@ def get_initial_chatbot_message_for_generating_answer_to_implicit_question(state
 STEPS: dict[StepID, ChatbotStep] = {
     StepID.START: ChatbotStep(
         initial_chatbot_message=(
-            f"Welcome! 👋{dnl}" +
-            f"I'm Publico, your personal grant writing coach.{dnl}" +
+            f"Welcome! 👋\nI'm Publico, your personal grant writing coach.{dnl}" +
             "Are you ready to start writing together?"),
         components={Component.START},
         next_step_decider=FixedStepDecider(StepID.HAVE_MATERIALS_TO_SHARE)
@@ -49,7 +48,7 @@ STEPS: dict[StepID, ChatbotStep] = {
     ),
     StepID.UPLOAD_FILES: ChatbotStep(
         initial_chatbot_message=(
-            f"That's very useful! Please upload your documents below.{dnl}" +
+            "That's very useful! Please upload your documents below.\n" +
             "Supported file types: **.docx** & **.txt**"),
         components={Component.FILES},
         save_event_outcome_fn=SessionState.set_uploaded_files,

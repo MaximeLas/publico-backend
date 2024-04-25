@@ -81,6 +81,7 @@ class TestConfigContext:
 @dataclass
 class SessionState:
     session_id: str
+    user_id: str
     uploaded_files: list[str] = field(default_factory=list)
     questions: list[GrantApplicationQuestionContext] = field(default_factory=list)
     current_step_id: StepID = StepID.START
