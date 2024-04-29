@@ -13,5 +13,6 @@ uvicorn
 firebase-admin
 google-cloud-firestore
 python-dotenv
+sentry-sdk[fastapi]
 
 # export HNSWLIB_NO_NATIVE=1

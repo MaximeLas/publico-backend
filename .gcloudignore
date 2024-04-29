@@ -28,3 +28,6 @@ publico-ai-firebase-adminsdk-*.json
 
 # Additional files not required by the build system
 /setup.cfg
+
+# Folder containing code for future refactoring
+refactor/

@@ -5,6 +5,7 @@ import traceback
 from threading import Thread
 from asyncio import Queue, sleep
 
+import sentry_sdk
 from fastapi import FastAPI, Header
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,6 +38,21 @@ app.add_middleware(
 
 # create a dict of sessions to session state
 sessions: dict[UUID4, SessionState] = {}
+
+sentry_sdk.init(
+    dsn="https://9975d9646ca4c2e0a43c7dae8f11d2d0@o4507169705951232.ingest.de.sentry.io/4507169726988368",
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for performance monitoring.
+    traces_sample_rate=1.0,
+    # Set profiles_sample_rate to 1.0 to profile 100%
+    # of sampled transactions.
+    # We recommend adjusting this value in production.
+    profiles_sample_rate=1.0,
+)
+
+@app.get("/sentry-debug")
+async def trigger_error():
+    division_by_zero = 1 / 0
 
 
 class InputType(IntEnum):
