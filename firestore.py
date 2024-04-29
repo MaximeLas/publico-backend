@@ -1,6 +1,10 @@
 import logging
+import json
+import base64
+from os import environ
 from dataclasses import asdict, fields, is_dataclass
 from enum import Enum
+from dotenv import load_dotenv
 
 from fastapi import HTTPException
 import firebase_admin
@@ -11,19 +15,24 @@ from workflow.session_state import SessionState
 # Logging Configuration
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S')
+    format='%(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Firebase Configuration
 STORAGE_BUCKET = 'publico-ai.appspot.com'
 SERVER_COLLECTION = 'server_session_states'
 
-# Change this to the path of your Firebase Admin SDK credentials file
-CREDENTIAL_PATH = './publico-ai-firebase-adminsdk-rnl7e-43eac58a0e.json'
+load_dotenv()  # This loads the environment variables from the .env file
+
+# Make sure to set FIREBASE_CREDENTIALS_B64 in the environment when running the server locally
+# This is the base64 encoded version of the Firebase credentials JSON file
+# Run `base64 -i <path_to_credentials.json>` to get the base64 string
+cred_b64 = environ.get('FIREBASE_CREDENTIALS_B64')
+cred_json = base64.b64decode(cred_b64)
+cred_dict = json.loads(cred_json)
 
 # Firebase Initialization
-cred = credentials.Certificate(CREDENTIAL_PATH)
+cred = credentials.Certificate(cred_dict)
 firebase_admin.initialize_app(cred, {'storageBucket': STORAGE_BUCKET})
 db = firestore.client()
 
@@ -32,7 +41,6 @@ def authenticate_request(authorization: str | None) -> str:
     if authorization is None or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Authorization token is missing or invalid")
 
-    logger.info(f"Authorization header: {authorization}")
     # Extract the token from the Authorization header
     token = authorization.split(" ")[1]
 

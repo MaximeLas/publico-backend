@@ -2,6 +2,10 @@ from enum import IntEnum, StrEnum, auto
 import os
 
 
+# Define a unique sentinel value for job completion
+JOB_DONE = object()
+
+
 class StepID(StrEnum):
     START = auto()
 

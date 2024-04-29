@@ -1,6 +1,7 @@
 from enum import IntEnum, auto
 import uuid
 import logging
+import traceback
 from threading import Thread
 from asyncio import Queue, sleep
 
@@ -9,7 +10,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import UUID4, BaseModel
 
-from configurations.constants import Component
+from configurations.constants import JOB_DONE, Component
 from firestore import authenticate_request, update_chat_session_in_firestore, retrieve_session_state_from_firestore
 from utilities.document_helpers import add_files_to_vector_store
 from workflow.chatbot_step import EditorContentType
@@ -21,8 +22,10 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 origins = [
-    "http://localhost:3000",
-    "http://localhost"]
+    "http://localhost:3000",  # Local development
+    "https://www.publico.ai",  # Primary Production client with custom domain
+    "https://publico-ai-client.vercel.app"  # Vercel default domain for staging or pre-custom domain setup
+]
 
 app.add_middleware(
     CORSMiddleware,
@@ -48,14 +51,9 @@ class UserInput(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    model_config = {
-        'extra': 'forbid'
-    }
     session_id: UUID4
     user_input: UserInput
 
-
-JOB_DONE = object()  # Define a unique sentinel value for job completion
 
 async def async_queue_generator(queue: Queue):
     while True:
@@ -65,8 +63,9 @@ async def async_queue_generator(queue: Queue):
                 break
             else:
                 yield item
-        except:
-            logger.info('Error in async_queue_generator')
+        except Exception as e:
+            logger.error(f'Error in async_queue_generator: {e}')
+            logger.error(traceback.format_exc())
             await sleep(0.01)
 
 class NewSessionResponse(BaseModel):
@@ -164,7 +163,7 @@ async def new_session(authorization: str = Header(None)) -> NewSessionResponse:
     #update_chat_session_in_firestore(str(session_id), state)
     return NewSessionResponse(session_id=session_id, initial_message=initial_message, components=components)
 
-from firebase_admin import auth
+
 @app.post("/chat/")
 async def chat(request: ChatRequest, authorization: str = Header(None)) -> StreamingResponse:
     logger.info(f'Chat request: {request}')

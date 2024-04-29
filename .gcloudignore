@@ -1,0 +1,30 @@
+# This file specifies files that are *not* uploaded to Google Cloud using gcloud.
+# It follows the same syntax as .gitignore, with the addition of "#!include" directives.
+# For more information, run: $ gcloud topic gcloudignore
+
+# Version Control System files
+.git
+.gitignore
+.gitattributes
+
+# Environment and Configuration files
+.gcloudignore
+.env
+.DS_Store
+
+# Python-specific exclusions
+*.pyc
+__pycache__/
+venv/
+
+# Log files
+*.log
+
+# Documentation and non-essential information
+README.md
+
+# Sensitive credential files
+publico-ai-firebase-adminsdk-*.json
+
+# Additional files not required by the build system
+/setup.cfg

@@ -12,5 +12,6 @@ fastapi
 uvicorn
 firebase-admin
 google-cloud-firestore
+python-dotenv
 
 # export HNSWLIB_NO_NATIVE=1
