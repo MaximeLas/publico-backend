@@ -85,7 +85,6 @@ class SessionState:
     uploaded_files: list[str] = field(default_factory=list)
     questions: list[GrantApplicationQuestionContext] = field(default_factory=list)
     current_step_id: StepID = StepID.START
-    chat_history: list[list] = field(default_factory=list)
     last_user_input = None
     test_config: TestConfigContext = field(default_factory=TestConfigContext) if IS_DEV_MODE else None
 

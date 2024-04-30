@@ -6,7 +6,7 @@ from threading import Thread
 from asyncio import Queue, sleep
 
 import sentry_sdk
-from fastapi import FastAPI, Header
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import UUID4, BaseModel
@@ -109,14 +109,22 @@ class EditAnswerRequest(BaseModel):
     answer: str
 
 
-
-def get_session_state(session_id: UUID4, user_id: str | None = None) -> SessionState:
+def get_session_state(session_id: str) -> SessionState:
     if session_id not in sessions:
-        logger.info(f'Getting session state from Firestore for session_id: {session_id}')
-        session_state = retrieve_session_state_from_firestore(str(session_id))
-        sessions[session_id] = session_state
-        if session_state.uploaded_files:
-            add_files_to_vector_store(session_state)
+        logging.info(f'Retrieving session state from Firestore for session_id={session_id}')
+
+        try:
+            session_state = retrieve_session_state_from_firestore(str(session_id))
+            sessions[session_id] = session_state
+            if session_state.uploaded_files:
+                add_files_to_vector_store(session_state)
+        except Exception as e:
+            if isinstance(e, ValueError):
+                logging.error(f'Failed to retrieve session state: {e}')
+                raise HTTPException(status_code=404, detail=str(e))
+            else:
+                logging.error(f'Unexpected error retrieving session state: {str(e)}')
+                raise HTTPException(status_code=500, detail="Internal server error")
 
     return sessions[session_id]
 
@@ -165,8 +173,9 @@ def handle_chat_request(request: ChatRequest, queue: Queue):
 async def new_session(authorization: str = Header(None)) -> NewSessionResponse:
     logger.info(f'New session request')
     user_id = authenticate_request(authorization=authorization)
+
     session_id = uuid.uuid4()
-    logger.info(f'New session id: {session_id}')
+    logger.info(f'New session_id={session_id}')
 
     state = SessionState(session_id=str(session_id), user_id=user_id)
     sessions[session_id] = state
@@ -176,14 +185,13 @@ async def new_session(authorization: str = Header(None)) -> NewSessionResponse:
     initial_message = chatbot_step.get_initial_chatbot_message(state)
     components=chatbot_step.get_components(state)
 
-    #update_chat_session_in_firestore(str(session_id), state)
+    update_chat_session_in_firestore(state)
     return NewSessionResponse(session_id=session_id, initial_message=initial_message, components=components)
 
 
 @app.post("/chat/")
 async def chat(request: ChatRequest, authorization: str = Header(None)) -> StreamingResponse:
     logger.info(f'Chat request: {request}')
-
     authenticate_request(authorization)
 
     state = get_session_state(request.session_id)
@@ -212,15 +220,13 @@ async def after_chat(request: AfterChatRequest) -> AfterChatResponse:
     state.current_step_id = chatbot_step.determine_next_step(state)
     chatbot_step = get_chatbot_step(state.current_step_id)
     chatbot_step.initialize_step_func(state)
+    logger.info(f'Current chatbot step: {state.current_step_id}')
 
     response = AfterChatResponse(
         initial_message=chatbot_step.get_initial_chatbot_message(state),
         components=chatbot_step.get_components(state),
         updated_content=updated_content
     )
-
-    if updated_content:
-        response.updated_content = updated_content
 
     update_chat_session_in_firestore(state)
     return response
