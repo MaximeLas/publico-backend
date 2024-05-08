@@ -2,7 +2,8 @@ runtime: python311  # Adjust according to your Python version
 env: standard
 instance_class: F1  # You can choose different instance types based on your needs
 automatic_scaling:
-  max_instances: 1  # Prevents scaling beyond one instance
+  min_instances: 1
+  max_instances: 1
 
 entrypoint: uvicorn main:app --host 0.0.0.0 --port $PORT
 
