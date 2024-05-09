@@ -1,3 +1,6 @@
+import logging
+import os
+import tempfile
 from devtools import debug
 
 import tiktoken
@@ -7,11 +10,12 @@ from langchain_community.document_loaders import UnstructuredFileLoader
 from langchain_openai import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores.chroma import Chroma
-from langchain.vectorstores.base import VectorStore
 
 from configurations.constants import IS_DEV_MODE, GPT_MODEL
 from firestore import get_files_for_user
 from workflow.session_state import SessionState
+
+logger = logging.getLogger(__name__)
 
 
 VECTOR_STORE: Chroma = Chroma(embedding_function=OpenAIEmbeddings(client=None, model='text-embedding-3-large', dimensions=1024))
@@ -99,6 +103,7 @@ def create_documents_from_files(file_names: list[str], user_id: str) -> list[Doc
     
         Parameters:
             files (list[str]): list of paths to files
+            user_id (str): user ID for file retrieval
         
         Returns:
             list[Document]: list of documents created
@@ -107,18 +112,26 @@ def create_documents_from_files(file_names: list[str], user_id: str) -> list[Doc
     documents: list[Document] = []
     files = get_files_for_user(file_names, user_id)
     for file in files:
-        # create document from txt file and add it to list of documents
-        if file['file_name'].endswith('.txt'):
-            documents.append(create_document(file))
-        elif file['file_name'].endswith('.docx'):
-            loader = UnstructuredFileLoader(file['file_name']) # needs fixing
-            text = loader.load()[0].page_content
+        try:
+            if file['file_name'].endswith('.docx'):
+                # Handle .docx files by writing byte content to a temporary file
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.docx') as tmp:
+                    tmp.write(file['content'])
+                    tmp_path = tmp.name  # Get the path of the temporary file
 
-            file_path_txt = file['file_name'].replace('.docx', '.txt')
-            with open(file_path_txt, 'w') as file:
-                file.write(text)
+                # Load .docx file using UnstructuredFileLoader with the file path
+                loader = UnstructuredFileLoader(
+                    tmp_path,
+                    mode="single"
+                )
+                file['content'] = loader.load()[0].page_content
+                os.remove(tmp_path)  # Clean up the temporary file
 
-            documents.append(create_document(file))
+            # For .txt and other types that don't need special processing
+            document = create_document(file)
+            documents.append(document)
+        except Exception as e:
+            logger.error(f'Error processing file {file["file_name"]}: {e}')
 
     print(f'\n{len(documents)} Documents created from given list of files')
 

@@ -72,7 +72,13 @@ def get_files_for_user(file_names: list[str], user_id: str) -> list[dict[str, st
         blob = bucket.blob(file_path)
         if blob.exists():
             try:
-                content = blob.download_as_text()
+                if file_name.endswith('.txt'):
+                    content = blob.download_as_text()
+                elif file_name.endswith('.docx'):
+                    content = blob.download_as_bytes()
+                else:
+                    logger.error(f'Unsupported file type for {file_name}')
+                    continue
                 file_contents.append(content)
             except Exception as e:
                 logger.error(f'Error reading content from {file_path}: {e}')
