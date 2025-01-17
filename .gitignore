@@ -7,3 +7,4 @@ venv
 .DS_Store
 publico-ai-firebase*
 refactor
+app.yaml
