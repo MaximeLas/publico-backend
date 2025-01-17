@@ -31,12 +31,12 @@ The system utilizes advanced Language Models via LangChain to generate responses
 
 ### Workflow and Context Management (workflow)
 
-Handles the definition of workflow steps, manages state and transitions between steps, decides the next step in the workflow, and tracks workflow state like user documents, questions, and answers.
+Handles the definition of workflow steps, manages state and transitions between steps, decides the next step in the workflow, and tracks session state like user documents, questions, and answers.
 
 - `chatbot_step.py`: Handles the definition of workflow steps.
 - `chatbot_workflow.py`: Manages state and transitions between steps.
 - `step_decider.py`: Decides the next step in the workflow.
-- `app_context.py`: Tracks workflow state like user documents, questions, and answers.
+- `session_state.py`: Tracks session state like user documents, questions, and answers.
 
 ### Chatbot UI (app.py, components)
 

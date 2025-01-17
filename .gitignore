@@ -1,6 +1,10 @@
 .env
 .chroma
 __pycache__
-draft.py
 secrets
 env*
+venv
+.DS_Store
+publico-ai-firebase*
+refactor
+app.yaml

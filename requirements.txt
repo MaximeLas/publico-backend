@@ -1,12 +1,18 @@
-gradio
-langchain
+devtools
 langchain
 langchain-community
-devtools
-tiktoken
+langchain_openai
 openai
+tiktoken
 chromadb
 unstructured
 unstructured[docx]
+pytest
+fastapi
+uvicorn
+firebase-admin
+google-cloud-firestore
+python-dotenv
+sentry-sdk[fastapi]
 
 # export HNSWLIB_NO_NATIVE=1

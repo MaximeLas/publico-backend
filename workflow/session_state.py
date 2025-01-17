@@ -1,92 +1,72 @@
 
 from dataclasses import dataclass, field
-import tempfile
+import datetime
 
 from langchain.docstore.document import Document
-from langchain_community.vectorstores import Chroma
+from pydantic import UUID4
 
 from configurations.constants import (
     DEFAULT_NUM_OF_DOC_CHUNKS,
     DEFAULT_NUM_OF_TOKENS, 
     IS_DEV_MODE, 
     SYSTEM_PROMPT_FOR_ANSWERING_ORIGINAL_QUESTION,
-    SYSTEM_PROMPT_FOR_ANSWERING_IMPLICIT_QUESTION
+    SYSTEM_PROMPT_FOR_ANSWERING_IMPLICIT_QUESTION,
+    StepID
 )
-
-
-
-@dataclass
-class TextFormat:
-    original: str = ''
-    formatted: str = ''
 
 
 @dataclass
 class ImplicitQuestion:
     question: str
-    answer: TextFormat | None = None
+    answer: str | None = None
 
 
 @dataclass
 class ComprehensivenessCheckerContext:
     missing_information: str | None = None
-    implicit_questions: dict[int, ImplicitQuestion] = field(default_factory=dict)
+    implicit_questions: list[ImplicitQuestion] = field(default_factory=list)
     index_of_implicit_question_being_answered: int | None = None
     wish_to_answer_implicit_questions: bool = True
-    revised_application_answer: TextFormat | None = None
+    revised_application_answer: str | None = None
 
 
 @dataclass
 class Improvement:
     user_prompt: str
-    improved_answer: TextFormat
+    improved_answer: str
 
 
 @dataclass
 class PolishContext:
     improvements: list[Improvement] = field(default_factory=list)
 
+@dataclass
+class EditedAnswer:
+    time: datetime.datetime
+    previous_answer: str
+    new_answer: str
 
 @dataclass
 class GrantApplicationQuestionContext:
     question: str | None = None
     word_limit: str | None = None
-    most_relevant_documents: list[Document] = field(default_factory=list)
-    answer: TextFormat | None = None
+    answer: str | None = None # change this to original_answer
     comprehensiveness: ComprehensivenessCheckerContext = field(default_factory=ComprehensivenessCheckerContext)
     polish: PolishContext = field(default_factory=PolishContext)
+    edited_answers: list[EditedAnswer] = field(default_factory=list)
+    current_answer: str | None = None # TODO: point this to the last answer in current workflow
 
-    def get_original_answer(self, format: bool) -> str | None:
-        if self.answer:
-            return self.answer.formatted if format else self.answer.original
-        else:
-            return None
+    def get_original_answer(self) -> str | None:
+        return self.answer
 
-    def get_revised_answer(self, format: bool) -> str | None:
-        if self.comprehensiveness.revised_application_answer:
-            return (
-                self.comprehensiveness.revised_application_answer.formatted
-                    if format else
-                self.comprehensiveness.revised_application_answer.original
-            )
-        else:
-            return None
+    def get_revised_answer(self) -> str | None:
+        return self.comprehensiveness.revised_application_answer
 
-    def get_last_improved_answer(self, format: bool) -> str | None:
+    def get_last_improved_answer(self,) -> str | None:
         if self.polish.improvements:
-            return (
-                self.polish.improvements[-1].improved_answer.formatted
-                    if format else
-                self.polish.improvements[-1].improved_answer.original
-            )
+            return self.polish.improvements[-1].improved_answer
         else:
             return None
-
-
-@dataclass
-class FilesStorageContext:
-    files: list[str] = field(default_factory=list)
-    vector_store: Chroma = None
 
 
 @dataclass
@@ -99,10 +79,13 @@ class TestConfigContext:
 
 
 @dataclass
-class AppContext:
-    uploaded_files: FilesStorageContext = field(default_factory=FilesStorageContext)
+class SessionState:
+    session_id: str
+    user_id: str
+    uploaded_files: list[str] = field(default_factory=list)
     questions: list[GrantApplicationQuestionContext] = field(default_factory=list)
-    full_application: TextFormat = field(default_factory=TextFormat)
+    current_step_id: StepID = StepID.START
+    last_user_input = None
     test_config: TestConfigContext = field(default_factory=TestConfigContext) if IS_DEV_MODE else None
 
 
@@ -113,9 +96,15 @@ class AppContext:
     def get_last_question_context(self) -> GrantApplicationQuestionContext:
         return self.questions[-1]
 
+    def get_index_of_last_question(self) -> int:
+        return len(self.questions) - 1
 
-    def set_uploaded_files(self, files: list[tempfile._TemporaryFileWrapper]):
-        self.uploaded_files.files = [file.name for file in files]
+
+    def set_uploaded_files(self, files: list[str]):
+        if files is None:
+            files = ['./PBRC.txt', './PBRC2.txt']
+
+        self.uploaded_files = files
 
 
     def set_grant_application_question(self, question: str):
@@ -126,12 +115,8 @@ class AppContext:
         self.questions[-1].word_limit = word_limit
 
 
-    def set_answer_to_current_grant_application_question(
-        self,
-        original: str,
-        formatted: str | None = None
-    ):
-        self.questions[-1].answer = TextFormat(original, formatted)
+    def set_answer_to_current_grant_application_question(self, answer: str):
+        self.questions[-1].answer = answer
 
 
     def get_index_of_implicit_question_being_answered(self) -> int | None:
@@ -143,13 +128,6 @@ class AppContext:
             return self.questions[-1].comprehensiveness.implicit_questions[index].question
         else:
             raise Exception('No implicit question currently being answered')
-    
-    
-    def get_answer_of_current_implicit_question(self) -> str | None:
-        if (index := self.get_index_of_implicit_question_being_answered()) is not None:
-            return self.questions[-1].comprehensiveness.implicit_questions[index].answer.original
-        else:
-            raise Exception('No implicit question currently being answered')
 
 
     def exists_answer_to_current_implicit_question(self) -> bool:
@@ -159,50 +137,43 @@ class AppContext:
             raise Exception('No implicit question currently being answered')
 
 
-    def set_answer_to_current_implicit_question(
-        self,
-        original: str,
-        formatted: str | None = None
-    ):
+    def set_answer_to_current_implicit_question(self, answer: str):
         index = self.get_index_of_implicit_question_being_answered()
         implicit_questions = self.questions[-1].comprehensiveness.implicit_questions
 
-        if not index or index > len(implicit_questions):
+        if index is None or index > len(implicit_questions):
+            print(f'index: {index}, len: {len(implicit_questions)}')
             raise Exception('Cannot set answer as no implicit question currently being answered')
 
-        implicit_questions[index].answer = TextFormat(original, formatted)
+        implicit_questions[index].answer = answer
 
 
-    def get_next_implicit_question(self) -> str:
+    def get_next_implicit_question_and_index(self) -> tuple[str, int]:
         comprehensiveness = self.questions[-1].comprehensiveness
 
         if (index := self.get_index_of_implicit_question_being_answered()) is not None:
-            if index == len(comprehensiveness.implicit_questions):
+            if index == len(comprehensiveness.implicit_questions) - 1:
                 raise Exception('No more implicit questions to answer')
 
             comprehensiveness.index_of_implicit_question_being_answered += 1
-            return comprehensiveness.implicit_questions[index + 1].question
+            return comprehensiveness.implicit_questions[index + 1].question, index + 1
         else:
-            comprehensiveness.index_of_implicit_question_being_answered = 1
-            return comprehensiveness.implicit_questions[1].question
+            comprehensiveness.index_of_implicit_question_being_answered = 0
+            return comprehensiveness.implicit_questions[0].question, 0
 
     
     def has_more_implcit_questions_to_answer(self) -> bool:
         index = self.get_index_of_implicit_question_being_answered()
 
-        return index is None or index < len(self.questions[-1].comprehensiveness.implicit_questions)
+        return index is None or index < len(self.questions[-1].comprehensiveness.implicit_questions) - 1
 
 
     def exists_answer_to_any_implicit_question(self) -> bool:
-        return any([question.answer for question in self.questions[-1].comprehensiveness.implicit_questions.values()])
+        return any([question.answer for question in self.questions[-1].comprehensiveness.implicit_questions])
 
 
-    def set_revised_answer_to_current_grant_application_question(
-        self,
-        original: str,
-        formatted: str | None = None
-    ):
-        self.questions[-1].comprehensiveness.revised_application_answer = TextFormat(original, formatted)
+    def set_revised_answer_to_current_grant_application_question(self, answer: str):
+        self.questions[-1].comprehensiveness.revised_application_answer = answer
 
 
     def get_current_user_guidance_prompt(self) -> str:
@@ -217,49 +188,23 @@ class AppContext:
         return self.questions[-1].polish.improvements
 
 
-    def set_improved_answer(self, original: str, formatted: str | None = None):
-        self.questions[-1].polish.improvements[-1].improved_answer = TextFormat(original, formatted)
+    def set_improved_answer(self, answer: str):
+        self.questions[-1].polish.improvements[-1].improved_answer = answer
 
 
     def is_allowed_to_add_more_guidance(self) -> bool:
         return len(self.questions[-1].polish.improvements) < 3
 
 
-    def get_completed_application(self) -> tuple[str, str]:
-        report_original = ''
-        report_formatted = ''
-        for i, question in enumerate(self.questions):
-            report_original += f'Question {i+1}: {question.question}'
-            report_formatted += f'## Question {i+1}\n **{question.question}**'
+    def edit_last_question(self, question_index: int, answer: str):
+        question = self.questions[question_index]
+        question.edited_answers.append(EditedAnswer(
+            time=datetime.datetime.now(),
+            previous_answer=question.current_answer,
+            new_answer=answer
+        ))
 
-            if question.word_limit:
-                report_original += f' ({question.word_limit} words)'
-                report_formatted += f' ({question.word_limit} words)'
-
-            answer_original = (
-                question.get_last_improved_answer(False) or
-                question.get_revised_answer(False) or
-                question.get_original_answer(False) or
-                ''
-            )
-            answer_formatted = (
-                question.get_last_improved_answer(True) or
-                question.get_revised_answer(True) or
-                question.get_original_answer(True) or
-                ''
-            )
-
-            if answer_original:
-                report_original += f'\n\n{answer_original}\n({len(answer_original.split())} words)\n\n'
-                report_formatted += f'\n\n{answer_formatted}\n({len(answer_formatted.split())} words)\n\n'
-
-        if self.full_application.original == report_original:
-            return None, None
-
-        self.full_application.original = report_original
-        self.full_application.formatted = report_formatted
-
-        return report_original, report_formatted
+        question.current_answer = answer
 
 
     ''' Test Config methods '''
